@@ -27,10 +27,36 @@
         <button id="confirm-username">Devam</button>
     </section>
 
+    <!-- ROLE SCREEN -->
+<section id="role-screen" class="screen hidden">
+  <h2>Rol Seç</h2>
+
+  <button id="player-role">Oyuncu</button>
+  <button id="spymaster-role">Spymaster</button>
+</section>
+
+
     <!-- SCREEN 3: GAME -->
     <section id="game-screen" class="screen hidden">
   <h2>Oyun Başladı</h2>
   <p>Hoş geldin <strong id="player-name"></strong></p>
+<div id="scoreboard">
+  <p>Red Kalan: <span id="red-left">9</span></p>
+  <p>Blue Kalan: <span id="blue-left">8</span></p>
+  <p>Sıra: <strong id="current-turn">RED</strong></p>
+</div>
+<div id="clue-panel">
+  <p>İpucu: <strong id="current-clue">-</strong></p>
+  <p>Kalan Tahmin: <strong id="guesses-left">-</strong></p>
+</div>
+
+<div id="spymaster-panel" class="hidden">
+  <input id="clue-word" placeholder="İpucu kelimesi">
+  <input id="clue-count" type="number" min="1" placeholder="Sayı">
+  <button id="submit-clue">İpucu Ver</button>
+</div>
+
+<button id="end-turn" class="hidden">Turu Bitir</button>
 
   <!-- GAME BOARD -->
   <div id="game-board" class="game-board"></div>
