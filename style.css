@@ -1,0 +1,25 @@
+.hidden {
+    display: none;
+}
+
+.screen {
+    min-height: 100vh;
+    padding: 40px;
+}
+
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.card {
+  background: #eee;
+  padding: 20px;
+  text-align: center;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 8px;
+  user-select: none;
+}

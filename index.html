@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Taccan</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+    <!-- SCREEN 1: HOME -->
+    <section id="home-screen" class="screen">
+        <h1>Taccan</h1>
+
+        <button id="create-room">Oda Oluştur</button>
+
+        <input id="room-code-input" placeholder="Oda Kodu">
+        <button id="join-room">Odaya Katıl</button>
+    </section>
+
+    <!-- SCREEN 2: USERNAME -->
+    <section id="username-screen" class="screen hidden">
+        <h2>Kullanıcı Adı</h2>
+        <input id="username-input" placeholder="Kullanıcı adını gir">
+        <button id="confirm-username">Devam</button>
+    </section>
+
+    <!-- SCREEN 3: GAME -->
+    <section id="game-screen" class="screen hidden">
+  <h2>Oyun Başladı</h2>
+  <p>Hoş geldin <strong id="player-name"></strong></p>
+
+  <!-- GAME BOARD -->
+  <div id="game-board" class="game-board"></div>
+</section>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
