@@ -15,11 +15,11 @@ class Board:
     
     def __init__(self):
         self.cards = []
-        self.create_board()
+        self.create_board(WORDS)
     
     def create_board(self, words):
         for i in range(len(words)):
-            word = WORDS[i]
+            word = words[i]
             self.create_card(word, None, False)
     
     def create_card(self, word : str, team : Team, is_revealed : bool):
