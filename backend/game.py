@@ -11,6 +11,7 @@ class Game:
     
     def __init__(self):
         
+        self.board = Board()
         self.teams = []
         self.players = []
         self.blue_players = []
@@ -26,9 +27,6 @@ class Game:
                 self.red_players.append(new_player)
             else:
                 self.blue_players.append(new_player)
-            
-        
-        self.board = Board()
         
         # blue team has 9 cards, red team has 8 cards
         self.blue_cards = []
@@ -53,17 +51,17 @@ class Game:
         self.blue_spymaster = self.blue_players[0]
         self.red_spymaster = self.red_players[0]
         
-        self.blue_team = Team(0, "blue", self.blue_cards, self.blue_players, self.blue_spymaster)
-        self.red_team = Team(1, "red", self.red_cards, self.red_players, self.red_spymaster)
+        self.blue_team = self.create_team(0, "blue", self.blue_cards, self.blue_players, self.blue_spymaster)
+        self.red_team = self.create_team(1, "red", self.red_cards, self.red_players, self.red_spymaster)
         
         for player in self.red_players:
             player.team = self.red_team
             
         for player in self.blue_players:
             player.team = self.blue_team
-        
-        self.teams.append(self.red_team)
-        self.teams.append(self.blue_team)
-        
-        board = Board()
+    
+    def create_team(self, id, colour, card_list, player_list, spymaster):
+        team = Team(id, colour, card_list, player_list, spymaster)
+        self.teams.append(team)
+        return team
         
