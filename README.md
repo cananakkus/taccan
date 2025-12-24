@@ -1,6 +1,6 @@
 
 # Taccan
-<p align="center">
+<p align="left">
   <img src="./Taccan.png" alt="Taccan" width="500">
 </p>
 
