@@ -1,0 +1,21 @@
+{
+  "name": "taccan",
+  "version": "1.0.0",
+  "description": "Realtime Codenames clone with Socket.IO",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js"
+  },
+  "keywords": [
+    "codenames",
+    "multiplayer",
+    "socket.io",
+    "word-game"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
