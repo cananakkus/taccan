@@ -5,6 +5,9 @@ Taccan is a realtime Codenames-style multiplayer web app with a server-authorita
 ## Features
 - Create/join rooms by 4-character code.
 - Team and role assignment (spymaster, operative, spectator).
+- Team and role switching at any moment, including mid-game.
+- Multiple players can share the same role on a team.
+- Solo-play friendly: one connected player can start and play by switching team/role as needed.
 - Full Codenames turn loop:
   - spymaster hint (`word + number`)
   - operative guesses (`number + 1`, or unlimited when `0`)

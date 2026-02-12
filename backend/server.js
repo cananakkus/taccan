@@ -167,25 +167,16 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (isGameActive(context.room)) {
-      sendViolation(socket, 'team:set', 'Team changes are locked while a game is active.');
-      ackError(callback, 'Team changes are locked while a game is active.');
-      return;
-    }
-
     const team = String(payload.team || '').toLowerCase().trim();
     if (!TEAM_VALUES.has(team)) {
       ackError(callback, 'Invalid team value.');
       return;
     }
 
-    const previousTeam = context.player.team;
     context.player.team = team;
 
     if (team === 'none') {
       context.player.role = 'spectator';
-    } else if (previousTeam !== team && context.player.role === 'spymaster') {
-      context.player.role = 'operative';
     } else if (context.player.role === 'spectator') {
       context.player.role = 'operative';
     }
@@ -203,12 +194,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (isGameActive(context.room)) {
-      sendViolation(socket, 'role:set', 'Role changes are locked while a game is active.');
-      ackError(callback, 'Role changes are locked while a game is active.');
-      return;
-    }
-
     const role = String(payload.role || '').toLowerCase().trim();
     if (!ROLE_VALUES.has(role)) {
       ackError(callback, 'Invalid role value.');
@@ -220,24 +205,9 @@ io.on('connection', (socket) => {
       context.player.team = 'none';
     } else {
       if (context.player.team === 'none') {
-        sendViolation(socket, 'role:set', 'Choose red or blue team before setting an active role.');
-        ackError(callback, 'Choose red or blue team before setting an active role.');
-        return;
-      }
-
-      if (role === 'spymaster') {
-        const currentSpymaster = getSortedPlayers(context.room).find(
-          (player) =>
-            player.team === context.player.team &&
-            player.role === 'spymaster' &&
-            player.sessionId !== context.player.sessionId
-        );
-
-        if (currentSpymaster) {
-          sendViolation(socket, 'role:set', `Team ${context.player.team} already has a spymaster.`);
-          ackError(callback, `Team ${context.player.team} already has a spymaster.`);
-          return;
-        }
+        const activeGame =
+          context.room.game && context.room.game.phase !== 'finished' ? context.room.game : null;
+        context.player.team = activeGame ? activeGame.currentTeam : 'red';
       }
 
       context.player.role = role;
@@ -352,6 +322,78 @@ io.on('connection', (socket) => {
     ackOk(callback, { accepted: true });
   });
 
+  socket.on('turn:mark_toggle', (payload = {}, callback) => {
+    const context = getContext(socket, 'turn:mark_toggle');
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    const game = context.room.game;
+    if (!game || game.phase === 'finished') {
+      ackError(callback, 'No active game.');
+      return;
+    }
+
+    if (game.phase !== 'guess') {
+      ackError(callback, 'Marking is only available during guess phase.');
+      return;
+    }
+
+    if (context.player.team !== game.currentTeam || context.player.role !== 'operative') {
+      sendViolation(socket, 'turn:mark_toggle', 'Only active-team operatives can mark words.');
+      ackError(callback, 'Only active-team operatives can mark words.');
+      return;
+    }
+
+    const index = Number(payload.index);
+    if (!Number.isInteger(index) || index < 0 || index > 24) {
+      ackError(callback, 'Card index must be between 0 and 24.');
+      return;
+    }
+
+    const card = game.board[index];
+    if (card.revealed) {
+      ackError(callback, 'Cannot mark a revealed card.');
+      return;
+    }
+
+    const marks = game.marksByCard[index];
+    if (!marks) {
+      ackError(callback, 'Card mark state unavailable.');
+      return;
+    }
+
+    let marked;
+    if (marks.has(context.player.sessionId)) {
+      marks.delete(context.player.sessionId);
+      marked = false;
+    } else {
+      marks.add(context.player.sessionId);
+      marked = true;
+    }
+
+    game.lastActionAt = Date.now();
+    game.history.push({
+      type: 'mark_toggle',
+      by: context.player.sessionId,
+      team: context.player.team,
+      index,
+      marked,
+      at: Date.now(),
+    });
+    context.room.lastActiveAt = Date.now();
+
+    io.to(context.room.code).emit('turn:mark_toggled', {
+      index,
+      by: context.player.sessionId,
+      marked,
+    });
+
+    emitStateToRoom(context.room);
+    ackOk(callback, { index, marked });
+  });
+
   socket.on('turn:guess', (payload = {}, callback) => {
     const context = getContext(socket, 'turn:guess');
     if (!context) {
@@ -464,6 +506,7 @@ setInterval(() => {
   for (const room of rooms.values()) {
     for (const player of room.players.values()) {
       if (!player.connected && now - player.lastSeenAt > DISCONNECTED_PLAYER_TTL_MS) {
+        clearMarksForSession(room, player.sessionId);
         room.players.delete(player.sessionId);
       }
     }
@@ -593,6 +636,7 @@ function createGameState() {
     loser: null,
     reason: null,
     board,
+    marksByCard: Array.from({ length: 25 }, () => new Set()),
     history: [],
   };
 }
@@ -600,6 +644,9 @@ function createGameState() {
 function resolveGuess(game, player, card) {
   card.revealed = true;
   card.revealedBy = player.team;
+  if (game.marksByCard[card.index]) {
+    game.marksByCard[card.index].clear();
+  }
 
   const opponentTeam = getOtherTeam(player.team);
   const result = {
@@ -705,21 +752,8 @@ function finishGame(game, winner, loser, reason) {
 function validateRoomReadiness(room) {
   const connectedPlayers = getSortedPlayers(room).filter((player) => player.connected);
 
-  for (const team of ['red', 'blue']) {
-    const spymasters = connectedPlayers.filter(
-      (player) => player.team === team && player.role === 'spymaster'
-    );
-    const operatives = connectedPlayers.filter(
-      (player) => player.team === team && player.role === 'operative'
-    );
-
-    if (spymasters.length !== 1) {
-      return `Team ${team} must have exactly one connected spymaster.`;
-    }
-
-    if (operatives.length < 1) {
-      return `Team ${team} must have at least one connected operative.`;
-    }
+  if (connectedPlayers.length < 1) {
+    return 'At least one connected player is required to start.';
   }
 
   return null;
@@ -742,7 +776,7 @@ function deriveRoomStatus(room) {
 }
 
 function buildStateForPlayer(room, viewer) {
-  const game = room.game ? buildGameView(room.game, viewer) : null;
+  const game = room.game ? buildGameView(room, room.game, viewer) : null;
 
   return {
     now: Date.now(),
@@ -773,10 +807,11 @@ function buildStateForPlayer(room, viewer) {
   };
 }
 
-function buildGameView(game, viewer) {
+function buildGameView(room, game, viewer) {
   const showKeycard = viewer.role === 'spymaster' || game.phase === 'finished';
 
   return {
+    id: game.id,
     phase: game.phase,
     currentTeam: game.currentTeam,
     startingTeam: game.startingTeam,
@@ -788,13 +823,27 @@ function buildGameView(game, viewer) {
     loser: game.loser,
     reason: game.reason,
     showKeycard,
-    board: game.board.map((card) => ({
-      index: card.index,
-      word: card.word,
-      revealed: card.revealed,
-      revealedBy: card.revealed ? card.revealedBy : null,
-      color: card.revealed || showKeycard ? card.color : null,
-    })),
+    board: game.board.map((card) => {
+      const marksForCard = game.marksByCard?.[card.index] || new Set();
+      return {
+        index: card.index,
+        word: card.word,
+        revealed: card.revealed,
+        revealedBy: card.revealed ? card.revealedBy : null,
+        color: card.revealed || showKeycard ? card.color : null,
+        marks: card.revealed
+          ? []
+          : [...marksForCard]
+              .map((sessionId) => room.players.get(sessionId))
+              .filter(Boolean)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((player) => ({
+                sessionId: player.sessionId,
+                name: player.name,
+                team: player.team,
+              })),
+      };
+    }),
   };
 }
 
@@ -918,6 +967,7 @@ function markDisconnected(socket) {
 }
 
 function removePlayerFromRoom(room, sessionId) {
+  clearMarksForSession(room, sessionId);
   room.players.delete(sessionId);
   room.lastActiveAt = Date.now();
 
@@ -932,6 +982,16 @@ function removePlayerFromRoom(room, sessionId) {
   }
 
   emitStateToRoom(room);
+}
+
+function clearMarksForSession(room, sessionId) {
+  if (!room.game || !room.game.marksByCard) {
+    return;
+  }
+
+  for (const marks of room.game.marksByCard) {
+    marks.delete(sessionId);
+  }
 }
 
 function getSortedPlayers(room) {
@@ -989,6 +1049,7 @@ function ackError(callback, error) {
  * @property {'red' | 'blue' | null} loser
  * @property {string | null} reason
  * @property {Card[]} board
+ * @property {Set<string>[]} marksByCard
  * @property {Object[]} history
  *
  * @typedef {Object} Room

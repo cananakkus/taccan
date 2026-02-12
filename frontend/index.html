@@ -7,107 +7,136 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <div class="backdrop"></div>
+    <div class="backdrop">
+      <div class="orb orb-a"></div>
+      <div class="orb orb-b"></div>
+      <div class="grain"></div>
+    </div>
+
     <div class="app-shell">
       <header class="topbar">
-        <div>
+        <div class="brand">
+          <p class="eyebrow">Operation Wordfall</p>
           <h1>Taccan</h1>
-          <p>Realtime social deduction word game</p>
+          <p class="tagline">Realtime social deduction word game</p>
         </div>
-        <div class="status-box">
-          <span id="connection-dot" class="dot offline"></span>
-          <span id="connection-label">Disconnected</span>
+        <div class="topbar-tools">
+          <button id="theme-toggle" class="btn subtle small-toggle" type="button">Dark Mode</button>
         </div>
       </header>
 
-      <section id="join-panel" class="panel">
-        <h2>Join or Create Room</h2>
+      <section id="join-panel" class="panel join-panel">
+        <div class="panel-intro">
+          <h2>Enter The Briefing Room</h2>
+          <p>Start a private room or jump in with a code.</p>
+        </div>
+
         <label class="field">
-          <span>Display name</span>
-          <input id="name-input" type="text" maxlength="24" placeholder="Player name" />
+          <span>Display Name</span>
+          <input id="name-input" type="text" maxlength="24" placeholder="Agent Name" />
         </label>
 
         <div class="join-row">
           <label class="field compact">
-            <span>Room code</span>
+            <span>Room Code</span>
             <input id="code-input" type="text" maxlength="4" placeholder="ABCD" />
           </label>
-          <button id="join-btn" class="btn neutral">Join</button>
-          <button id="create-btn" class="btn">Create</button>
+          <button id="join-btn" class="btn neutral">Join Room</button>
+          <button id="create-btn" class="btn">Create Room</button>
         </div>
 
-        <p id="join-note" class="hint-text">Use the same name to keep things recognizable in lobby.</p>
+        <p id="join-note" class="hint-text">Same name across tabs keeps the lobby readable.</p>
+        <div class="fun-strip">
+          <span>Switch roles anytime</span>
+          <span>Solo play enabled</span>
+          <span>Live board sync</span>
+        </div>
       </section>
 
-      <section id="room-panel" class="panel hidden">
-        <div class="room-head">
-          <div>
-            <p class="room-label">Room</p>
-            <p id="room-code" class="room-code">----</p>
+      <section id="room-panel" class="room-panel hidden">
+        <aside class="team-box red-team-box">
+          <div class="team-head">
+            <h3>Red Team</h3>
+            <p id="red-count" class="score red">Red: -</p>
           </div>
+          <div class="team-actions">
+            <button class="btn small team-action-btn" data-team="red">Join Red Team</button>
+          </div>
+          <ul id="red-team-list" class="team-list"></ul>
+        </aside>
+
+        <main class="center-box">
+          <div id="turn-banner" class="turn-banner">Lobby open</div>
+
+          <section id="hint-section" class="action-box hint-box hidden">
+            <h3>Spymaster Hint</h3>
+            <p id="hint-status" class="hint-status">Waiting for hint phase.</p>
+            <form id="hint-form" class="hint-form">
+              <input id="hint-word-input" type="text" maxlength="30" placeholder="One word" required />
+              <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
+              <button type="submit" class="btn">Transmit</button>
+            </form>
+          </section>
+
+          <section id="guess-section" class="action-box guess-box hidden">
+            <h3>Guessing Window</h3>
+            <p id="hint-display" class="hint-display">Awaiting hint...</p>
+            <p id="guess-note" class="guess-note">
+              Click cards to mark suspects. Double-click a card to submit a guess.
+            </p>
+            <button id="end-turn-btn" class="btn neutral">End Turn</button>
+          </section>
+
+          <section id="result-section" class="action-box result-box hidden">
+            <h3>Round Complete</h3>
+            <p id="result-text"></p>
+          </section>
+
+          <div class="board-wrap">
+            <div id="board" class="board"></div>
+          </div>
+        </main>
+
+        <aside class="options-box panel-card">
+          <div class="room-head">
+            <div>
+              <p class="room-label">Room</p>
+              <p id="room-code" class="room-code">----</p>
+            </div>
+          </div>
+
+          <div class="status-box">
+            <span id="connection-dot" class="dot offline"></span>
+            <span id="connection-label">Disconnected</span>
+          </div>
+
           <div class="room-actions">
             <button id="copy-room-btn" class="btn subtle">Copy Code</button>
             <button id="leave-room-btn" class="btn subtle danger">Leave</button>
           </div>
-        </div>
 
-        <div id="turn-banner" class="turn-banner">Lobby open</div>
-
-        <div class="layout">
-          <aside class="sidebar">
-            <h3>Players</h3>
-            <ul id="player-list" class="player-list"></ul>
-
-            <div class="control-group">
-              <h4>Team</h4>
-              <div class="button-row">
-                <button class="btn small" data-team="red">Red</button>
-                <button class="btn small" data-team="blue">Blue</button>
-                <button class="btn small neutral" data-team="none">Spectator</button>
-              </div>
+          <div class="control-group">
+            <h4>Role</h4>
+            <div class="button-row">
+              <button class="btn small" data-role="spymaster">Spymaster</button>
+              <button class="btn small" data-role="operative">Operative</button>
+              <button class="btn small neutral" data-role="spectator">Spectator</button>
             </div>
+          </div>
 
-            <div class="control-group">
-              <h4>Role</h4>
-              <div class="button-row">
-                <button class="btn small" data-role="spymaster">Spymaster</button>
-                <button class="btn small" data-role="operative">Operative</button>
-                <button class="btn small neutral" data-role="spectator">Spectator</button>
-              </div>
-            </div>
+          <button id="start-game-btn" class="btn full">Start Game</button>
+        </aside>
 
-            <button id="start-game-btn" class="btn full">Start Game</button>
-
-            <div class="scores">
-              <p id="red-count" class="score red">Red: -</p>
-              <p id="blue-count" class="score blue">Blue: -</p>
-            </div>
-          </aside>
-
-          <main class="main">
-            <section id="hint-section" class="action-box hidden">
-              <h3>Submit Hint</h3>
-              <form id="hint-form" class="hint-form">
-                <input id="hint-word-input" type="text" maxlength="30" placeholder="One word" required />
-                <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
-                <button type="submit" class="btn">Send Hint</button>
-              </form>
-            </section>
-
-            <section id="guess-section" class="action-box hidden">
-              <h3>Guessing Active</h3>
-              <p id="hint-display" class="hint-display">Awaiting hint...</p>
-              <button id="end-turn-btn" class="btn neutral">End Turn</button>
-            </section>
-
-            <section id="result-section" class="action-box hidden">
-              <h3>Game Finished</h3>
-              <p id="result-text"></p>
-            </section>
-
-            <div id="board" class="board"></div>
-          </main>
-        </div>
+        <aside class="team-box blue-team-box">
+          <div class="team-head">
+            <h3>Blue Team</h3>
+            <p id="blue-count" class="score blue">Blue: -</p>
+          </div>
+          <div class="team-actions">
+            <button class="btn small team-action-btn" data-team="blue">Join Blue Team</button>
+          </div>
+          <ul id="blue-team-list" class="team-list"></ul>
+        </aside>
       </section>
     </div>
 
