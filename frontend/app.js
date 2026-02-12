@@ -23,6 +23,7 @@ const ui = {
   connectionDot: document.getElementById('connection-dot'),
   connectionLabel: document.getElementById('connection-label'),
   themeToggle: document.getElementById('theme-toggle'),
+  spectatorButton: document.querySelector('.spectator-btn[data-role="spectator"]'),
   joinPanel: document.getElementById('join-panel'),
   roomPanel: document.getElementById('room-panel'),
   nameInput: document.getElementById('name-input'),
@@ -174,6 +175,11 @@ function wireUiEvents() {
 
   for (const button of ui.teamButtons) {
     button.addEventListener('click', async () => {
+      if (!state.snapshot) {
+        showToast('Join or create a room first.');
+        return;
+      }
+
       try {
         await emitWithAck('team:set', { team: button.dataset.team });
       } catch (error) {
@@ -184,8 +190,23 @@ function wireUiEvents() {
 
   for (const button of ui.roleButtons) {
     button.addEventListener('click', async () => {
+      if (!state.snapshot) {
+        showToast('Join or create a room first.');
+        return;
+      }
+
+      const role = button.dataset.role;
+      const roleTeam = button.dataset.roleTeam;
+      if (!role) {
+        return;
+      }
+
       try {
-        await emitWithAck('role:set', { role: button.dataset.role });
+        if (roleTeam && state.snapshot.me.team !== roleTeam) {
+          await emitWithAck('team:set', { team: roleTeam });
+        }
+
+        await emitWithAck('role:set', { role });
       } catch (error) {
         showToast(error.message);
       }
@@ -342,6 +363,21 @@ function render() {
     if (ui.appShell) {
       ui.appShell.classList.remove('room-active');
     }
+
+    for (const button of ui.teamButtons) {
+      button.classList.remove('active');
+    }
+    for (const button of ui.roleButtons) {
+      button.classList.remove('active');
+    }
+    if (ui.startGameButton) {
+      ui.startGameButton.classList.add('hidden');
+      ui.startGameButton.disabled = true;
+    }
+    if (ui.spectatorButton) {
+      ui.spectatorButton.classList.add('hidden');
+    }
+
     setSceneClass('scene-lobby');
     state.revealedCardIndexes = new Set();
     state.activeGameId = null;
@@ -439,13 +475,18 @@ function renderControls(snapshot) {
   }
 
   for (const button of ui.roleButtons) {
-    const isMine = button.dataset.role === snapshot.me.role;
+    const roleTeam = button.dataset.roleTeam || null;
+    const isMine =
+      button.dataset.role === snapshot.me.role && (!roleTeam || roleTeam === snapshot.me.team);
     button.classList.toggle('active', isMine);
     button.disabled = false;
   }
 
   ui.startGameButton.classList.toggle('hidden', !snapshot.me.isHost);
   ui.startGameButton.disabled = Boolean(gameActive);
+  if (ui.spectatorButton) {
+    ui.spectatorButton.classList.remove('hidden');
+  }
 }
 
 function renderGame(snapshot) {
@@ -570,7 +611,7 @@ function renderGame(snapshot) {
         for (const mark of card.marks) {
           const chip = document.createElement('span');
           chip.className = `card-marker ${mark.team === 'red' ? 'red' : mark.team === 'blue' ? 'blue' : 'neutral'}`;
-          chip.textContent = mark.name;
+          chip.textContent = truncateMarkerName(mark.name);
           chip.title = `${mark.name} (${mark.team})`;
           markers.appendChild(chip);
         }
@@ -617,6 +658,16 @@ function formatResultReason(game) {
   }
 
   return `${formatTeam(game.winner)} team wins.`;
+}
+
+function truncateMarkerName(name) {
+  const normalized = String(name || '').trim();
+  if (!normalized) {
+    return 'Anon';
+  }
+
+  const maxLength = 11;
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized;
 }
 
 function setConnection(isOnline, label) {

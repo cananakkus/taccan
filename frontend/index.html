@@ -21,7 +21,11 @@
           <p class="tagline">Realtime social deduction word game</p>
         </div>
         <div class="topbar-tools">
-          <button id="theme-toggle" class="btn subtle small-toggle" type="button">Dark Mode</button>
+          <button id="start-game-btn" class="btn small start-btn hidden" type="button">Start Game</button>
+          <button class="btn subtle small spectator-btn hidden" type="button" data-role="spectator">
+            Spectator
+          </button>
+          <button id="theme-toggle" class="btn subtle small small-toggle" type="button">Dark Mode</button>
         </div>
       </header>
 
@@ -60,7 +64,18 @@
             <p id="red-count" class="score red">Red: -</p>
           </div>
           <div class="team-actions">
-            <button class="btn small team-action-btn" data-team="red">Join Red Team</button>
+            <button class="btn small team-action-btn" type="button" data-team="red">Join Red Team</button>
+          </div>
+          <div class="team-role-group">
+            <p class="team-role-label">Role</p>
+            <div class="team-role-row">
+              <button class="btn small team-role-btn" type="button" data-role="spymaster" data-role-team="red">
+                Spymaster
+              </button>
+              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="red">
+                Operative
+              </button>
+            </div>
           </div>
           <ul id="red-team-list" class="team-list"></ul>
         </aside>
@@ -115,16 +130,6 @@
             <button id="leave-room-btn" class="btn subtle danger">Leave</button>
           </div>
 
-          <div class="control-group">
-            <h4>Role</h4>
-            <div class="button-row">
-              <button class="btn small" data-role="spymaster">Spymaster</button>
-              <button class="btn small" data-role="operative">Operative</button>
-              <button class="btn small neutral" data-role="spectator">Spectator</button>
-            </div>
-          </div>
-
-          <button id="start-game-btn" class="btn full">Start Game</button>
         </aside>
 
         <aside class="team-box blue-team-box">
@@ -133,7 +138,18 @@
             <p id="blue-count" class="score blue">Blue: -</p>
           </div>
           <div class="team-actions">
-            <button class="btn small team-action-btn" data-team="blue">Join Blue Team</button>
+            <button class="btn small team-action-btn" type="button" data-team="blue">Join Blue Team</button>
+          </div>
+          <div class="team-role-group">
+            <p class="team-role-label">Role</p>
+            <div class="team-role-row">
+              <button class="btn small team-role-btn" type="button" data-role="spymaster" data-role-team="blue">
+                Spymaster
+              </button>
+              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="blue">
+                Operative
+              </button>
+            </div>
           </div>
           <ul id="blue-team-list" class="team-list"></ul>
         </aside>

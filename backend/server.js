@@ -717,6 +717,8 @@ function resolveGuess(game, player, card) {
 }
 
 function advanceTurn(game, reason) {
+  clearAllCardMarks(game);
+
   game.history.push({
     type: 'turn_end',
     reason,
@@ -730,6 +732,16 @@ function advanceTurn(game, reason) {
   game.hint = null;
   game.guessesRemaining = 0;
   game.lastActionAt = Date.now();
+}
+
+function clearAllCardMarks(game) {
+  if (!game || !Array.isArray(game.marksByCard)) {
+    return;
+  }
+
+  for (const marks of game.marksByCard) {
+    marks.clear();
+  }
 }
 
 function finishGame(game, winner, loser, reason) {

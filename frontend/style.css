@@ -1,37 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 :root {
-  --bg: #f2f5f8;
-  --bg-soft: #eef3f8;
-  --bg-accent-a: rgb(58 124 221 / 12%);
-  --bg-accent-b: rgb(45 143 135 / 14%);
+  --bg: #f7f4ee;
+  --bg-soft: #eef2f7;
+  --bg-accent-a: rgb(181 136 86 / 14%);
+  --bg-accent-b: rgb(42 129 123 / 13%);
 
-  --surface: #ffffff;
-  --surface-soft: #f7fafd;
-  --surface-strong: #eaf0f7;
+  --surface: #fffdfa;
+  --surface-soft: #f6f1e8;
+  --surface-strong: #ece4d5;
 
-  --text: #18232d;
-  --text-soft: #5b6a79;
+  --text: #1b2633;
+  --text-soft: #60707f;
 
-  --line: #d3dde8;
-  --line-strong: #c5d1dd;
+  --line: #d8d1c1;
+  --line-strong: #c8c0b0;
 
-  --shadow-soft: 0 10px 22px rgb(20 34 48 / 8%);
-  --shadow-panel: 0 16px 34px rgb(16 29 44 / 10%);
-  --shadow-card: 0 6px 14px rgb(14 25 37 / 10%);
+  --shadow-soft: 0 10px 22px rgb(55 43 27 / 10%);
+  --shadow-panel: 0 16px 34px rgb(43 34 22 / 13%);
+  --shadow-card: 0 6px 14px rgb(37 29 18 / 12%);
 
-  --brand: #2f8f88;
-  --brand-strong: #26716c;
+  --brand: #2f7f7a;
+  --brand-strong: #255f5d;
 
-  --red: #cf4d43;
-  --red-soft: #fde7e4;
-  --blue: #3d7dc9;
-  --blue-soft: #e7f0ff;
-  --neutral: #8c99aa;
-  --neutral-soft: #edf2f8;
-  --assassin: #232b38;
+  --red: #bf4f44;
+  --red-soft: #f7e1dd;
+  --blue: #456fac;
+  --blue-soft: #e6edf8;
+  --neutral: #7f8995;
+  --neutral-soft: #ebe6dc;
+  --assassin: #29313d;
 
-  --ok: #1e9b52;
+  --ok: #2f8f59;
 
   --radius-lg: 16px;
   --radius-md: 12px;
@@ -113,7 +113,7 @@ body {
   height: min(38vw, 460px);
   top: -10%;
   right: -8%;
-  background: radial-gradient(circle at 35% 35%, rgb(61 125 201 / 28%), transparent 70%);
+  background: radial-gradient(circle at 35% 35%, rgb(69 111 172 / 30%), transparent 70%);
 }
 
 .orb-b {
@@ -121,7 +121,7 @@ body {
   height: min(42vw, 520px);
   left: -15%;
   bottom: -24%;
-  background: radial-gradient(circle at 60% 45%, rgb(47 143 136 / 22%), transparent 72%);
+  background: radial-gradient(circle at 60% 45%, rgb(47 127 122 / 24%), transparent 72%);
   animation-direction: reverse;
 }
 
@@ -129,7 +129,7 @@ body {
   position: absolute;
   inset: 0;
   opacity: 0.16;
-  background-image: radial-gradient(rgb(120 145 166 / 24%) 0.6px, transparent 0.6px);
+  background-image: radial-gradient(rgb(126 111 89 / 18%) 0.6px, transparent 0.6px);
   background-size: 3px 3px;
 }
 
@@ -153,21 +153,26 @@ body {
 }
 
 .topbar {
-  padding: 0.9rem 1rem;
+  padding: 0.86rem 0.96rem;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.8rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.62rem;
+  overflow: hidden;
 }
 
 .brand {
-  max-width: 460px;
+  max-width: none;
+  min-width: 0;
 }
 
 .topbar-tools {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.34rem;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  margin-top: auto;
 }
 
 .eyebrow {
@@ -325,7 +330,17 @@ input:focus {
 }
 
 .small-toggle {
-  min-width: 96px;
+  min-width: 88px;
+}
+
+.start-btn {
+  min-width: 98px;
+}
+
+.spectator-btn.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(145deg, #7f8fa0, #677889);
 }
 
 .hint-text {
@@ -399,6 +414,46 @@ input:focus {
 }
 
 .team-action-btn[data-team='blue']:not(.active) {
+  background: linear-gradient(145deg, #4a90e3, #386fb4);
+}
+
+.team-role-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.team-role-label {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.08rem;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.team-role-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.32rem;
+}
+
+.team-role-btn {
+  color: var(--text);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.team-role-btn.active[data-role-team='red'] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(145deg, #d96056, #c04940);
+}
+
+.team-role-btn.active[data-role-team='blue'] {
+  color: #fff;
+  border-color: transparent;
   background: linear-gradient(145deg, #4a90e3, #386fb4);
 }
 
@@ -785,18 +840,32 @@ input:focus {
   bottom: 0.18rem;
   display: flex;
   gap: 0.16rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.08rem;
   z-index: 2;
+}
+
+.card-markers::-webkit-scrollbar {
+  height: 4px;
+}
+
+.card-markers::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(107 124 140 / 55%);
 }
 
 .card-marker {
   display: inline-flex;
   align-items: center;
-  max-width: 92px;
+  flex: 0 0 auto;
+  width: 76px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
   border-radius: 999px;
   padding: 0.08rem 0.32rem;
   font-size: 0.54rem;
@@ -861,7 +930,7 @@ body.scene-finished .options-box {
   height: calc(100dvh - 1.8rem);
   display: grid;
   grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(220px, 250px);
-  grid-template-rows: minmax(150px, 170px) minmax(0, 1fr);
+  grid-template-rows: minmax(176px, 208px) minmax(0, 1fr);
   gap: 0.66rem;
   overflow: hidden;
 }
@@ -870,6 +939,36 @@ body.scene-finished .options-box {
   grid-column: 1;
   grid-row: 1;
   height: 100%;
+  justify-content: space-between;
+  gap: 0.42rem;
+}
+
+.app-shell.room-active .eyebrow {
+  font-size: 0.62rem;
+  letter-spacing: 0.1rem;
+}
+
+.app-shell.room-active .topbar h1 {
+  margin-top: 0.1rem;
+  font-size: clamp(1.44rem, 1.9vw, 1.95rem);
+}
+
+.app-shell.room-active .tagline {
+  display: none;
+}
+
+.app-shell.room-active .topbar-tools {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.app-shell.room-active .topbar-tools .btn {
+  width: 100%;
+  min-width: 0;
+  padding: 0.34rem 0.62rem;
+  font-size: 0.75rem;
 }
 
 .app-shell.room-active .room-panel {
@@ -903,7 +1002,7 @@ body.scene-finished .options-box {
   }
 
   .card-marker {
-    max-width: 74px;
+    width: 66px;
   }
 }
 
@@ -944,13 +1043,15 @@ body.scene-finished .options-box {
 
 @media (max-width: 760px) {
   .topbar {
-    flex-direction: column;
-    align-items: stretch;
     gap: 0.45rem;
   }
 
   .topbar-tools {
     justify-content: flex-start;
+  }
+
+  .team-role-row {
+    grid-template-columns: 1fr;
   }
 
   .join-row {
@@ -1007,7 +1108,7 @@ body.scene-finished .options-box {
   }
 
   .card-marker {
-    max-width: 58px;
+    width: 52px;
     font-size: 0.5rem;
     padding: 0.06rem 0.22rem;
   }
