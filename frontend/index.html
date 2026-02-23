@@ -3,162 +3,271 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#6b5138" />
     <title>Taccan</title>
     <link rel="stylesheet" href="/style.css" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   </head>
   <body>
-    <div class="backdrop">
-      <div class="orb orb-a"></div>
-      <div class="orb orb-b"></div>
-      <div class="grain"></div>
+    <div class="paper-stage" aria-hidden="true">
+      <div class="paper-shadow"></div>
+      <div class="paper-grain"></div>
+      <div class="ink-smudge ink-a"></div>
+      <div class="ink-smudge ink-b"></div>
     </div>
 
-    <div class="app-shell">
-      <header class="topbar">
+    <!-- Screen reader announcements (Wave 7.3) -->
+    <div id="sr-announcements" class="sr-only" aria-live="assertive" role="log"></div>
+
+    <main class="app-shell">
+      <header class="topbar page-panel">
         <div class="brand">
-          <p class="eyebrow">Operation Wordfall</p>
-          <h1>Taccan</h1>
-          <p class="tagline">Realtime social deduction word game</p>
-        </div>
-        <div class="topbar-tools">
-          <button id="start-game-btn" class="btn small start-btn hidden" type="button">Start Game</button>
-          <button class="btn subtle small spectator-btn hidden" type="button" data-role="spectator">
-            Spectator
-          </button>
-          <button id="theme-toggle" class="btn subtle small small-toggle" type="button">Dark Mode</button>
+          <p class="eyebrow" data-i18n="brand_eyebrow">Guild Cipher Desk</p>
+          <h1 data-i18n="brand_title">Taccan Codex</h1>
+          <p class="tagline" data-i18n="brand_tagline">Uncover your agents before your rivals read the page.</p>
         </div>
       </header>
 
-      <section id="join-panel" class="panel join-panel">
+      <section id="join-panel" class="panel join-panel page-panel">
         <div class="panel-intro">
-          <h2>Enter The Briefing Room</h2>
-          <p>Start a private room or jump in with a code.</p>
+          <h2 data-i18n="join_title">Open A Mission Room</h2>
+          <p data-i18n="join_subtitle">Create a private table or join one with a 4-letter code.</p>
         </div>
 
         <label class="field">
-          <span>Display Name</span>
-          <input id="name-input" type="text" maxlength="24" placeholder="Agent Name" />
+          <span data-i18n="display_name">Display Name</span>
+          <input id="name-input" type="text" maxlength="24" placeholder="Agent Name" data-i18n-placeholder="display_name_placeholder" autocomplete="off" />
         </label>
 
         <div class="join-row">
           <label class="field compact">
-            <span>Room Code</span>
-            <input id="code-input" type="text" maxlength="4" placeholder="ABCD" />
+            <span data-i18n="room_code">Room Code</span>
+            <input id="code-input" type="text" maxlength="4" placeholder="ABCD" data-i18n-placeholder="room_code_placeholder" autocomplete="off" />
           </label>
-          <button id="join-btn" class="btn neutral">Join Room</button>
-          <button id="create-btn" class="btn">Create Room</button>
+          <button id="join-btn" class="btn neutral" type="button" data-i18n="join_room">Join Room</button>
+          <button id="create-btn" class="btn" type="button" data-i18n="create_room">Create Room</button>
         </div>
 
-        <p id="join-note" class="hint-text">Same name across tabs keeps the lobby readable.</p>
-        <div class="fun-strip">
-          <span>Switch roles anytime</span>
-          <span>Solo play enabled</span>
-          <span>Live board sync</span>
-        </div>
+        <p id="join-note" class="hint-text" data-i18n="join_note_default">
+          Use one name across tabs so your team can track you easily.
+        </p>
       </section>
 
       <section id="room-panel" class="room-panel hidden">
-        <aside class="team-box red-team-box">
+        <aside class="team-box red-team-box page-panel">
           <div class="team-head">
-            <h3>Red Team</h3>
+            <h3 data-i18n="red_team">Red Team</h3>
             <p id="red-count" class="score red">Red: -</p>
           </div>
+
           <div class="team-actions">
-            <button class="btn small team-action-btn" type="button" data-team="red">Join Red Team</button>
+            <button class="btn small team-action-btn" type="button" data-team="red" data-i18n="join_red">Join Red</button>
           </div>
+
           <div class="team-role-group">
-            <p class="team-role-label">Role</p>
+            <p class="team-role-label" data-i18n="role">Role</p>
             <div class="team-role-row">
-              <button class="btn small team-role-btn" type="button" data-role="spymaster" data-role-team="red">
+              <button class="btn small team-role-btn" type="button" data-role="spymaster" data-role-team="red" data-i18n="spymaster">
                 Spymaster
               </button>
-              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="red">
+              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="red" data-i18n="operative">
                 Operative
               </button>
             </div>
           </div>
+
           <ul id="red-team-list" class="team-list"></ul>
         </aside>
 
-        <main class="center-box">
-          <div id="turn-banner" class="turn-banner">Lobby open</div>
+        <main class="center-box page-panel">
+          <div id="turn-banner" class="turn-banner" aria-live="polite">Lobby open</div>
 
-          <section id="hint-section" class="action-box hint-box hidden">
-            <h3>Spymaster Hint</h3>
-            <p id="hint-status" class="hint-status">Waiting for hint phase.</p>
-            <form id="hint-form" class="hint-form">
-              <input id="hint-word-input" type="text" maxlength="30" placeholder="One word" required />
-              <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
-              <button type="submit" class="btn">Transmit</button>
-            </form>
-          </section>
+          <div id="phase-timer" class="phase-timer hidden" aria-live="polite">
+            <span id="phase-timer-label" class="phase-timer-label">Turn timer</span>
+            <span id="phase-timer-value" class="phase-timer-value">00:00</span>
+          </div>
 
-          <section id="guess-section" class="action-box guess-box hidden">
-            <h3>Guessing Window</h3>
-            <p id="hint-display" class="hint-display">Awaiting hint...</p>
-            <p id="guess-note" class="guess-note">
-              Click cards to mark suspects. Double-click a card to submit a guess.
-            </p>
-            <button id="end-turn-btn" class="btn neutral">End Turn</button>
-          </section>
+          <div class="playbook-grid">
+            <section id="hint-section" class="action-box hint-box hidden">
+              <h3 data-i18n="spymaster_hint">Spymaster Hint</h3>
+              <p id="hint-status" class="hint-status">Waiting for hint phase.</p>
+              <form id="hint-form" class="hint-form">
+                <input id="hint-word-input" type="text" maxlength="30" placeholder="One word" data-i18n-placeholder="one_word" required autocomplete="off" />
+                <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
+                <button type="submit" class="btn" data-i18n="transmit">Transmit</button>
+              </form>
+              <!-- Spymaster Scratch Pad (Wave 3.1) -->
+              <div id="scratchpad" class="scratchpad hidden">
+                <label class="scratchpad-label" data-i18n="scratchpad">Notes</label>
+                <textarea id="scratchpad-textarea" class="scratchpad-textarea" rows="3" data-i18n-placeholder="scratchpad_placeholder"></textarea>
+              </div>
+            </section>
 
-          <section id="result-section" class="action-box result-box hidden">
-            <h3>Round Complete</h3>
-            <p id="result-text"></p>
-          </section>
+            <section id="guess-section" class="action-box guess-box hidden">
+              <h3 data-i18n="operative_phase">Operative Phase</h3>
+              <p id="hint-display" class="hint-display">Awaiting hint...</p>
+              <p id="guess-note" class="guess-note">Click cards to mark and select. Use Submit Guess or double-click a card.</p>
+              <p id="selected-guess" class="guess-selected">No card selected.</p>
+              <div class="guess-actions">
+                <button id="submit-guess-btn" class="btn neutral" type="button" data-i18n="submit_guess">Submit Guess</button>
+                <button id="end-turn-btn" class="btn neutral" type="button" data-i18n="end_turn">End Turn</button>
+              </div>
+            </section>
+
+            <section id="result-section" class="action-box result-box hidden">
+              <h3 data-i18n="round_complete">Round Complete</h3>
+              <p id="result-text"></p>
+              <div class="result-actions">
+                <button id="rematch-btn" class="btn" type="button" data-i18n="rematch">Rematch</button>
+                <button id="swap-rematch-btn" class="btn neutral" type="button" data-i18n="swap_rematch">Swap + Rematch</button>
+                <button id="gg-btn" class="btn neutral small hidden" type="button">GG</button>
+                <button id="debrief-btn" class="btn neutral small hidden" type="button" data-i18n="debrief">Debrief</button>
+                <button id="analyst-btn" class="btn neutral small hidden" type="button" data-i18n="analyst_review">Analyst Review</button>
+              </div>
+              <!-- MVP Vote Section (Wave 6.2) -->
+              <div id="mvp-section" class="mvp-section hidden"></div>
+            </section>
+          </div>
+
+          <!-- Hint History Sidebar (Wave 3.2) -->
+          <aside id="hint-history" class="hint-history hidden">
+            <h4 data-i18n="hint_history">Hint History</h4>
+            <ul id="hint-history-list" class="hint-history-list"></ul>
+          </aside>
 
           <div class="board-wrap">
-            <div id="board" class="board"></div>
+            <div id="board" class="board" role="grid" aria-label="Game board"></div>
           </div>
         </main>
 
-        <aside class="options-box panel-card">
+        <aside class="options-box panel-card page-panel">
           <div class="room-head">
             <div>
-              <p class="room-label">Room</p>
-              <p id="room-code" class="room-code">----</p>
+              <p class="room-label" data-i18n="room">Room</p>
+              <div class="room-code-row">
+                <p id="room-code" class="room-code">----</p>
+                <div id="room-seal-container" class="room-seal-container"></div>
+              </div>
+              <p id="mode-badge" class="mode-badge">Casual</p>
             </div>
           </div>
 
-          <div class="status-box">
-            <span id="connection-dot" class="dot offline"></span>
-            <span id="connection-label">Disconnected</span>
+          <!-- QR Code (Wave 3.6) -->
+          <div id="qr-code-container" class="qr-code-container"></div>
+
+          <div id="topbar-room-utility" class="topbar-room-utility hidden">
+            <div class="status-box">
+              <span id="connection-dot" class="dot offline"></span>
+              <span id="connection-label">Disconnected</span>
+            </div>
+            <div class="room-actions">
+              <button id="copy-room-btn" class="btn subtle" type="button" data-i18n="copy_room">Copy Link</button>
+              <button id="share-room-btn" class="btn subtle" type="button" data-i18n="share_room">Share</button>
+              <button id="leave-room-btn" class="btn subtle danger" type="button" data-i18n="leave_room">Leave Room</button>
+            </div>
           </div>
 
-          <div class="room-actions">
-            <button id="copy-room-btn" class="btn subtle">Copy Code</button>
-            <button id="leave-room-btn" class="btn subtle danger">Leave</button>
+          <div class="topbar-tools">
+            <button id="start-game-btn" class="btn small start-btn hidden" type="button" data-i18n="start_game">Start Game</button>
+            <button id="ready-btn" class="btn small hidden" type="button" data-i18n="ready_up">Ready Up</button>
+            <button id="prune-btn" class="btn subtle small hidden" type="button" data-i18n="prune_offline">Prune Offline</button>
+            <button class="btn subtle small spectator-btn hidden" type="button" data-role="spectator" data-i18n="spectator">
+              Spectator
+            </button>
           </div>
 
+          <section class="mode-control">
+            <p class="room-label" data-i18n="mode">Mode</p>
+            <div class="mode-buttons">
+              <button id="mode-casual-btn" class="btn subtle small" type="button" data-room-mode="casual" data-i18n="mode_casual">
+                Casual
+              </button>
+              <button id="mode-blitz-btn" class="btn subtle small" type="button" data-room-mode="blitz" data-i18n="mode_blitz">
+                Blitz
+              </button>
+              <button class="btn subtle small" type="button" data-room-mode="cipher" data-i18n="mode_cipher">
+                Cipher
+              </button>
+              <button class="btn subtle small" type="button" data-room-mode="blackout" data-i18n="mode_blackout">
+                Blackout
+              </button>
+            </div>
+            <p id="mode-note" class="mode-note">Blitz uses per-turn timers and max hint 5.</p>
+
+            <!-- Word Pack (Wave 8.4) -->
+            <div class="word-pack-control hidden">
+              <label class="field compact">
+                <span data-i18n="word_pack">Custom Words URL</span>
+                <div class="word-pack-row">
+                  <input id="word-pack-input" type="url" placeholder="https://..." />
+                  <button id="word-pack-btn" class="btn subtle small" type="button" data-i18n="load">Load</button>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <div class="options-toggles">
+            <button id="sound-toggle-btn" class="btn subtle small" type="button" data-i18n="sound_on">Sound On</button>
+            <button id="colorblind-toggle-btn" class="btn subtle small" type="button" data-i18n="colorblind_off">Colorblind</button>
+          </div>
+
+          <div class="language-switch" role="group" aria-label="Language">
+            <button id="lang-en-btn" class="btn subtle small language-btn" type="button" data-language="en" data-i18n="language_en">
+              English
+            </button>
+            <button id="lang-tr-btn" class="btn subtle small language-btn" type="button" data-language="tr" data-i18n="language_tr">
+              Türkçe
+            </button>
+          </div>
         </aside>
 
-        <aside class="team-box blue-team-box">
+        <aside class="team-box blue-team-box page-panel">
           <div class="team-head">
-            <h3>Blue Team</h3>
+            <h3 data-i18n="blue_team">Blue Team</h3>
             <p id="blue-count" class="score blue">Blue: -</p>
           </div>
+
           <div class="team-actions">
-            <button class="btn small team-action-btn" type="button" data-team="blue">Join Blue Team</button>
+            <button class="btn small team-action-btn" type="button" data-team="blue" data-i18n="join_blue">Join Blue</button>
           </div>
+
           <div class="team-role-group">
-            <p class="team-role-label">Role</p>
+            <p class="team-role-label" data-i18n="role">Role</p>
             <div class="team-role-row">
-              <button class="btn small team-role-btn" type="button" data-role="spymaster" data-role-team="blue">
+              <button
+                class="btn small team-role-btn"
+                type="button"
+                data-role="spymaster"
+                data-role-team="blue"
+                data-i18n="spymaster"
+              >
                 Spymaster
               </button>
-              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="blue">
+              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="blue" data-i18n="operative">
                 Operative
               </button>
             </div>
           </div>
+
           <ul id="blue-team-list" class="team-list"></ul>
         </aside>
       </section>
+    </main>
+
+    <div id="toast" class="toast hidden" role="alert" aria-live="assertive"></div>
+
+    <!-- Debrief Overlay (Wave 10.1) -->
+    <div id="debrief-overlay" class="debrief-overlay hidden">
+      <div class="debrief-panel">
+        <button id="debrief-close-btn" class="btn subtle small debrief-close" type="button">&times;</button>
+        <div id="debrief-content" class="debrief-content"></div>
+      </div>
     </div>
 
-    <div id="toast" class="toast hidden"></div>
-
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js"></script>
+    <script src="/translations.js"></script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

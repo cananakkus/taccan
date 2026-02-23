@@ -1,5 +1,14 @@
 # Taccan: Codenames Clone
 
+## Current Implementation Snapshot (2026-02-18)
+- Runtime: Node.js + Express + Socket.IO server (`backend/server.js`)
+- Frontend: static HTML/CSS/vanilla JS (`frontend/*`)
+- State: in-memory room and game state (no database/redis yet)
+- Sessions: browser localStorage + socket rejoin flow
+- Status: playable realtime MVP with server-authoritative rules
+
+> This document includes both the current MVP and the target architecture roadmap. Sections that mention TypeScript/React/PostgreSQL/Redis are forward-looking unless explicitly marked otherwise.
+
 ## 1. Scope and Objectives
 - Build a web-based multiplayer Codenames clone for 4+ players.
 - Support public and private rooms, team assignment, and spectator mode.

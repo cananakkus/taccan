@@ -1,0 +1,21 @@
+{
+  "name": "Taccan Codex",
+  "short_name": "Taccan",
+  "description": "Realtime word-guessing game for spies and handlers.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e8dcc2",
+  "theme_color": "#6b5138",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

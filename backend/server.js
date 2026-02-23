@@ -3,28 +3,117 @@ const express = require('express');
 const http = require('http');
 const { randomUUID } = require('crypto');
 const { Server } = require('socket.io');
-const words = require('./words');
+const { validatePayload } = require('./payload-schema');
+const { normalizeHint, createGameState, resolveGuess, advanceTurn, validateCipherHint } = require('./game-engine');
+const {
+  getSortedPlayers,
+  getConnectedPlayerCount,
+  getConnectedPlayersCountGlobal,
+  ensureHostSession,
+  pruneDisconnectedPlayers,
+  getRoomReadinessError,
+} = require('./room-utils');
 
 const app = express();
 const httpServer = http.createServer(app);
 const io = new Server(httpServer);
 
 const PORT = Number(process.env.PORT) || 3000;
+const HOST = String(process.env.HOST || '127.0.0.1');
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const TEAM_VALUES = new Set(['red', 'blue', 'none']);
 const ROLE_VALUES = new Set(['spymaster', 'operative', 'spectator']);
 const PLAYER_NAME_MAX = 24;
+const ROOM_CONNECTED_LIMIT = 20;
 const DISCONNECTED_PLAYER_TTL_MS = 45 * 60 * 1000;
 const STALE_ROOM_TTL_MS = 8 * 60 * 60 * 1000;
+const START_COUNTDOWN_MS = Number(process.env.START_COUNTDOWN_MS) || 5000;
+const ROOM_MODE_VALUES = new Set(['casual', 'blitz', 'cipher', 'blackout']);
+const BLITZ_HINT_TIMER_MS = Number(process.env.BLITZ_HINT_TIMER_MS) || 25_000;
+const BLITZ_GUESS_TIMER_MS = Number(process.env.BLITZ_GUESS_TIMER_MS) || 35_000;
+const BLITZ_HINT_MAX = Number(process.env.BLITZ_HINT_MAX) || 5;
+const MODE_CONFIG = {
+  casual: {
+    hintTimerMs: null,
+    guessTimerMs: null,
+    maxHintCount: 9,
+  },
+  blitz: {
+    hintTimerMs: BLITZ_HINT_TIMER_MS,
+    guessTimerMs: BLITZ_GUESS_TIMER_MS,
+    maxHintCount: BLITZ_HINT_MAX,
+  },
+  cipher: {
+    hintTimerMs: null,
+    guessTimerMs: null,
+    maxHintCount: 9,
+  },
+  blackout: {
+    hintTimerMs: null,
+    guessTimerMs: null,
+    maxHintCount: 9,
+  },
+};
+const EVENT_RATE_LIMITS = {
+  'room:create': { max: 8, windowMs: 30_000 },
+  'room:join': { max: 12, windowMs: 30_000 },
+  'room:rejoin': { max: 20, windowMs: 30_000 },
+  'room:leave': { max: 20, windowMs: 30_000 },
+  'room:prune_disconnected': { max: 8, windowMs: 30_000 },
+  'room:mode_set': { max: 20, windowMs: 30_000 },
+  'ready:set': { max: 30, windowMs: 10_000 },
+  'team:set': { max: 30, windowMs: 10_000 },
+  'role:set': { max: 30, windowMs: 10_000 },
+  'game:start': { max: 10, windowMs: 30_000 },
+  'game:countdown_cancel': { max: 15, windowMs: 30_000 },
+  'game:rematch': { max: 15, windowMs: 30_000 },
+  'turn:hint_submit': { max: 30, windowMs: 30_000 },
+  'turn:mark_toggle': { max: 80, windowMs: 10_000 },
+  'turn:guess': { max: 40, windowMs: 10_000 },
+  'turn:end': { max: 30, windowMs: 10_000 },
+  'turn:mark_confidence': { max: 80, windowMs: 10_000 },
+  'game:gg': { max: 3, windowMs: 30_000 },
+  'game:mvp_vote': { max: 5, windowMs: 30_000 },
+  'room:word_pack_set': { max: 5, windowMs: 60_000 },
+  default: { max: 60, windowMs: 10_000 },
+};
+const metrics = {
+  roomCreate: 0,
+  roomJoin: 0,
+  roomRejoin: 0,
+  roomLeave: 0,
+  roomPrune: 0,
+  modeSet: 0,
+  readySet: 0,
+  countdownStarted: 0,
+  countdownCancelled: 0,
+  rematchStarted: 0,
+  gameStart: 0,
+  turnTimerStarted: 0,
+  turnTimerExpired: 0,
+  ruleViolation: 0,
+  rateLimited: 0,
+  disconnect: 0,
+};
 
 /** @type {Map<string, Room>} */
 const rooms = new Map();
+/** @type {Map<string, NodeJS.Timeout>} */
+const countdownTimers = new Map();
+/** @type {Map<string, NodeJS.Timeout>} */
+const phaseTimers = new Map();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, now: new Date().toISOString(), roomCount: rooms.size });
+  res.json({
+    ok: true,
+    now: new Date().toISOString(),
+    roomCount: rooms.size,
+    connectedPlayers: getConnectedPlayersCountGlobal(rooms),
+    metrics,
+  });
 });
 
 app.get('/api/rooms/:code', (req, res) => {
@@ -36,7 +125,7 @@ app.get('/api/rooms/:code', (req, res) => {
     return;
   }
 
-  const connectedPlayers = getSortedPlayers(room).filter((player) => player.connected).length;
+  const connectedPlayers = getConnectedPlayerCount(room);
   res.json({
     ok: true,
     room: {
@@ -44,18 +133,130 @@ app.get('/api/rooms/:code', (req, res) => {
       status: deriveRoomStatus(room),
       playerCount: room.players.size,
       connectedPlayers,
+      mode: getRoomMode(room),
       hasActiveGame: Boolean(room.game && room.game.phase !== 'finished'),
+      match: room.match
+        ? {
+            id: room.match.id,
+            roundNumber: room.match.roundNumber,
+          }
+        : null,
     },
   });
 });
 
+// Wave 10.2: AI Hint Analysis (gated behind ANTHROPIC_API_KEY)
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || null;
+
+app.get('/api/ai-available', (_req, res) => {
+  res.json({ ok: true, available: Boolean(ANTHROPIC_API_KEY) });
+});
+
+app.use(express.json({ limit: '64kb' }));
+
+app.post('/api/analyze', async (req, res) => {
+  if (!ANTHROPIC_API_KEY) {
+    return res.status(503).json({ ok: false, error: 'AI analyst is not available on this server.' });
+  }
+
+  const { history, board, players } = req.body || {};
+  if (!Array.isArray(history) || !Array.isArray(board)) {
+    return res.status(400).json({ ok: false, error: 'Missing history or board data.' });
+  }
+
+  const prompt = buildAnalysisPrompt(history, board, players);
+
+  try {
+    const https = require('https');
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      };
+
+      const apiReq = https.request(options, (apiRes) => {
+        let data = '';
+        apiRes.on('data', (chunk) => { data += chunk; });
+        apiRes.on('end', () => {
+          if (apiRes.statusCode >= 200 && apiRes.statusCode < 300) {
+            resolve(JSON.parse(data));
+          } else {
+            reject(new Error(`Anthropic API ${apiRes.statusCode}: ${data}`));
+          }
+        });
+      });
+
+      apiReq.on('error', reject);
+      apiReq.setTimeout(15_000, () => { apiReq.destroy(); reject(new Error('API timeout')); });
+      apiReq.write(body);
+      apiReq.end();
+    });
+
+    const text = result.content?.[0]?.text || 'No analysis available.';
+    res.json({ ok: true, analysis: text });
+  } catch (err) {
+    logEvent('ai_analysis_error', { error: err.message });
+    res.status(500).json({ ok: false, error: 'Analysis request failed.' });
+  }
+});
+
+function buildAnalysisPrompt(history, board, players) {
+  const hints = history.filter((e) => e.type === 'hint');
+  const guesses = history.filter((e) => e.type === 'guess');
+
+  let prompt = 'You are a Codenames game analyst. Analyze this completed game and provide a brief, insightful review.\n\n';
+  prompt += 'Board:\n';
+  for (const card of board) {
+    prompt += `  ${card.word} (${card.color}${card.revealed ? ', revealed' : ''})\n`;
+  }
+
+  prompt += '\nHints given:\n';
+  for (const h of hints) {
+    prompt += `  ${h.team} spymaster: "${h.word}" for ${h.count}\n`;
+  }
+
+  prompt += '\nGuesses made:\n';
+  for (const g of guesses) {
+    prompt += `  ${g.team} guessed ${board[g.index]?.word || '?'} → ${g.color}\n`;
+  }
+
+  prompt += '\nProvide: 1) Best hint of the game, 2) Biggest mistake, 3) Key turning point, 4) Overall rating (1-5 stars). Keep it under 200 words.';
+  return prompt;
+}
+
+// Shareable room links (Wave 2.3) — catch-all route serving index.html
+app.get('/room/:code', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+});
+
 io.on('connection', (socket) => {
+  socket.data.rateBuckets = {};
+  logEvent('socket_connected', { socketId: socket.id });
   socket.emit('server:ready', { now: Date.now() });
 
   socket.on('room:create', (payload = {}, callback) => {
+    const action = 'room:create';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
     leaveBoundRoom(socket);
 
-    const player = createPlayer(payload.name, socket.id);
+    const player = createPlayer(validatedPayload.name, socket.id);
     const code = createRoomCode();
 
     const room = {
@@ -64,18 +265,29 @@ io.on('connection', (socket) => {
       lastActiveAt: Date.now(),
       hostSessionId: player.sessionId,
       players: new Map([[player.sessionId, player]]),
+      mode: 'casual',
+      match: null,
+      countdown: null,
       game: null,
     };
 
     rooms.set(code, room);
     bindSocketToPlayer(socket, room, player);
     emitStateToRoom(room);
+    metrics.roomCreate += 1;
+    logEvent('room_created', { roomCode: room.code, by: player.sessionId });
 
     ackOk(callback, { roomCode: room.code, sessionId: player.sessionId });
   });
 
   socket.on('room:join', (payload = {}, callback) => {
-    const code = String(payload.code || '').toUpperCase().trim();
+    const action = 'room:join';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const code = String(validatedPayload.code || '').toUpperCase().trim();
 
     if (!code) {
       ackError(callback, 'Room code is required.');
@@ -88,26 +300,35 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (room.players.size >= 20) {
+    if (getConnectedPlayerCount(room) >= ROOM_CONNECTED_LIMIT) {
       ackError(callback, 'Room is full.');
       return;
     }
 
     leaveBoundRoom(socket);
 
-    const player = createPlayer(payload.name, socket.id);
+    const player = createPlayer(validatedPayload.name, socket.id);
     room.players.set(player.sessionId, player);
     room.lastActiveAt = Date.now();
+    ensureHostSession(room);
 
     bindSocketToPlayer(socket, room, player);
     emitStateToRoom(room);
+    metrics.roomJoin += 1;
+    logEvent('room_joined', { roomCode: room.code, sessionId: player.sessionId, connected: getConnectedPlayerCount(room) });
 
     ackOk(callback, { roomCode: room.code, sessionId: player.sessionId });
   });
 
   socket.on('room:rejoin', (payload = {}, callback) => {
-    const code = String(payload.code || '').toUpperCase().trim();
-    const sessionId = String(payload.sessionId || '').trim();
+    const action = 'room:rejoin';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const code = String(validatedPayload.code || '').toUpperCase().trim();
+    const sessionId = String(validatedPayload.sessionId || '').trim();
 
     if (!code || !sessionId) {
       ackError(callback, 'Room code and session are required.');
@@ -129,8 +350,8 @@ io.on('connection', (socket) => {
     leaveBoundRoom(socket);
     room.players.set(player.sessionId, player);
 
-    if (payload.name) {
-      player.name = sanitizeName(payload.name);
+    if (validatedPayload.name) {
+      player.name = sanitizeName(validatedPayload.name);
     }
 
     if (player.socketId && player.socketId !== socket.id) {
@@ -142,12 +363,21 @@ io.on('connection', (socket) => {
     }
 
     bindSocketToPlayer(socket, room, player);
+    ensureHostSession(room);
     emitStateToRoom(room);
+    metrics.roomRejoin += 1;
+    logEvent('room_rejoined', { roomCode: room.code, sessionId: player.sessionId });
 
     ackOk(callback, { roomCode: room.code, sessionId: player.sessionId });
   });
 
-  socket.on('room:leave', (_payload = {}, callback) => {
+  socket.on('room:leave', (payload = {}, callback) => {
+    const action = 'room:leave';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
     const context = getContext(socket, 'room:leave');
     if (!context) {
       ackError(callback, 'You are not in a room.');
@@ -156,23 +386,168 @@ io.on('connection', (socket) => {
 
     removePlayerFromRoom(context.room, context.player.sessionId);
     clearSocketBinding(socket);
+    metrics.roomLeave += 1;
+    logEvent('room_left', { roomCode: context.room.code, sessionId: context.player.sessionId });
 
     ackOk(callback, { left: true });
   });
 
-  socket.on('team:set', (payload = {}, callback) => {
-    const context = getContext(socket, 'team:set');
+  socket.on('room:prune_disconnected', (payload = {}, callback) => {
+    const action = 'room:prune_disconnected';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
     }
 
-    const team = String(payload.team || '').toLowerCase().trim();
+    if (context.room.hostSessionId !== context.player.sessionId) {
+      sendViolation(socket, action, 'Only the host can prune disconnected players.');
+      ackError(callback, 'Only the host can prune disconnected players.');
+      return;
+    }
+
+    const removedCount = pruneDisconnectedPlayers(
+      context.room,
+      Date.now(),
+      DISCONNECTED_PLAYER_TTL_MS,
+      clearMarksForSession,
+      { force: true }
+    );
+    ensureHostSession(context.room);
+    context.room.lastActiveAt = Date.now();
+
+    if (context.room.players.size === 0) {
+      clearCountdownTimer(context.room.code);
+      clearPhaseTimerState(context.room);
+      rooms.delete(context.room.code);
+      ackOk(callback, { removedCount, deletedRoom: true });
+      return;
+    }
+
+    const countdownCancelled = cancelCountdownIfReadinessInvalid(context.room, 'readiness_changed');
+    if (!countdownCancelled) {
+      emitStateToRoom(context.room);
+    }
+    metrics.roomPrune += 1;
+    logEvent('room_pruned', { roomCode: context.room.code, removedCount });
+    ackOk(callback, { removedCount, deletedRoom: false });
+  });
+
+  socket.on('room:mode_set', (payload = {}, callback) => {
+    const action = 'room:mode_set';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (context.room.hostSessionId !== context.player.sessionId) {
+      sendViolation(socket, action, 'Only the host can change room mode.');
+      ackError(callback, 'Only the host can change room mode.');
+      return;
+    }
+
+    if (context.room.countdown && context.room.countdown.active) {
+      ackError(callback, 'Cannot change room mode during start countdown.');
+      return;
+    }
+
+    if (isGameActive(context.room)) {
+      ackError(callback, 'Cannot change room mode during an active game.');
+      return;
+    }
+
+    const nextMode = getNormalizedMode(validatedPayload.mode);
+    if (!ROOM_MODE_VALUES.has(nextMode)) {
+      ackError(callback, 'Invalid room mode.');
+      return;
+    }
+
+    if (getRoomMode(context.room) === nextMode) {
+      ackOk(callback, { mode: nextMode, modeConfig: getModeConfig(nextMode) });
+      return;
+    }
+
+    context.room.mode = nextMode;
+    context.room.lastActiveAt = Date.now();
+    metrics.modeSet += 1;
+
+    emitStateToRoom(context.room);
+    logEvent('room_mode_set', {
+      roomCode: context.room.code,
+      mode: nextMode,
+      by: context.player.sessionId,
+    });
+
+    ackOk(callback, { mode: nextMode, modeConfig: getModeConfig(nextMode) });
+  });
+
+  socket.on('ready:set', (payload = {}, callback) => {
+    const action = 'ready:set';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (isGameActive(context.room)) {
+      ackError(callback, 'Readiness cannot be changed during an active game.');
+      return;
+    }
+
+    if (context.player.team === 'none' || context.player.role === 'spectator') {
+      ackError(callback, 'Join a team as operative or spymaster before readying up.');
+      return;
+    }
+
+    context.player.ready = Boolean(validatedPayload.ready);
+    context.room.lastActiveAt = Date.now();
+    metrics.readySet += 1;
+
+    const countdownCancelled = cancelCountdownIfReadinessInvalid(context.room, 'readiness_changed');
+    if (!countdownCancelled) {
+      emitStateToRoom(context.room);
+    }
+
+    ackOk(callback, { ready: context.player.ready });
+  });
+
+  socket.on('team:set', (payload = {}, callback) => {
+    const action = 'team:set';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    const team = String(validatedPayload.team || '').toLowerCase().trim();
     if (!TEAM_VALUES.has(team)) {
       ackError(callback, 'Invalid team value.');
       return;
     }
 
+    const previousTeam = context.player.team;
+    const previousRole = context.player.role;
     context.player.team = team;
 
     if (team === 'none') {
@@ -180,26 +555,44 @@ io.on('connection', (socket) => {
     } else if (context.player.role === 'spectator') {
       context.player.role = 'operative';
     }
+    const teamOrRoleChanged =
+      previousTeam !== context.player.team || previousRole !== context.player.role;
+    if (teamOrRoleChanged) {
+      context.player.ready = false;
+    }
 
     context.room.lastActiveAt = Date.now();
-    emitStateToRoom(context.room);
+    const countdownCancelled = teamOrRoleChanged && context.room.countdown
+      ? cancelGameCountdown(context.room, 'team_or_role_changed')
+      : false;
+    if (!countdownCancelled) {
+      emitStateToRoom(context.room);
+    }
 
-    ackOk(callback, { team: context.player.team, role: context.player.role });
+    ackOk(callback, { team: context.player.team, role: context.player.role, ready: context.player.ready });
   });
 
   socket.on('role:set', (payload = {}, callback) => {
-    const context = getContext(socket, 'role:set');
+    const action = 'role:set';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
     }
 
-    const role = String(payload.role || '').toLowerCase().trim();
+    const role = String(validatedPayload.role || '').toLowerCase().trim();
     if (!ROLE_VALUES.has(role)) {
       ackError(callback, 'Invalid role value.');
       return;
     }
 
+    const previousTeam = context.player.team;
+    const previousRole = context.player.role;
     if (role === 'spectator') {
       context.player.role = 'spectator';
       context.player.team = 'none';
@@ -212,15 +605,31 @@ io.on('connection', (socket) => {
 
       context.player.role = role;
     }
+    const teamOrRoleChanged =
+      previousTeam !== context.player.team || previousRole !== context.player.role;
+    if (teamOrRoleChanged) {
+      context.player.ready = false;
+    }
 
     context.room.lastActiveAt = Date.now();
-    emitStateToRoom(context.room);
+    const countdownCancelled = teamOrRoleChanged && context.room.countdown
+      ? cancelGameCountdown(context.room, 'team_or_role_changed')
+      : false;
+    if (!countdownCancelled) {
+      emitStateToRoom(context.room);
+    }
 
-    ackOk(callback, { team: context.player.team, role: context.player.role });
+    ackOk(callback, { team: context.player.team, role: context.player.role, ready: context.player.ready });
   });
 
-  socket.on('game:start', (_payload = {}, callback) => {
-    const context = getContext(socket, 'game:start');
+  socket.on('game:start', (payload = {}, callback) => {
+    const action = 'game:start';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
@@ -229,6 +638,11 @@ io.on('connection', (socket) => {
     if (context.room.hostSessionId !== context.player.sessionId) {
       sendViolation(socket, 'game:start', 'Only the host can start the game.');
       ackError(callback, 'Only the host can start the game.');
+      return;
+    }
+
+    if (context.room.countdown && context.room.countdown.active) {
+      ackError(callback, 'Start countdown is already running.');
       return;
     }
 
@@ -244,20 +658,109 @@ io.on('connection', (socket) => {
       return;
     }
 
-    context.room.game = createGameState();
-    context.room.lastActiveAt = Date.now();
+    const countdownResult = beginGameStartCountdown(context.room, context.player.sessionId);
+    if (!countdownResult.ok) {
+      ackError(callback, countdownResult.error || 'Unable to start countdown.');
+      return;
+    }
 
-    io.to(context.room.code).emit('game:started', {
+    metrics.countdownStarted += 1;
+    ackOk(callback, {
+      started: false,
+      countdown: true,
+      endsAt: countdownResult.endsAt,
+      durationMs: START_COUNTDOWN_MS,
+    });
+  });
+
+  socket.on('game:countdown_cancel', (payload = {}, callback) => {
+    const action = 'game:countdown_cancel';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (context.room.hostSessionId !== context.player.sessionId) {
+      sendViolation(socket, action, 'Only the host can cancel the start countdown.');
+      ackError(callback, 'Only the host can cancel the start countdown.');
+      return;
+    }
+
+    if (!context.room.countdown || !context.room.countdown.active) {
+      ackError(callback, 'No active start countdown.');
+      return;
+    }
+
+    cancelGameCountdown(context.room, 'cancelled_by_host');
+    ackOk(callback, { cancelled: true });
+  });
+
+  socket.on('game:rematch', (payload = {}, callback) => {
+    const action = 'game:rematch';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (context.room.hostSessionId !== context.player.sessionId) {
+      sendViolation(socket, action, 'Only the host can start a rematch.');
+      ackError(callback, 'Only the host can start a rematch.');
+      return;
+    }
+
+    if (context.room.countdown && context.room.countdown.active) {
+      ackError(callback, 'Cannot rematch while start countdown is active.');
+      return;
+    }
+
+    if (!context.room.game || context.room.game.phase !== 'finished') {
+      ackError(callback, 'Rematch is only available after a game finishes.');
+      return;
+    }
+
+    const mode = String(validatedPayload.mode || '').trim();
+    if (mode === 'swap_teams') {
+      swapRoomTeams(context.room);
+    }
+
+    const startedGame = startNewRound(context.room, mode === 'swap_teams' ? 'rematch_swap' : 'rematch');
+    metrics.rematchStarted += 1;
+    logEvent('rematch_started', {
       roomCode: context.room.code,
-      startingTeam: context.room.game.startingTeam,
+      mode,
+      by: context.player.sessionId,
+      roundNumber: startedGame.roundNumber,
+      matchId: startedGame.matchId,
     });
 
-    emitStateToRoom(context.room);
-    ackOk(callback, { started: true });
+    ackOk(callback, {
+      started: true,
+      mode,
+      matchId: startedGame.matchId,
+      roundNumber: startedGame.roundNumber,
+    });
   });
 
   socket.on('turn:hint_submit', (payload = {}, callback) => {
-    const context = getContext(socket, 'turn:hint_submit');
+    const action = 'turn:hint_submit';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
@@ -281,16 +784,29 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const hintWord = normalizeHint(payload.word);
-    const count = Number(payload.count);
+    const hintWord = normalizeHint(validatedPayload.word);
+    const count = Number(validatedPayload.count);
+    const modeConfig = getModeConfig(game.mode || getRoomMode(context.room));
+    const maxHintCount =
+      Number.isInteger(game.maxHintCount) && game.maxHintCount > 0
+        ? game.maxHintCount
+        : modeConfig.maxHintCount;
 
     if (!hintWord) {
       ackError(callback, 'Hint must be a single alphabetical word.');
       return;
     }
 
-    if (!Number.isInteger(count) || count < 0 || count > 9) {
-      ackError(callback, 'Hint count must be an integer from 0 to 9.');
+    // Cipher mode validation (Wave 9.1)
+    if (game.mode === 'cipher') {
+      if (!validateCipherHint(hintWord, game.board)) {
+        ackError(callback, 'In Cipher mode, your hint must be an anagram of an unrevealed board word.');
+        return;
+      }
+    }
+
+    if (!Number.isInteger(count) || count < 0 || count > maxHintCount) {
+      ackError(callback, `Hint count must be an integer from 0 to ${maxHintCount}.`);
       return;
     }
 
@@ -318,12 +834,19 @@ io.on('connection', (socket) => {
       hint: game.hint,
     });
 
+    syncPhaseTimerForCurrentPhase(context.room, game.phase, 'hint_submitted');
     emitStateToRoom(context.room);
     ackOk(callback, { accepted: true });
   });
 
   socket.on('turn:mark_toggle', (payload = {}, callback) => {
-    const context = getContext(socket, 'turn:mark_toggle');
+    const action = 'turn:mark_toggle';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
@@ -346,7 +869,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const index = Number(payload.index);
+    const index = Number(validatedPayload.index);
     if (!Number.isInteger(index) || index < 0 || index > 24) {
       ackError(callback, 'Card index must be between 0 and 24.');
       return;
@@ -395,7 +918,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('turn:guess', (payload = {}, callback) => {
-    const context = getContext(socket, 'turn:guess');
+    const action = 'turn:guess';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
@@ -419,7 +948,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const index = Number(payload.index);
+    const index = Number(validatedPayload.index);
     if (!Number.isInteger(index) || index < 0 || index > 24) {
       ackError(callback, 'Card index must be between 0 and 24.');
       return;
@@ -431,6 +960,7 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const phaseBeforeGuess = game.phase;
     const result = resolveGuess(game, context.player, card);
     context.room.lastActiveAt = Date.now();
 
@@ -455,12 +985,24 @@ io.on('connection', (socket) => {
       });
     }
 
+    if (game.phase === 'finished') {
+      clearPhaseTimerState(context.room);
+    } else if (phaseBeforeGuess !== game.phase) {
+      syncPhaseTimerForCurrentPhase(context.room, game.phase, 'phase_changed_after_guess');
+    }
+
     emitStateToRoom(context.room);
     ackOk(callback, result);
   });
 
-  socket.on('turn:end', (_payload = {}, callback) => {
-    const context = getContext(socket, 'turn:end');
+  socket.on('turn:end', (payload = {}, callback) => {
+    const action = 'turn:end';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) {
+      return;
+    }
+
+    const context = getContext(socket, action);
     if (!context) {
       ackError(callback, 'You are not in a room.');
       return;
@@ -491,11 +1033,160 @@ io.on('connection', (socket) => {
       nextTeam: game.currentTeam,
     });
 
+    syncPhaseTimerForCurrentPhase(context.room, game.phase, 'player_ended');
     emitStateToRoom(context.room);
     ackOk(callback, { ended: true });
   });
 
+  // --- GG Button (Wave 6.1) ---
+  socket.on('game:gg', (payload = {}, callback) => {
+    const action = 'game:gg';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (!context.room.game || context.room.game.phase !== 'finished') {
+      ackError(callback, 'GG is only available after game finishes.');
+      return;
+    }
+
+    io.to(context.room.code).emit('game:gg_received', {
+      sessionId: context.player.sessionId,
+      name: context.player.name,
+    });
+
+    ackOk(callback, { sent: true });
+  });
+
+  // --- MVP Vote (Wave 6.2) ---
+  socket.on('game:mvp_vote', (payload = {}, callback) => {
+    const action = 'game:mvp_vote';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (!context.room.game || context.room.game.phase !== 'finished') {
+      ackError(callback, 'MVP vote is only available after game finishes.');
+      return;
+    }
+
+    const targetSessionId = String(validatedPayload.targetSessionId || '').trim();
+    if (targetSessionId === context.player.sessionId) {
+      ackError(callback, 'Cannot vote for yourself.');
+      return;
+    }
+
+    const targetPlayer = context.room.players.get(targetSessionId);
+    if (!targetPlayer) {
+      ackError(callback, 'Target player not found.');
+      return;
+    }
+
+    context.room.game.mvpVotes = context.room.game.mvpVotes || {};
+    context.room.game.mvpVotes[context.player.sessionId] = targetSessionId;
+
+    // Check if all connected team players have voted or 15s timeout
+    const connectedTeam = [...context.room.players.values()].filter(p => p.connected && p.team !== 'none' && p.role !== 'spectator');
+    const allVoted = connectedTeam.every(p => context.room.game.mvpVotes[p.sessionId]);
+
+    if (allVoted) {
+      broadcastMvpResult(context.room);
+    }
+
+    ackOk(callback, { voted: true });
+  });
+
+  // --- Confidence Markers (Wave 6.3) ---
+  socket.on('turn:mark_confidence', (payload = {}, callback) => {
+    const action = 'turn:mark_confidence';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    const game = context.room.game;
+    if (!game || game.phase !== 'guess') {
+      ackError(callback, 'Confidence marking is only available during guess phase.');
+      return;
+    }
+
+    if (context.player.team !== game.currentTeam || context.player.role !== 'operative') {
+      ackError(callback, 'Only active-team operatives can set confidence.');
+      return;
+    }
+
+    const index = Number(validatedPayload.index);
+    if (!Number.isInteger(index) || index < 0 || index > 24) {
+      ackError(callback, 'Card index must be between 0 and 24.');
+      return;
+    }
+
+    // Store confidence in a parallel structure
+    game.confidenceByCard = game.confidenceByCard || Array.from({ length: 25 }, () => ({}));
+    game.confidenceByCard[index][context.player.sessionId] = validatedPayload.confidence;
+
+    emitStateToRoom(context.room);
+    ackOk(callback, { index, confidence: validatedPayload.confidence });
+  });
+
+  // --- Word Pack (Wave 8.4) ---
+  socket.on('room:word_pack_set', (payload = {}, callback) => {
+    const action = 'room:word_pack_set';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    if (context.room.hostSessionId !== context.player.sessionId) {
+      ackError(callback, 'Only the host can set word packs.');
+      return;
+    }
+
+    if (isGameActive(context.room)) {
+      ackError(callback, 'Cannot change word pack during an active game.');
+      return;
+    }
+
+    const url = String(validatedPayload.url || '').trim();
+    if (!url.startsWith('https://')) {
+      ackError(callback, 'Word pack URL must use HTTPS.');
+      return;
+    }
+
+    // Fetch and validate word pack asynchronously
+    fetchWordPack(url)
+      .then((words) => {
+        context.room.customWords = words;
+        context.room.lastActiveAt = Date.now();
+        emitStateToRoom(context.room);
+        ackOk(callback, { loaded: true, wordCount: words.length });
+      })
+      .catch((error) => {
+        ackError(callback, `Failed to load word pack: ${error.message}`);
+      });
+  });
+
   socket.on('disconnect', () => {
+    metrics.disconnect += 1;
+    logEvent('socket_disconnected', { socketId: socket.id });
     markDisconnected(socket);
   });
 });
@@ -504,26 +1195,35 @@ setInterval(() => {
   const now = Date.now();
 
   for (const room of rooms.values()) {
-    for (const player of room.players.values()) {
-      if (!player.connected && now - player.lastSeenAt > DISCONNECTED_PLAYER_TTL_MS) {
-        clearMarksForSession(room, player.sessionId);
-        room.players.delete(player.sessionId);
-      }
-    }
-
-    if (room.hostSessionId && !room.players.has(room.hostSessionId)) {
-      const nextHost = getSortedPlayers(room)[0];
-      room.hostSessionId = nextHost ? nextHost.sessionId : null;
-    }
+    const removedCount = pruneDisconnectedPlayers(
+      room,
+      now,
+      DISCONNECTED_PLAYER_TTL_MS,
+      clearMarksForSession
+    );
+    ensureHostSession(room);
 
     if (room.players.size === 0 || now - room.lastActiveAt > STALE_ROOM_TTL_MS) {
+      clearCountdownTimer(room.code);
+      clearPhaseTimerState(room);
+      logEvent('room_deleted', {
+        roomCode: room.code,
+        reason: room.players.size === 0 ? 'empty' : 'stale',
+      });
       rooms.delete(room.code);
+      continue;
+    }
+
+    if (removedCount > 0) {
+      logEvent('room_pruned_by_ttl', { roomCode: room.code, removedCount });
+      emitStateToRoom(room);
     }
   }
 }, 60 * 1000).unref();
 
-httpServer.listen(PORT, () => {
-  console.log(`Taccan server listening on http://localhost:${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  logEvent('server_started', { host: HOST, port: PORT });
+  console.log(`Taccan server listening on http://${HOST}:${PORT}`);
 });
 
 function sanitizeName(value) {
@@ -539,19 +1239,6 @@ function sanitizeName(value) {
   return `Player-${Math.floor(Math.random() * 900 + 100)}`;
 }
 
-function normalizeHint(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-
-  if (!/^[a-z][a-z-]*$/i.test(normalized)) {
-    return null;
-  }
-
-  return normalized;
-}
-
 function createPlayer(name, socketId) {
   return {
     sessionId: randomUUID(),
@@ -559,6 +1246,7 @@ function createPlayer(name, socketId) {
     name: sanitizeName(name),
     team: 'none',
     role: 'spectator',
+    ready: false,
     connected: true,
     joinedAt: Date.now(),
     lastSeenAt: Date.now(),
@@ -578,197 +1266,382 @@ function createRoomCode() {
   }
 }
 
-function getOtherTeam(team) {
-  return team === 'red' ? 'blue' : 'red';
-}
-
-function shuffle(items) {
-  for (let i = items.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [items[i], items[j]] = [items[j], items[i]];
+function beginGameStartCountdown(room, startedBySessionId) {
+  if (!room) {
+    return { ok: false, error: 'Room is unavailable.' };
   }
 
-  return items;
-}
-
-function sampleWords(count) {
-  if (words.length < count) {
-    throw new Error('Not enough words to generate board.');
+  if (room.countdown && room.countdown.active) {
+    return { ok: false, error: 'Start countdown is already running.' };
   }
 
-  const pool = shuffle([...words]);
-  return pool.slice(0, count).map((word) => word.toUpperCase());
-}
+  const startedAt = Date.now();
+  const countdownId = randomUUID();
+  const endsAt = startedAt + START_COUNTDOWN_MS;
 
-function createGameState() {
-  const startingTeam = Math.random() < 0.5 ? 'red' : 'blue';
-  const otherTeam = getOtherTeam(startingTeam);
-  const colors = shuffle([
-    ...new Array(9).fill(startingTeam),
-    ...new Array(8).fill(otherTeam),
-    ...new Array(7).fill('neutral'),
-    'assassin',
-  ]);
-
-  const board = sampleWords(25).map((word, index) => ({
-    index,
-    word,
-    color: colors[index],
-    revealed: false,
-    revealedBy: null,
-  }));
-
-  return {
-    id: randomUUID(),
-    createdAt: Date.now(),
-    lastActionAt: Date.now(),
-    phase: 'hint',
-    currentTeam: startingTeam,
-    startingTeam,
-    turnNumber: 1,
-    hint: null,
-    guessesRemaining: 0,
-    remaining: {
-      red: startingTeam === 'red' ? 9 : 8,
-      blue: startingTeam === 'blue' ? 9 : 8,
-    },
-    winner: null,
-    loser: null,
-    reason: null,
-    board,
-    marksByCard: Array.from({ length: 25 }, () => new Set()),
-    history: [],
+  room.countdown = {
+    id: countdownId,
+    active: true,
+    startedAt,
+    endsAt,
+    startedBy: startedBySessionId,
   };
-}
+  room.lastActiveAt = startedAt;
 
-function resolveGuess(game, player, card) {
-  card.revealed = true;
-  card.revealedBy = player.team;
-  if (game.marksByCard[card.index]) {
-    game.marksByCard[card.index].clear();
-  }
-
-  const opponentTeam = getOtherTeam(player.team);
-  const result = {
-    color: card.color,
-    outcome: card.color,
-    endedTurn: false,
-    turnEndReason: null,
-    finished: false,
-  };
-
-  game.history.push({
-    type: 'guess',
-    by: player.sessionId,
-    team: player.team,
-    index: card.index,
-    color: card.color,
-    at: Date.now(),
+  io.to(room.code).emit('game:countdown_started', {
+    roomCode: room.code,
+    endsAt,
+    durationMs: START_COUNTDOWN_MS,
+    startedBy: startedBySessionId,
   });
+  emitStateToRoom(room);
 
-  if (card.color === 'assassin') {
-    finishGame(game, opponentTeam, player.team, 'assassin');
-    result.finished = true;
-    return result;
+  const timer = setTimeout(() => {
+    finalizeGameStartCountdown(room.code, countdownId);
+  }, Math.max(START_COUNTDOWN_MS, 1));
+  if (typeof timer.unref === 'function') {
+    timer.unref();
   }
+  countdownTimers.set(room.code, timer);
 
-  if (card.color === player.team) {
-    game.remaining[player.team] -= 1;
-
-    if (game.remaining[player.team] <= 0) {
-      finishGame(game, player.team, opponentTeam, 'all_agents_revealed');
-      result.finished = true;
-      result.outcome = 'team_win';
-      return result;
-    }
-
-    if (game.guessesRemaining !== null) {
-      game.guessesRemaining -= 1;
-      if (game.guessesRemaining <= 0) {
-        advanceTurn(game, 'guess_limit_reached');
-        result.endedTurn = true;
-        result.turnEndReason = 'guess_limit_reached';
-      }
-    }
-
-    return result;
-  }
-
-  if (card.color === opponentTeam) {
-    game.remaining[opponentTeam] -= 1;
-
-    if (game.remaining[opponentTeam] <= 0) {
-      finishGame(game, opponentTeam, player.team, 'opponent_agents_revealed');
-      result.finished = true;
-      result.outcome = 'opponent_win';
-      return result;
-    }
-
-    advanceTurn(game, 'opponent_card');
-    result.endedTurn = true;
-    result.turnEndReason = 'opponent_card';
-    return result;
-  }
-
-  advanceTurn(game, 'neutral_card');
-  result.endedTurn = true;
-  result.turnEndReason = 'neutral_card';
-  return result;
+  logEvent('countdown_started', { roomCode: room.code, startedBy: startedBySessionId, endsAt });
+  return { ok: true, endsAt };
 }
 
-function advanceTurn(game, reason) {
-  clearAllCardMarks(game);
+function finalizeGameStartCountdown(roomCode, countdownId) {
+  const room = rooms.get(roomCode);
+  clearCountdownTimer(roomCode);
 
-  game.history.push({
-    type: 'turn_end',
-    reason,
-    endedAt: Date.now(),
-    previousTeam: game.currentTeam,
-  });
-
-  game.currentTeam = getOtherTeam(game.currentTeam);
-  game.phase = 'hint';
-  game.turnNumber += 1;
-  game.hint = null;
-  game.guessesRemaining = 0;
-  game.lastActionAt = Date.now();
-}
-
-function clearAllCardMarks(game) {
-  if (!game || !Array.isArray(game.marksByCard)) {
+  if (!room || !room.countdown || room.countdown.id !== countdownId) {
     return;
   }
 
-  for (const marks of game.marksByCard) {
-    marks.clear();
+  const readinessError = validateRoomReadiness(room);
+  if (readinessError) {
+    cancelGameCountdown(room, 'readiness_changed');
+    return;
+  }
+
+  if (isGameActive(room)) {
+    cancelGameCountdown(room, 'game_active');
+    return;
+  }
+
+  room.countdown = null;
+  startNewRound(room, 'countdown');
+}
+
+function startNewRound(room, trigger = 'manual') {
+  clearPhaseTimerState(room);
+  const match = getNextMatch(room);
+  const roomMode = getRoomMode(room);
+  const modeConfig = getModeConfig(roomMode);
+  room.match = match;
+  room.game = createGameState({
+    matchId: match.id,
+    roundNumber: match.roundNumber,
+    mode: roomMode,
+    maxHintCount: modeConfig.maxHintCount,
+    customWords: room.customWords || null,
+  });
+  room.lastActiveAt = Date.now();
+  resetAllPlayerReadiness(room);
+
+  io.to(room.code).emit('game:started', {
+    roomCode: room.code,
+    startingTeam: room.game.startingTeam,
+    matchId: room.game.matchId,
+    roundNumber: room.game.roundNumber,
+    mode: room.game.mode,
+    maxHintCount: room.game.maxHintCount,
+    trigger,
+  });
+
+  syncPhaseTimerForCurrentPhase(room, room.game.phase, `round_started:${trigger}`);
+  emitStateToRoom(room);
+  metrics.gameStart += 1;
+  logEvent('game_started', {
+    roomCode: room.code,
+    trigger,
+    startingTeam: room.game.startingTeam,
+    matchId: room.game.matchId,
+    roundNumber: room.game.roundNumber,
+    mode: room.game.mode,
+    maxHintCount: room.game.maxHintCount,
+  });
+
+  return room.game;
+}
+
+function getNextMatch(room) {
+  if (room.match && room.match.id && Number.isInteger(room.match.roundNumber)) {
+    return {
+      id: room.match.id,
+      roundNumber: room.match.roundNumber + 1,
+    };
+  }
+
+  return {
+    id: randomUUID(),
+    roundNumber: 1,
+  };
+}
+
+function getNormalizedMode(value) {
+  const normalized = String(value || '')
+    .toLowerCase()
+    .trim();
+  return ROOM_MODE_VALUES.has(normalized) ? normalized : 'casual';
+}
+
+function getRoomMode(room) {
+  if (!room) {
+    return 'casual';
+  }
+
+  const normalized = getNormalizedMode(room.mode);
+  if (room.mode !== normalized) {
+    room.mode = normalized;
+  }
+
+  return normalized;
+}
+
+function getModeConfig(mode) {
+  const normalizedMode = getNormalizedMode(mode);
+  const config = MODE_CONFIG[normalizedMode] || MODE_CONFIG.casual;
+  return { ...config };
+}
+
+function clearPhaseTimer(roomCode) {
+  const timer = phaseTimers.get(roomCode);
+  if (timer) {
+    clearTimeout(timer);
+    phaseTimers.delete(roomCode);
   }
 }
 
-function finishGame(game, winner, loser, reason) {
-  game.phase = 'finished';
-  game.winner = winner;
-  game.loser = loser;
-  game.reason = reason;
-  game.guessesRemaining = 0;
-  game.lastActionAt = Date.now();
+function clearPhaseTimerState(room) {
+  if (!room) {
+    return;
+  }
 
-  game.history.push({
-    type: 'game_end',
-    winner,
-    loser,
-    reason,
-    at: Date.now(),
+  clearPhaseTimer(room.code);
+  if (room.game && room.game.phaseTimer) {
+    room.game.phaseTimer = null;
+  }
+}
+
+function syncPhaseTimerForCurrentPhase(room, phase, reason = 'phase_changed') {
+  if (!room || !room.game || room.game.phase === 'finished') {
+    clearPhaseTimerState(room);
+    return false;
+  }
+
+  const game = room.game;
+  const currentPhase = game.phase;
+  const expectedPhase = phase || currentPhase;
+  if (expectedPhase !== currentPhase) {
+    return false;
+  }
+
+  clearPhaseTimer(room.code);
+
+  const modeConfig = getModeConfig(game.mode || getRoomMode(room));
+  const durationMs = currentPhase === 'hint' ? modeConfig.hintTimerMs : modeConfig.guessTimerMs;
+  if (!Number.isInteger(durationMs) || durationMs <= 0) {
+    game.phaseTimer = null;
+    return false;
+  }
+
+  const startedAt = Date.now();
+  const endsAt = startedAt + durationMs;
+  const timerId = randomUUID();
+  game.phaseTimer = {
+    id: timerId,
+    phase: currentPhase,
+    startedAt,
+    endsAt,
+    durationMs,
+  };
+
+  const timer = setTimeout(() => {
+    finalizePhaseTimer(room.code, timerId);
+  }, Math.max(durationMs, 1));
+  if (typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  phaseTimers.set(room.code, timer);
+
+  io.to(room.code).emit('turn:timer_started', {
+    roomCode: room.code,
+    phase: currentPhase,
+    startedAt,
+    endsAt,
+    durationMs,
   });
+
+  metrics.turnTimerStarted += 1;
+  logEvent('turn_timer_started', {
+    roomCode: room.code,
+    phase: currentPhase,
+    endsAt,
+    reason,
+  });
+
+  return true;
+}
+
+function finalizePhaseTimer(roomCode, timerId) {
+  const room = rooms.get(roomCode);
+  clearPhaseTimer(roomCode);
+
+  if (!room || !room.game || room.game.phase === 'finished') {
+    return;
+  }
+
+  const game = room.game;
+  const phaseTimer = game.phaseTimer;
+  if (!phaseTimer || phaseTimer.id !== timerId) {
+    return;
+  }
+
+  const expiredPhase = phaseTimer.phase;
+  if (game.phase !== expiredPhase) {
+    game.phaseTimer = null;
+    return;
+  }
+
+  game.phaseTimer = null;
+  const timeoutReason = expiredPhase === 'hint' ? 'hint_timeout' : 'guess_timeout';
+  advanceTurn(game, timeoutReason);
+  room.lastActiveAt = Date.now();
+
+  io.to(room.code).emit('turn:timer_expired', {
+    roomCode: room.code,
+    phase: expiredPhase,
+    outcome: timeoutReason,
+    nextTeam: game.currentTeam,
+  });
+  io.to(room.code).emit('turn:ended', {
+    reason: timeoutReason,
+    nextTeam: game.currentTeam,
+  });
+
+  metrics.turnTimerExpired += 1;
+  logEvent('turn_timer_expired', {
+    roomCode: room.code,
+    phase: expiredPhase,
+    outcome: timeoutReason,
+    nextTeam: game.currentTeam,
+  });
+
+  syncPhaseTimerForCurrentPhase(room, game.phase, timeoutReason);
+  emitStateToRoom(room);
+}
+
+function clearCountdownTimer(roomCode) {
+  const timer = countdownTimers.get(roomCode);
+  if (timer) {
+    clearTimeout(timer);
+    countdownTimers.delete(roomCode);
+  }
+}
+
+function cancelGameCountdown(room, reason = 'cancelled') {
+  if (!room || !room.countdown || !room.countdown.active) {
+    return false;
+  }
+
+  const startedBy = room.countdown.startedBy;
+  clearCountdownTimer(room.code);
+  room.countdown = null;
+  room.lastActiveAt = Date.now();
+
+  io.to(room.code).emit('game:countdown_cancelled', {
+    roomCode: room.code,
+    reason,
+    startedBy,
+  });
+  emitStateToRoom(room);
+
+  metrics.countdownCancelled += 1;
+  logEvent('countdown_cancelled', { roomCode: room.code, reason });
+  return true;
+}
+
+function cancelCountdownIfReadinessInvalid(room, reason) {
+  if (!room || !room.countdown || !room.countdown.active) {
+    return false;
+  }
+
+  const readinessError = validateRoomReadiness(room);
+  if (!readinessError) {
+    return false;
+  }
+
+  return cancelGameCountdown(room, reason || 'readiness_changed');
+}
+
+function resetAllPlayerReadiness(room) {
+  for (const player of room.players.values()) {
+    player.ready = false;
+  }
+}
+
+function swapRoomTeams(room) {
+  for (const player of room.players.values()) {
+    if (player.team === 'red') {
+      player.team = 'blue';
+      continue;
+    }
+
+    if (player.team === 'blue') {
+      player.team = 'red';
+    }
+  }
+}
+
+function preflightAction(socket, action, payload, callback) {
+  const validated = validatePayload(action, payload);
+  if (!validated.ok) {
+    ackError(callback, validated.error || 'Invalid payload.');
+    return null;
+  }
+
+  if (!consumeRateLimit(socket, action)) {
+    metrics.rateLimited += 1;
+    sendViolation(socket, action, 'Too many requests. Slow down and try again.');
+    ackError(callback, 'Too many requests. Slow down and try again.');
+    return null;
+  }
+
+  return validated.value;
+}
+
+function consumeRateLimit(socket, action) {
+  const now = Date.now();
+  const limits = EVENT_RATE_LIMITS[action] || EVENT_RATE_LIMITS.default;
+  const buckets = socket.data.rateBuckets || (socket.data.rateBuckets = {});
+  const bucket = buckets[action] || { count: 0, startedAt: now };
+
+  if (now - bucket.startedAt >= limits.windowMs) {
+    bucket.count = 0;
+    bucket.startedAt = now;
+  }
+
+  if (bucket.count >= limits.max) {
+    buckets[action] = bucket;
+    return false;
+  }
+
+  bucket.count += 1;
+  buckets[action] = bucket;
+  return true;
 }
 
 function validateRoomReadiness(room) {
-  const connectedPlayers = getSortedPlayers(room).filter((player) => player.connected);
-
-  if (connectedPlayers.length < 1) {
-    return 'At least one connected player is required to start.';
-  }
-
-  return null;
+  return getRoomReadinessError(room);
 }
 
 function isGameActive(room) {
@@ -776,6 +1649,10 @@ function isGameActive(room) {
 }
 
 function deriveRoomStatus(room) {
+  if (room.countdown && room.countdown.active) {
+    return 'countdown';
+  }
+
   if (!room.game) {
     return 'lobby';
   }
@@ -797,12 +1674,29 @@ function buildStateForPlayer(room, viewer) {
       status: deriveRoomStatus(room),
       hostSessionId: room.hostSessionId,
       createdAt: room.createdAt,
+      mode: getRoomMode(room),
+      modeConfig: getModeConfig(getRoomMode(room)),
+      match: room.match
+        ? {
+            id: room.match.id,
+            roundNumber: room.match.roundNumber,
+          }
+        : null,
+      countdown: room.countdown
+        ? {
+            active: room.countdown.active,
+            startedAt: room.countdown.startedAt,
+            endsAt: room.countdown.endsAt,
+            startedBy: room.countdown.startedBy,
+          }
+        : null,
     },
     me: {
       sessionId: viewer.sessionId,
       name: viewer.name,
       team: viewer.team,
       role: viewer.role,
+      ready: Boolean(viewer.ready),
       connected: viewer.connected,
       isHost: room.hostSessionId === viewer.sessionId,
     },
@@ -811,6 +1705,7 @@ function buildStateForPlayer(room, viewer) {
       name: player.name,
       team: player.team,
       role: player.role,
+      ready: Boolean(player.ready),
       connected: player.connected,
       joinedAt: player.joinedAt,
       isHost: room.hostSessionId === player.sessionId,
@@ -821,13 +1716,35 @@ function buildStateForPlayer(room, viewer) {
 
 function buildGameView(room, game, viewer) {
   const showKeycard = viewer.role === 'spymaster' || game.phase === 'finished';
+  const isBlackout = game.mode === 'blackout' && game.blackoutAt;
+  const blackedOut = isBlackout && Date.now() > game.blackoutAt && viewer.role !== 'spymaster' && game.phase !== 'finished';
+
+  // Include hint history for sidebar (Wave 3.2)
+  const history = game.history
+    .filter((e) => e.type === 'hint' || e.type === 'guess' || e.type === 'turn_end' || e.type === 'game_end');
 
   return {
     id: game.id,
+    matchId: game.matchId || null,
+    roundNumber: Number.isInteger(game.roundNumber) ? game.roundNumber : null,
     phase: game.phase,
     currentTeam: game.currentTeam,
     startingTeam: game.startingTeam,
     turnNumber: game.turnNumber,
+    mode: game.mode || getRoomMode(room),
+    seed: game.seed || null,
+    maxHintCount:
+      Number.isInteger(game.maxHintCount) && game.maxHintCount > 0
+        ? game.maxHintCount
+        : getModeConfig(game.mode || getRoomMode(room)).maxHintCount,
+    phaseTimer: game.phaseTimer
+      ? {
+          phase: game.phaseTimer.phase,
+          startedAt: game.phaseTimer.startedAt,
+          endsAt: game.phaseTimer.endsAt,
+          durationMs: game.phaseTimer.durationMs,
+        }
+      : null,
     hint: game.hint,
     guessesRemaining: game.guessesRemaining,
     remaining: game.remaining,
@@ -835,11 +1752,14 @@ function buildGameView(room, game, viewer) {
     loser: game.loser,
     reason: game.reason,
     showKeycard,
+    blackoutAt: game.blackoutAt || null,
+    history,
     board: game.board.map((card) => {
       const marksForCard = game.marksByCard?.[card.index] || new Set();
+      const confidenceForCard = game.confidenceByCard?.[card.index] || {};
       return {
         index: card.index,
-        word: card.word,
+        word: blackedOut && !card.revealed ? '???' : card.word,
         revealed: card.revealed,
         revealedBy: card.revealed ? card.revealedBy : null,
         color: card.revealed || showKeycard ? card.color : null,
@@ -853,10 +1773,67 @@ function buildGameView(room, game, viewer) {
                 sessionId: player.sessionId,
                 name: player.name,
                 team: player.team,
+                confidence: confidenceForCard[player.sessionId] || 'firm',
               })),
       };
     }),
   };
+}
+
+function broadcastMvpResult(room) {
+  if (!room.game || !room.game.mvpVotes) return;
+  const votes = room.game.mvpVotes;
+  const tally = {};
+  for (const targetId of Object.values(votes)) {
+    tally[targetId] = (tally[targetId] || 0) + 1;
+  }
+  let maxVotes = 0;
+  let winnerId = null;
+  for (const [id, count] of Object.entries(tally)) {
+    if (count > maxVotes) {
+      maxVotes = count;
+      winnerId = id;
+    }
+  }
+  const winner = winnerId ? room.players.get(winnerId) : null;
+  io.to(room.code).emit('game:mvp_result', {
+    winner: winner ? { sessionId: winner.sessionId, name: winner.name } : null,
+    votes: tally,
+  });
+}
+
+async function fetchWordPack(url) {
+  const https = require('https');
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { timeout: 10_000 }, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode}`));
+        res.resume();
+        return;
+      }
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const words = JSON.parse(data);
+          if (!Array.isArray(words) || words.length < 50) {
+            reject(new Error('Word pack must be a JSON array with at least 50 strings.'));
+            return;
+          }
+          const validated = words.filter(w => typeof w === 'string' && w.trim().length > 0).map(w => w.trim());
+          if (validated.length < 50) {
+            reject(new Error('Word pack must contain at least 50 valid strings.'));
+            return;
+          }
+          resolve(validated);
+        } catch (e) {
+          reject(new Error('Invalid JSON.'));
+        }
+      });
+    });
+    req.on('error', (e) => reject(e));
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout.')); });
+  });
 }
 
 function emitStateToRoom(room) {
@@ -971,8 +1948,11 @@ function markDisconnected(socket) {
     player.socketId = null;
     player.lastSeenAt = Date.now();
     room.lastActiveAt = Date.now();
-
-    emitStateToRoom(room);
+    ensureHostSession(room);
+    const countdownCancelled = cancelCountdownIfReadinessInvalid(room, 'player_disconnected');
+    if (!countdownCancelled) {
+      emitStateToRoom(room);
+    }
   }
 
   clearSocketBinding(socket);
@@ -982,18 +1962,19 @@ function removePlayerFromRoom(room, sessionId) {
   clearMarksForSession(room, sessionId);
   room.players.delete(sessionId);
   room.lastActiveAt = Date.now();
-
-  if (room.hostSessionId === sessionId) {
-    const nextHost = getSortedPlayers(room)[0];
-    room.hostSessionId = nextHost ? nextHost.sessionId : null;
-  }
+  ensureHostSession(room);
 
   if (room.players.size === 0) {
+    clearCountdownTimer(room.code);
+    clearPhaseTimerState(room);
+    logEvent('room_deleted', { roomCode: room.code, reason: 'empty' });
     rooms.delete(room.code);
     return;
   }
-
-  emitStateToRoom(room);
+  const countdownCancelled = cancelCountdownIfReadinessInvalid(room, 'player_left');
+  if (!countdownCancelled) {
+    emitStateToRoom(room);
+  }
 }
 
 function clearMarksForSession(room, sessionId) {
@@ -1006,11 +1987,9 @@ function clearMarksForSession(room, sessionId) {
   }
 }
 
-function getSortedPlayers(room) {
-  return [...room.players.values()].sort((a, b) => a.joinedAt - b.joinedAt);
-}
-
 function sendViolation(socket, action, message) {
+  metrics.ruleViolation += 1;
+  logEvent('rule_violation', { action, socketId: socket.id, message });
   socket.emit('error:rule_violation', { action, message });
 }
 
@@ -1024,6 +2003,15 @@ function ackError(callback, error) {
   if (typeof callback === 'function') {
     callback({ ok: false, error });
   }
+}
+
+function logEvent(event, fields = {}) {
+  const payload = {
+    ts: new Date().toISOString(),
+    event,
+    ...fields,
+  };
+  console.log(JSON.stringify(payload));
 }
 
 /**
@@ -1042,6 +2030,7 @@ function ackError(callback, error) {
  * @property {string} name
  * @property {'red' | 'blue' | 'none'} team
  * @property {'spymaster' | 'operative' | 'spectator'} role
+ * @property {boolean} ready
  * @property {boolean} connected
  * @property {number} joinedAt
  * @property {number} lastSeenAt
@@ -1050,6 +2039,11 @@ function ackError(callback, error) {
  * @property {string} id
  * @property {number} createdAt
  * @property {number} lastActionAt
+ * @property {string | null} matchId
+ * @property {number | null} roundNumber
+ * @property {'casual' | 'blitz'} mode
+ * @property {number} maxHintCount
+ * @property {{id: string, phase: 'hint' | 'guess', startedAt: number, endsAt: number, durationMs: number} | null} phaseTimer
  * @property {'hint' | 'guess' | 'finished'} phase
  * @property {'red' | 'blue'} currentTeam
  * @property {'red' | 'blue'} startingTeam
@@ -1070,5 +2064,8 @@ function ackError(callback, error) {
  * @property {number} lastActiveAt
  * @property {string | null} hostSessionId
  * @property {Map<string, Player>} players
+ * @property {'casual' | 'blitz'} mode
+ * @property {{id: string, roundNumber: number} | null} match
+ * @property {{id: string, active: boolean, startedAt: number, endsAt: number, startedBy: string} | null} countdown
  * @property {GameState | null} game
  */

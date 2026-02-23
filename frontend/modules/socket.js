@@ -1,0 +1,162 @@
+import { state, readSession, writeSession, clearSession } from './state.js';
+import { ui } from './ui.js';
+import { t } from './i18n.js';
+import { setConnection, showToast, announce } from './helpers.js';
+import { render } from './render.js';
+import { playSound } from './sound.js';
+
+export const socket = io();
+
+export function wireSocketEvents() {
+  socket.on('connect', async () => {
+    setConnection(true, t('connected'));
+    await tryAutoRejoin();
+  });
+
+  socket.on('disconnect', () => {
+    setConnection(false, t('disconnected'));
+  });
+
+  socket.on('state:full', (snapshot) => {
+    state.snapshot = snapshot;
+    writeSession({
+      code: snapshot.room.code,
+      sessionId: snapshot.me.sessionId,
+      name: snapshot.me.name,
+    });
+    render();
+  });
+
+  socket.on('error:rule_violation', (payload = {}) => {
+    showToast(payload.message || t('action_rejected'));
+  });
+
+  socket.on('server:info', (payload = {}) => {
+    if (payload.message) showToast(payload.message);
+  });
+
+  socket.on('connect_error', () => {
+    setConnection(false, t('connection_error'));
+  });
+
+  socket.on('game:countdown_started', (_payload = {}) => {
+    showToast(t('match_countdown_started'));
+    playSound('countdown');
+  });
+
+  socket.on('game:countdown_cancelled', (payload = {}) => {
+    const reason = String(payload.reason || '').trim();
+    const message =
+      reason === 'cancelled_by_host'
+        ? t('countdown_cancelled_host')
+        : reason
+          ? t('countdown_cancelled_changes')
+          : t('countdown_cancelled');
+    showToast(message);
+  });
+
+  socket.on('turn:timer_started', (payload = {}) => {
+    const phase = String(payload.phase || '').trim();
+    if (phase === 'hint') {
+      showToast(t('hint_timer_started'));
+      return;
+    }
+    if (phase === 'guess') {
+      showToast(t('guess_timer_started'));
+    }
+  });
+
+  socket.on('turn:timer_expired', (payload = {}) => {
+    const phase = String(payload.phase || '').trim();
+    if (phase === 'hint') {
+      showToast(t('hint_timer_expired'));
+      return;
+    }
+    if (phase === 'guess') {
+      showToast(t('guess_timer_expired'));
+    }
+  });
+
+  socket.on('turn:guess_resolved', (payload = {}) => {
+    const color = payload.color;
+    if (color === 'assassin') {
+      playSound('assassin');
+      announce(t('result_assassin', { loser: payload.team || '' }));
+    } else if (color === payload.team) {
+      playSound('correct');
+    } else {
+      playSound('reveal');
+    }
+  });
+
+  socket.on('turn:hint_accepted', (payload = {}) => {
+    const hint = payload.hint;
+    if (hint) {
+      announce(t('hint_display', { word: hint.word, count: hint.count, remaining: '' }));
+    }
+  });
+
+  socket.on('game:gg_received', (payload = {}) => {
+    const name = payload.name || t('anonymous');
+    showToast(`${name}: GG!`);
+    playSound('gg');
+  });
+
+  socket.on('game:mvp_result', (payload = {}) => {
+    if (payload.winner) {
+      showToast(t('mvp_winner', { name: payload.winner.name || '' }));
+    }
+  });
+}
+
+export async function tryAutoRejoin() {
+  if (state.rejoinAttempted) return;
+  state.rejoinAttempted = true;
+  const stored = readSession();
+  if (!stored) return;
+
+  ui.nameInput.value = stored.name || '';
+  ui.codeInput.value = stored.code || '';
+
+  // Check for /room/XXXX URL pattern
+  const pathMatch = window.location.pathname.match(/^\/room\/([A-Za-z0-9]{4})$/);
+  if (pathMatch) {
+    ui.codeInput.value = pathMatch[1].toUpperCase();
+  }
+
+  try {
+    await emitWithAck('room:rejoin', {
+      code: stored.code,
+      sessionId: stored.sessionId,
+      name: stored.name,
+    });
+  } catch (_error) {
+    clearSession();
+  }
+}
+
+export function emitWithAck(event, payload, timeoutMs = 7000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Request timed out (${event}).`));
+    }, timeoutMs);
+
+    socket.emit(event, payload, (response) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!response) {
+        reject(new Error('No response from server.'));
+        return;
+      }
+      if (response.ok) {
+        resolve(response);
+        return;
+      }
+      reject(new Error(response.error || 'Request rejected.'));
+    });
+  });
+}
