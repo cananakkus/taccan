@@ -213,6 +213,12 @@ function renderTeamBoxes(snapshot) {
 function buildTeamPlayerItem(player, me, snapshot) {
   const item = document.createElement('li');
   item.className = 'team-player-item';
+  item.dataset.sessionId = player.sessionId;
+
+  // Speaking glow
+  if (state.voiceSpeaking.has(player.sessionId)) {
+    item.classList.add('speaking');
+  }
 
   const avatar = document.createElement('span');
   avatar.className = 'player-avatar';
@@ -261,6 +267,23 @@ function buildTeamPlayerItem(player, me, snapshot) {
       thinkingTag.className = 'tag thinking';
       thinkingTag.textContent = '...';
       meta.appendChild(thinkingTag);
+    }
+  }
+
+  // Voice chat tags
+  if (state.voicePeers.has(player.sessionId) ||
+      (state.voiceActive && player.sessionId === me.sessionId)) {
+    if (state.voiceMutedPeers.has(player.sessionId) ||
+        (player.sessionId === me.sessionId && state.voiceMuted)) {
+      const mutedTag = document.createElement('span');
+      mutedTag.className = 'tag voice-muted';
+      mutedTag.textContent = 'MUTED';
+      meta.appendChild(mutedTag);
+    } else {
+      const voiceTag = document.createElement('span');
+      voiceTag.className = 'tag voice';
+      voiceTag.textContent = 'VOICE';
+      meta.appendChild(voiceTag);
     }
   }
 

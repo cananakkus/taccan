@@ -75,6 +75,10 @@ const EVENT_RATE_LIMITS = {
   'game:gg': { max: 3, windowMs: 30_000 },
   'game:mvp_vote': { max: 5, windowMs: 30_000 },
   'room:word_pack_set': { max: 5, windowMs: 60_000 },
+  'voice:join': { max: 10, windowMs: 30_000 },
+  'voice:leave': { max: 10, windowMs: 30_000 },
+  'voice:signal': { max: 200, windowMs: 10_000 },
+  'voice:mute': { max: 30, windowMs: 10_000 },
   default: { max: 60, windowMs: 10_000 },
 };
 const metrics = {
@@ -1080,6 +1084,98 @@ io.on('connection', (socket) => {
       });
   });
 
+  // ── Voice Chat Signaling ──
+
+  socket.on('voice:join', (payload = {}, callback) => {
+    const action = 'voice:join';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) { ackError(callback, 'You are not in a room.'); return; }
+
+    const { room, player } = context;
+    if (!room.voicePeers) room.voicePeers = new Set();
+
+    // Send list of existing voice peers before adding this player
+    const existingPeers = [...room.voicePeers].filter(id => id !== player.sessionId);
+    room.voicePeers.add(player.sessionId);
+
+    // Notify existing voice peers about the new joiner
+    for (const peerId of existingPeers) {
+      const peer = room.players.get(peerId);
+      if (!peer || !peer.connected || !peer.socketId) continue;
+      const peerSocket = io.sockets.sockets.get(peer.socketId);
+      if (peerSocket) peerSocket.emit('voice:peer_joined', { sessionId: player.sessionId });
+    }
+
+    ackOk(callback, { peers: existingPeers });
+  });
+
+  socket.on('voice:leave', (payload = {}, callback) => {
+    const action = 'voice:leave';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) { ackError(callback, 'You are not in a room.'); return; }
+
+    handleVoiceLeave(context.room, context.player);
+    ackOk(callback);
+  });
+
+  socket.on('voice:signal', (payload = {}, callback) => {
+    const action = 'voice:signal';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) { ackError(callback, 'You are not in a room.'); return; }
+
+    const { room, player } = context;
+    const targetPlayer = room.players.get(validatedPayload.targetSessionId);
+    if (!targetPlayer || !targetPlayer.connected || !targetPlayer.socketId) {
+      ackError(callback, 'Target peer not found.');
+      return;
+    }
+
+    const targetSocket = io.sockets.sockets.get(targetPlayer.socketId);
+    if (!targetSocket) { ackError(callback, 'Target peer not connected.'); return; }
+
+    targetSocket.emit('voice:signal', {
+      fromSessionId: player.sessionId,
+      type: validatedPayload.type,
+      sdp: validatedPayload.sdp,
+      candidate: validatedPayload.candidate,
+    });
+    ackOk(callback);
+  });
+
+  socket.on('voice:mute', (payload = {}, callback) => {
+    const action = 'voice:mute';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) { ackError(callback, 'You are not in a room.'); return; }
+
+    const { room, player } = context;
+    if (!room.voicePeers || !room.voicePeers.has(player.sessionId)) {
+      ackError(callback, 'You are not in voice chat.');
+      return;
+    }
+
+    for (const peerId of room.voicePeers) {
+      if (peerId === player.sessionId) continue;
+      const peer = room.players.get(peerId);
+      if (!peer || !peer.connected || !peer.socketId) continue;
+      const peerSocket = io.sockets.sockets.get(peer.socketId);
+      if (peerSocket) peerSocket.emit('voice:mute_changed', { sessionId: player.sessionId, muted: validatedPayload.muted });
+    }
+
+    ackOk(callback);
+  });
+
   socket.on('disconnect', () => {
     metrics.disconnect += 1;
     logEvent('socket_disconnected', { socketId: socket.id });
@@ -1721,6 +1817,17 @@ function leaveBoundRoom(socket) {
   clearSocketBinding(socket);
 }
 
+function handleVoiceLeave(room, player) {
+  if (!room.voicePeers || !room.voicePeers.has(player.sessionId)) return;
+  room.voicePeers.delete(player.sessionId);
+  for (const peerId of room.voicePeers) {
+    const peer = room.players.get(peerId);
+    if (!peer || !peer.connected || !peer.socketId) continue;
+    const peerSocket = io.sockets.sockets.get(peer.socketId);
+    if (peerSocket) peerSocket.emit('voice:peer_left', { sessionId: player.sessionId });
+  }
+}
+
 function markDisconnected(socket) {
   const roomCode = socket.data.roomCode;
   const sessionId = socket.data.sessionId;
@@ -1746,6 +1853,7 @@ function markDisconnected(socket) {
     player.socketId = null;
     player.lastSeenAt = Date.now();
     room.lastActiveAt = Date.now();
+    handleVoiceLeave(room, player);
     ensureHostSession(room);
     emitStateToRoom(room);
   }
@@ -1754,6 +1862,8 @@ function markDisconnected(socket) {
 }
 
 function removePlayerFromRoom(room, sessionId) {
+  const departingPlayer = room.players.get(sessionId);
+  if (departingPlayer) handleVoiceLeave(room, departingPlayer);
   clearMarksForSession(room, sessionId);
   room.players.delete(sessionId);
   room.lastActiveAt = Date.now();

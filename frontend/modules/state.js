@@ -44,6 +44,11 @@ export const state = {
   soundMuted: false,
   colorblindMode: false,
   aiAvailable: false,
+  voiceActive: false,
+  voiceMuted: false,
+  voicePeers: new Set(),
+  voiceSpeaking: new Map(),
+  voiceMutedPeers: new Set(),
 };
 
 // --- Session persistence ---

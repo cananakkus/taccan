@@ -11,6 +11,7 @@ import { initScratchpad } from './scratchpad.js';
 import { renderQRCode } from './qrcode.js';
 import { renderRoomSeal } from './room-seal.js';
 import { generateDebriefNarrative } from './debrief.js';
+import { joinVoice, leaveVoice, toggleMute } from './voice.js';
 
 const SERVER_ERROR_MAP = {
   'Hint must be a single alphabetical word.': 'hint_invalid_word',
@@ -105,7 +106,16 @@ export function wireUiEvents() {
     });
   }
 
+  // Voice chat buttons
+  if (ui.voiceJoinBtn) {
+    ui.voiceJoinBtn.addEventListener('click', () => joinVoice());
+  }
+  if (ui.voiceMuteBtn) {
+    ui.voiceMuteBtn.addEventListener('click', () => toggleMute());
+  }
+
   ui.leaveRoomButton.addEventListener('click', async () => {
+    leaveVoice();
     try {
       await emitWithAck('room:leave', {});
     } catch (_error) {}

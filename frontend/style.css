@@ -1734,3 +1734,49 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 ::-webkit-scrollbar-track { background: var(--paper-dark); }
 ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+/* ══════════════════════════════
+   VOICE CHAT
+   ══════════════════════════════ */
+.voice-chat-btn {
+  color: var(--paper-light);
+  opacity: 0.85;
+}
+.voice-chat-btn:hover {
+  opacity: 1;
+}
+.voice-chat-btn.in-voice {
+  color: var(--success);
+  opacity: 1;
+  font-weight: 700;
+}
+.voice-mute-btn {
+  color: var(--paper-light);
+  opacity: 0.85;
+}
+.voice-mute-btn:hover {
+  opacity: 1;
+}
+.voice-mute-btn.muted {
+  color: var(--danger);
+  font-weight: 700;
+}
+.team-player-item.speaking {
+  box-shadow: 0 0 0 2px var(--success), 0 0 8px rgba(61, 107, 46, 0.4);
+}
+.team-player-item.speaking .player-avatar {
+  box-shadow: 0 0 0 2px var(--success);
+}
+.tag.voice {
+  background: rgba(61, 107, 46, 0.2);
+  color: var(--success);
+  border-color: var(--success);
+}
+.tag.voice-muted {
+  background: rgba(122, 40, 40, 0.2);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+#voice-audio-container {
+  display: none;
+}

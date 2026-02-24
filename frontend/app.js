@@ -5,6 +5,7 @@ import { wireSocketEvents } from './modules/socket.js';
 import { wireUiEvents } from './modules/actions.js';
 import { render, initBoard } from './modules/render.js';
 import { initKeyboardNav } from './modules/keyboard-nav.js';
+import { initVoice } from './modules/voice.js';
 import './modules/sound.js';
 
 // Parse /room/XXXX URL and auto-fill code input
@@ -34,6 +35,7 @@ fetch('/api/ai-available').then(r => r.json()).then(data => {
 initBoard();
 initLanguage();
 wireSocketEvents();
+initVoice();
 wireUiEvents();
 initKeyboardNav();
 render();

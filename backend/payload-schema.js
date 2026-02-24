@@ -48,6 +48,17 @@ const SCHEMAS = {
     index: { type: 'integer', optional: false, min: 0, max: 24 },
   },
   'turn:end': {},
+  'voice:join': {},
+  'voice:leave': {},
+  'voice:signal': {
+    targetSessionId: { type: 'string', optional: false, maxLength: 128 },
+    type: { type: 'string', optional: false, enum: ['offer', 'answer', 'candidate'] },
+    sdp: { type: 'string', optional: true, maxLength: 65536 },
+    candidate: { type: 'string', optional: true, maxLength: 4096 },
+  },
+  'voice:mute': {
+    muted: { type: 'boolean', optional: false },
+  },
 };
 
 function validatePayload(action, payload) {
