@@ -3,266 +3,261 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6b5138" />
-    <title>Taccan</title>
+    <meta name="theme-color" content="#3a2e24" />
+    <title>TACCAN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700;900&family=Special+Elite&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/style.css" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   </head>
   <body>
-    <div class="paper-stage" aria-hidden="true">
-      <div class="paper-shadow"></div>
-      <div class="paper-grain"></div>
-      <div class="ink-smudge ink-a"></div>
-      <div class="ink-smudge ink-b"></div>
-    </div>
-
-    <!-- Screen reader announcements (Wave 7.3) -->
     <div id="sr-announcements" class="sr-only" aria-live="assertive" role="log"></div>
 
     <main class="app-shell">
-      <header class="topbar page-panel">
-        <div class="brand">
-          <p class="eyebrow" data-i18n="brand_eyebrow">Guild Cipher Desk</p>
-          <h1 data-i18n="brand_title">Taccan Codex</h1>
-          <p class="tagline" data-i18n="brand_tagline">Uncover your agents before your rivals read the page.</p>
+      <!-- ═══ JOIN SCREEN ═══ -->
+      <section id="join-panel" class="join-screen">
+        <div class="join-card">
+          <div class="dossier-stamp" aria-hidden="true">CLASSIFIED</div>
+          <div class="fold-line fold-line-h" aria-hidden="true"></div>
+          <div class="fold-line fold-line-v" aria-hidden="true"></div>
+
+          <header class="join-header">
+            <div class="document-number" aria-hidden="true">DOC. NO. TC-4782</div>
+            <h1 class="logo-title">TACCAN</h1>
+            <div class="logo-rule" aria-hidden="true"></div>
+            <p class="join-subtitle" data-i18n="join_subtitle">Create a private table or join one with a 4-letter code.</p>
+          </header>
+
+          <div class="join-form">
+            <label class="field-group">
+              <span class="field-label" data-i18n="display_name">DISPLAY NAME</span>
+              <input id="name-input" type="text" maxlength="24" placeholder="Agent Name"
+                     data-i18n-placeholder="display_name_placeholder" autocomplete="off" />
+            </label>
+
+            <label class="field-group">
+              <span class="field-label" data-i18n="room_code">ROOM CODE</span>
+              <div class="join-row">
+                <input id="code-input" type="text" maxlength="4" placeholder="ABCD"
+                       data-i18n-placeholder="room_code_placeholder" autocomplete="off" class="code-field" />
+                <button id="join-btn" class="btn btn-secondary" type="button" data-i18n="join_room">Join</button>
+              </div>
+            </label>
+
+            <div class="join-actions">
+              <button id="create-btn" class="btn btn-primary btn-lg" type="button" data-i18n="create_room">Create Room</button>
+            </div>
+
+            <p id="join-note" class="join-note" data-i18n="join_note_default">
+              Use one name across tabs so your team can track you easily.
+            </p>
+          </div>
+
+          <footer class="join-footer">
+            <div class="language-switch" role="group" aria-label="Language">
+              <button class="lang-btn" type="button" data-language="en" data-i18n="language_en">English</button>
+              <button class="lang-btn" type="button" data-language="tr" data-i18n="language_tr">Türkçe</button>
+            </div>
+          </footer>
         </div>
-      </header>
-
-      <section id="join-panel" class="panel join-panel page-panel">
-        <div class="panel-intro">
-          <h2 data-i18n="join_title">Open A Mission Room</h2>
-          <p data-i18n="join_subtitle">Create a private table or join one with a 4-letter code.</p>
-        </div>
-
-        <label class="field">
-          <span data-i18n="display_name">Display Name</span>
-          <input id="name-input" type="text" maxlength="24" placeholder="Agent Name" data-i18n-placeholder="display_name_placeholder" autocomplete="off" />
-        </label>
-
-        <div class="join-row">
-          <label class="field compact">
-            <span data-i18n="room_code">Room Code</span>
-            <input id="code-input" type="text" maxlength="4" placeholder="ABCD" data-i18n-placeholder="room_code_placeholder" autocomplete="off" />
-          </label>
-          <button id="join-btn" class="btn neutral" type="button" data-i18n="join_room">Join Room</button>
-          <button id="create-btn" class="btn" type="button" data-i18n="create_room">Create Room</button>
-        </div>
-
-        <p id="join-note" class="hint-text" data-i18n="join_note_default">
-          Use one name across tabs so your team can track you easily.
-        </p>
       </section>
 
-      <section id="room-panel" class="room-panel hidden">
-        <aside class="team-box red-team-box page-panel">
-          <div class="team-head">
-            <h3 data-i18n="red_team">Red Team</h3>
-            <p id="red-count" class="score red">Red: -</p>
-          </div>
-
-          <div class="team-actions">
-            <button class="btn small team-action-btn" type="button" data-team="red" data-i18n="join_red">Join Red</button>
-          </div>
-
-          <div class="team-role-group">
-            <p class="team-role-label" data-i18n="role">Role</p>
-            <div class="team-role-row">
-              <button class="btn small team-role-btn" type="button" data-role="spymaster" data-role-team="red" data-i18n="spymaster">
-                Spymaster
-              </button>
-              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="red" data-i18n="operative">
-                Operative
-              </button>
+      <!-- ═══ ROOM SCREEN ═══ -->
+      <section id="room-panel" class="room-screen hidden">
+        <!-- Top Bar -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <span class="topbar-logo">TACCAN</span>
+            <div class="room-badge">
+              <span id="room-code" class="room-code-val">----</span>
+              <span id="mode-badge" class="mode-tag">Casual</span>
             </div>
           </div>
-
-          <ul id="red-team-list" class="team-list"></ul>
-        </aside>
-
-        <main class="center-box page-panel">
-          <div id="turn-banner" class="turn-banner" aria-live="polite">Lobby open</div>
-
-          <div id="phase-timer" class="phase-timer hidden" aria-live="polite">
-            <span id="phase-timer-label" class="phase-timer-label">Turn timer</span>
-            <span id="phase-timer-value" class="phase-timer-value">00:00</span>
+          <div class="topbar-center">
+            <div id="turn-banner" class="turn-banner" aria-live="polite">Lobby open</div>
+            <div id="phase-timer" class="phase-timer hidden" aria-live="polite">
+              <span id="phase-timer-label" class="timer-label"></span>
+              <span id="phase-timer-value" class="timer-value">00:00</span>
+            </div>
           </div>
-
-          <div class="playbook-grid">
-            <section id="hint-section" class="action-box hint-box hidden">
-              <h3 data-i18n="spymaster_hint">Spymaster Hint</h3>
-              <p id="hint-status" class="hint-status">Waiting for hint phase.</p>
-              <form id="hint-form" class="hint-form">
-                <input id="hint-word-input" type="text" maxlength="30" placeholder="One word" data-i18n-placeholder="one_word" required autocomplete="off" />
-                <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
-                <button type="submit" class="btn" data-i18n="transmit">Transmit</button>
-              </form>
-              <!-- Spymaster Scratch Pad (Wave 3.1) -->
-              <div id="scratchpad" class="scratchpad hidden">
-                <label class="scratchpad-label" data-i18n="scratchpad">Notes</label>
-                <textarea id="scratchpad-textarea" class="scratchpad-textarea" rows="3" data-i18n-placeholder="scratchpad_placeholder"></textarea>
-              </div>
-            </section>
-
-            <section id="guess-section" class="action-box guess-box hidden">
-              <h3 data-i18n="operative_phase">Operative Phase</h3>
-              <p id="hint-display" class="hint-display">Awaiting hint...</p>
-              <p id="guess-note" class="guess-note">Click cards to mark and select. Use Submit Guess or double-click a card.</p>
-              <p id="selected-guess" class="guess-selected">No card selected.</p>
-              <div class="guess-actions">
-                <button id="submit-guess-btn" class="btn neutral" type="button" data-i18n="submit_guess">Submit Guess</button>
-                <button id="end-turn-btn" class="btn neutral" type="button" data-i18n="end_turn">End Turn</button>
-              </div>
-            </section>
-
-            <section id="result-section" class="action-box result-box hidden">
-              <h3 data-i18n="round_complete">Round Complete</h3>
-              <p id="result-text"></p>
-              <div class="result-actions">
-                <button id="rematch-btn" class="btn" type="button" data-i18n="rematch">Rematch</button>
-                <button id="swap-rematch-btn" class="btn neutral" type="button" data-i18n="swap_rematch">Swap + Rematch</button>
-                <button id="gg-btn" class="btn neutral small hidden" type="button">GG</button>
-                <button id="debrief-btn" class="btn neutral small hidden" type="button" data-i18n="debrief">Debrief</button>
-                <button id="analyst-btn" class="btn neutral small hidden" type="button" data-i18n="analyst_review">Analyst Review</button>
-              </div>
-              <!-- MVP Vote Section (Wave 6.2) -->
-              <div id="mvp-section" class="mvp-section hidden"></div>
-            </section>
+          <div class="topbar-right" id="topbar-room-utility">
+            <div class="status-indicator">
+              <span id="connection-dot" class="conn-dot offline"></span>
+              <span id="connection-label" class="conn-label">Offline</span>
+            </div>
+            <nav class="topbar-actions" aria-label="Room actions">
+              <button id="copy-room-btn" class="text-btn" type="button" data-i18n="copy_room" aria-label="Copy room link">Copy Code</button>
+              <button id="share-room-btn" class="text-btn" type="button" data-i18n="share_room" aria-label="Share room">Share</button>
+              <button id="leave-room-btn" class="text-btn text-btn-danger" type="button" data-i18n="leave_room" aria-label="Leave room">Leave Room</button>
+            </nav>
           </div>
+        </header>
 
-          <!-- Hint History Sidebar (Wave 3.2) -->
-          <aside id="hint-history" class="hint-history hidden">
-            <h4 data-i18n="hint_history">Hint History</h4>
-            <ul id="hint-history-list" class="hint-history-list"></ul>
+        <!-- Main Content Area -->
+        <div class="room-body">
+          <!-- Left Sidebar: Teams -->
+          <aside class="sidebar sidebar-teams">
+            <!-- Red Team -->
+            <div class="team-panel team-red">
+              <div class="team-head">
+                <span class="team-dot red"></span>
+                <h3 data-i18n="red_team">Red</h3>
+                <span id="red-count" class="team-score">-</span>
+              </div>
+              <ul id="red-team-list" class="player-list"></ul>
+              <div class="team-actions">
+                <button class="btn btn-team red" type="button" data-team="red" data-i18n="join_red">Join Red</button>
+                <div class="role-row">
+                  <button class="btn btn-role" type="button" data-role="spymaster" data-role-team="red" data-i18n="spymaster">Spymaster</button>
+                  <button class="btn btn-role" type="button" data-role="operative" data-role-team="red" data-i18n="operative">Operative</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Blue Team -->
+            <div class="team-panel team-blue">
+              <div class="team-head">
+                <span class="team-dot blue"></span>
+                <h3 data-i18n="blue_team">Blue</h3>
+                <span id="blue-count" class="team-score">-</span>
+              </div>
+              <ul id="blue-team-list" class="player-list"></ul>
+              <div class="team-actions">
+                <button class="btn btn-team blue" type="button" data-team="blue" data-i18n="join_blue">Join Blue</button>
+                <div class="role-row">
+                  <button class="btn btn-role" type="button" data-role="spymaster" data-role-team="blue" data-i18n="spymaster">Spymaster</button>
+                  <button class="btn btn-role" type="button" data-role="operative" data-role-team="blue" data-i18n="operative">Operative</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Spectator & Ready -->
+            <div class="sidebar-actions">
+              <button id="start-game-btn" class="btn btn-accent btn-lg hidden" type="button" data-i18n="start_game">Start Game</button>
+              <button id="ready-btn" class="btn btn-secondary hidden" type="button" data-i18n="ready_up">Ready Up</button>
+              <button class="btn btn-ghost spectator-btn" type="button" data-role="spectator" data-i18n="spectator">Spectator</button>
+            </div>
           </aside>
 
-          <div class="board-wrap">
-            <div id="board" class="board" role="grid" aria-label="Game board"></div>
-          </div>
-        </main>
-
-        <aside class="options-box panel-card page-panel">
-          <div class="room-head">
-            <div>
-              <p class="room-label" data-i18n="room">Room</p>
-              <div class="room-code-row">
-                <p id="room-code" class="room-code">----</p>
-                <div id="room-seal-container" class="room-seal-container"></div>
-              </div>
-              <p id="mode-badge" class="mode-badge">Casual</p>
-            </div>
-          </div>
-
-          <!-- QR Code (Wave 3.6) -->
-          <div id="qr-code-container" class="qr-code-container"></div>
-
-          <div id="topbar-room-utility" class="topbar-room-utility hidden">
-            <div class="status-box">
-              <span id="connection-dot" class="dot offline"></span>
-              <span id="connection-label">Disconnected</span>
-            </div>
-            <div class="room-actions">
-              <button id="copy-room-btn" class="btn subtle" type="button" data-i18n="copy_room">Copy Link</button>
-              <button id="share-room-btn" class="btn subtle" type="button" data-i18n="share_room">Share</button>
-              <button id="leave-room-btn" class="btn subtle danger" type="button" data-i18n="leave_room">Leave Room</button>
-            </div>
-          </div>
-
-          <div class="topbar-tools">
-            <button id="start-game-btn" class="btn small start-btn hidden" type="button" data-i18n="start_game">Start Game</button>
-            <button id="ready-btn" class="btn small hidden" type="button" data-i18n="ready_up">Ready Up</button>
-            <button id="prune-btn" class="btn subtle small hidden" type="button" data-i18n="prune_offline">Prune Offline</button>
-            <button class="btn subtle small spectator-btn hidden" type="button" data-role="spectator" data-i18n="spectator">
-              Spectator
-            </button>
-          </div>
-
-          <section class="mode-control">
-            <p class="room-label" data-i18n="mode">Mode</p>
-            <div class="mode-buttons">
-              <button id="mode-casual-btn" class="btn subtle small" type="button" data-room-mode="casual" data-i18n="mode_casual">
-                Casual
-              </button>
-              <button id="mode-blitz-btn" class="btn subtle small" type="button" data-room-mode="blitz" data-i18n="mode_blitz">
-                Blitz
-              </button>
-              <button class="btn subtle small" type="button" data-room-mode="cipher" data-i18n="mode_cipher">
-                Cipher
-              </button>
-              <button class="btn subtle small" type="button" data-room-mode="blackout" data-i18n="mode_blackout">
-                Blackout
-              </button>
-            </div>
-            <p id="mode-note" class="mode-note">Blitz uses per-turn timers and max hint 5.</p>
-
-            <!-- Word Pack (Wave 8.4) -->
-            <div class="word-pack-control hidden">
-              <label class="field compact">
-                <span data-i18n="word_pack">Custom Words URL</span>
-                <div class="word-pack-row">
-                  <input id="word-pack-input" type="url" placeholder="https://..." />
-                  <button id="word-pack-btn" class="btn subtle small" type="button" data-i18n="load">Load</button>
+          <!-- Center: Board + Controls -->
+          <div class="game-stage">
+            <!-- Game Controls -->
+            <div class="controls-strip">
+              <section id="hint-section" class="ctrl-panel hint-ctrl hidden">
+                <div class="ctrl-head">
+                  <h3 data-i18n="spymaster_hint">Spymaster Hint</h3>
+                  <span id="hint-status" class="ctrl-status"></span>
                 </div>
-              </label>
+                <form id="hint-form" class="hint-form">
+                  <input id="hint-word-input" type="text" maxlength="30" placeholder="One word"
+                         data-i18n-placeholder="one_word" required autocomplete="off" />
+                  <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
+                  <button type="submit" class="btn btn-primary" data-i18n="transmit">Transmit</button>
+                </form>
+                <div id="scratchpad" class="scratchpad hidden">
+                  <textarea id="scratchpad-textarea" rows="2" placeholder="Spymaster notes..."
+                            data-i18n-placeholder="scratchpad_placeholder"></textarea>
+                </div>
+              </section>
+
+              <section id="guess-section" class="ctrl-panel guess-ctrl hidden">
+                <p id="hint-display" class="hint-display-bar"></p>
+                <p id="guess-note" class="ctrl-status"></p>
+                <div class="guess-row">
+                  <span id="selected-guess" class="selected-label">No card selected</span>
+                  <button id="submit-guess-btn" class="btn btn-primary" type="button" data-i18n="submit_guess">Guess</button>
+                  <button id="end-turn-btn" class="btn btn-ghost" type="button" data-i18n="end_turn">End Turn</button>
+                </div>
+              </section>
+
+              <section id="result-section" class="ctrl-panel result-ctrl hidden">
+                <p id="result-text" class="result-text"></p>
+                <div class="result-actions">
+                  <button id="rematch-btn" class="btn btn-primary" type="button" data-i18n="rematch">Rematch</button>
+                  <button id="swap-rematch-btn" class="btn btn-secondary" type="button" data-i18n="swap_rematch">Swap + Rematch</button>
+                  <button id="gg-btn" class="btn btn-ghost hidden" type="button">GG</button>
+                  <button id="debrief-btn" class="btn btn-ghost hidden" type="button" data-i18n="debrief">Debrief</button>
+                  <button id="analyst-btn" class="btn btn-ghost hidden" type="button" data-i18n="analyst_review">AI Review</button>
+                </div>
+                <div id="mvp-section" class="mvp-section hidden"></div>
+              </section>
             </div>
-          </section>
 
-          <div class="options-toggles">
-            <button id="sound-toggle-btn" class="btn subtle small" type="button" data-i18n="sound_on">Sound On</button>
-            <button id="colorblind-toggle-btn" class="btn subtle small" type="button" data-i18n="colorblind_off">Colorblind</button>
-          </div>
-
-          <div class="language-switch" role="group" aria-label="Language">
-            <button id="lang-en-btn" class="btn subtle small language-btn" type="button" data-language="en" data-i18n="language_en">
-              English
-            </button>
-            <button id="lang-tr-btn" class="btn subtle small language-btn" type="button" data-language="tr" data-i18n="language_tr">
-              Türkçe
-            </button>
-          </div>
-        </aside>
-
-        <aside class="team-box blue-team-box page-panel">
-          <div class="team-head">
-            <h3 data-i18n="blue_team">Blue Team</h3>
-            <p id="blue-count" class="score blue">Blue: -</p>
-          </div>
-
-          <div class="team-actions">
-            <button class="btn small team-action-btn" type="button" data-team="blue" data-i18n="join_blue">Join Blue</button>
-          </div>
-
-          <div class="team-role-group">
-            <p class="team-role-label" data-i18n="role">Role</p>
-            <div class="team-role-row">
-              <button
-                class="btn small team-role-btn"
-                type="button"
-                data-role="spymaster"
-                data-role-team="blue"
-                data-i18n="spymaster"
-              >
-                Spymaster
-              </button>
-              <button class="btn small team-role-btn" type="button" data-role="operative" data-role-team="blue" data-i18n="operative">
-                Operative
-              </button>
+            <!-- Board -->
+            <div class="board-wrap">
+              <div id="board" class="board" role="grid" aria-label="Game board"></div>
             </div>
+
+            <!-- Hint History -->
+            <aside id="hint-history" class="hint-history hidden">
+              <h4 data-i18n="hint_history">History</h4>
+              <ul id="hint-history-list" class="history-list"></ul>
+            </aside>
           </div>
 
-          <ul id="blue-team-list" class="team-list"></ul>
-        </aside>
+          <!-- Right Sidebar: Settings -->
+          <aside class="sidebar sidebar-settings">
+            <div class="settings-block">
+              <div class="room-meta">
+                <div id="qr-code-container" class="qr-wrap"></div>
+                <div id="room-seal-container" class="seal-wrap"></div>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <span class="settings-label" data-i18n="mode">Mode</span>
+              <div class="mode-grid">
+                <button class="mode-btn" type="button" data-room-mode="casual" data-i18n="mode_casual">Casual</button>
+                <button class="mode-btn" type="button" data-room-mode="blitz" data-i18n="mode_blitz">Blitz</button>
+                <button class="mode-btn" type="button" data-room-mode="cipher" data-i18n="mode_cipher">Cipher</button>
+                <button class="mode-btn" type="button" data-room-mode="blackout" data-i18n="mode_blackout">Blackout</button>
+              </div>
+              <p id="mode-note" class="mode-note"></p>
+            </div>
+
+            <div class="settings-block">
+              <div class="toggle-row">
+                <button id="sound-toggle-btn" class="toggle-btn" type="button" data-i18n="sound_on">
+                  <span>Sound</span>
+                </button>
+                <button id="colorblind-toggle-btn" class="toggle-btn" type="button" data-i18n="colorblind_off">
+                  <span>A11y</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <button id="prune-btn" class="btn btn-ghost btn-sm hidden" type="button" data-i18n="prune_offline">Prune Offline</button>
+            </div>
+
+            <div class="settings-block">
+              <span class="settings-label" data-i18n="word_pack">Custom Words</span>
+              <div class="pack-row">
+                <input id="word-pack-input" type="url" placeholder="https://..." class="input-sm" />
+                <button id="word-pack-btn" class="btn btn-ghost btn-sm" type="button" data-i18n="load">Load</button>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <div class="language-switch" role="group" aria-label="Language">
+                <button class="lang-btn" type="button" data-language="en" data-i18n="language_en">English</button>
+                <button class="lang-btn" type="button" data-language="tr" data-i18n="language_tr">Türkçe</button>
+              </div>
+            </div>
+          </aside>
+        </div>
       </section>
     </main>
 
     <div id="toast" class="toast hidden" role="alert" aria-live="assertive"></div>
 
-    <!-- Debrief Overlay (Wave 10.1) -->
-    <div id="debrief-overlay" class="debrief-overlay hidden">
-      <div class="debrief-panel">
-        <button id="debrief-close-btn" class="btn subtle small debrief-close" type="button">&times;</button>
-        <div id="debrief-content" class="debrief-content"></div>
+    <div id="debrief-overlay" class="overlay hidden">
+      <div class="overlay-panel">
+        <button id="debrief-close-btn" class="overlay-close" type="button">&times;</button>
+        <div id="debrief-content" class="overlay-content"></div>
       </div>
     </div>
 

@@ -1,11 +1,11 @@
 {
-  "name": "Taccan Codex",
-  "short_name": "Taccan",
-  "description": "Realtime word-guessing game for spies and handlers.",
+  "name": "TACCAN",
+  "short_name": "TACCAN",
+  "description": "Realtime multiplayer word-guessing game.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#e8dcc2",
-  "theme_color": "#6b5138",
+  "background_color": "#3a2e24",
+  "theme_color": "#3a2e24",
   "icons": [
     {
       "src": "/icons/icon-192.png",

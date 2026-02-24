@@ -10,7 +10,7 @@ import {
 import { deriveScene, sceneToBodyClass } from './state-machine.js';
 import { getAvatarColor, getInitials } from './identity.js';
 
-// --- Stable Card DOM (Wave 1.1) ---
+// --- Stable Card DOM ---
 export function initBoard() {
   ui.board.innerHTML = '';
   state.cardElements = [];
@@ -20,7 +20,6 @@ export function initBoard() {
     cardButton.className = 'card';
     cardButton.dataset.cardIndex = String(i);
     cardButton.setAttribute('tabindex', i === 0 ? '0' : '-1');
-    cardButton.style.setProperty('--card-tilt', getCardTilt(i));
 
     const inner = document.createElement('div');
     inner.className = 'card-inner';
@@ -72,7 +71,7 @@ function clearBoard() {
   }
 }
 
-// --- CSS Custom Properties as State Bridge (Wave 2.2) ---
+// --- CSS Custom Properties as State Bridge ---
 function syncCSSStateProperties(snapshot) {
   const root = document.documentElement;
   if (!snapshot) {
@@ -100,7 +99,7 @@ function syncCSSStateProperties(snapshot) {
   root.style.setProperty('--game-active', game && game.phase !== 'finished' ? '1' : '0');
 }
 
-// --- Scene Class (Wave 2.1) ---
+// --- Scene Class ---
 function setSceneClass(snapshot) {
   const scene = deriveScene(snapshot);
   const cls = sceneToBodyClass(scene);
@@ -140,9 +139,6 @@ export function render() {
   syncCSSStateProperties(snapshot);
 
   if (!snapshot) {
-    if (ui.appShell) ui.appShell.classList.remove('room-active');
-    if (ui.topbarRoomUtility) ui.topbarRoomUtility.classList.add('hidden');
-
     for (const button of ui.teamButtons) button.classList.remove('active');
     for (const button of ui.roleButtons) button.classList.remove('active');
     if (ui.startGameButton) {
@@ -171,7 +167,7 @@ export function render() {
       ui.modeBadge.classList.remove('blitz');
     }
     if (ui.modeNote) {
-      ui.modeNote.textContent = t('mode_note_blitz', { hint: 25, guess: 35, max: 5 });
+      ui.modeNote.textContent = '';
     }
     if (ui.phaseTimer) {
       ui.phaseTimer.classList.add('hidden');
@@ -192,8 +188,6 @@ export function render() {
     return;
   }
 
-  if (ui.appShell) ui.appShell.classList.add('room-active');
-  if (ui.topbarRoomUtility) ui.topbarRoomUtility.classList.remove('hidden');
   ui.joinPanel.classList.add('hidden');
   ui.roomPanel.classList.remove('hidden');
 
@@ -227,7 +221,6 @@ function buildTeamPlayerItem(player, me, snapshot) {
   const item = document.createElement('li');
   item.className = 'team-player-item';
 
-  // Avatar circle (Wave 3.3)
   const avatar = document.createElement('span');
   avatar.className = 'player-avatar';
   avatar.style.backgroundColor = getAvatarColor(player.name);
@@ -271,7 +264,7 @@ function buildTeamPlayerItem(player, me, snapshot) {
     meta.appendChild(readyTag);
   }
 
-  // Thinking indicator (Wave 6.4)
+  // Thinking indicator
   if (snapshot.game && snapshot.game.phase === 'guess' && player.role === 'operative' &&
       player.team === snapshot.game.currentTeam && player.sessionId !== me.sessionId) {
     const hasMarks = snapshot.game.board.some(card =>
@@ -364,7 +357,8 @@ function renderModeControls(snapshot, gameActive, countdownActive) {
   }
 
   if (ui.modeBadge) {
-    ui.modeBadge.textContent = roomMode === 'blitz' ? t('mode_blitz') : t('mode_casual');
+    const modeLabels = { casual: t('mode_casual'), blitz: t('mode_blitz'), cipher: t('mode_cipher'), blackout: t('mode_blackout') };
+    ui.modeBadge.textContent = modeLabels[roomMode] || t('mode_casual');
     ui.modeBadge.classList.toggle('blitz', roomMode === 'blitz');
   }
 
@@ -425,6 +419,7 @@ function renderGame(snapshot) {
     state.activeGameId = game.id;
     state.revealedCardIndexes = new Set();
     state.selectedGuessIndex = null;
+    state.spymasterSelections.clear();
   }
 
   ui.redCount.textContent = t('score_red', { count: game.remaining.red });
@@ -469,12 +464,17 @@ function renderGame(snapshot) {
   const hintInteractive = canHint(snapshot);
   const guessInteractive = canGuess(snapshot);
 
-  ui.hintSection.classList.remove('hidden');
-  ui.guessSection.classList.remove('hidden');
-  ui.hintSection.classList.toggle('locked', !hintInteractive);
-  ui.guessSection.classList.toggle('locked', !guessInteractive);
+  // Spymasters see hint form; operatives/spectators see guess section
+  const isSpymaster = snapshot.me.role === 'spymaster';
+  const showHint = isSpymaster && game.phase !== 'finished';
+  const showGuess = !isSpymaster && game.phase !== 'finished';
 
-  // Scratchpad visibility (Wave 3.1)
+  ui.hintSection.classList.toggle('hidden', !showHint);
+  ui.guessSection.classList.toggle('hidden', !showGuess);
+  if (showHint) ui.hintSection.classList.toggle('locked', !hintInteractive);
+  if (showGuess) ui.guessSection.classList.toggle('locked', !guessInteractive);
+
+  // Scratchpad visibility
   if (ui.scratchpad) {
     const showScratchpad = snapshot.me.role === 'spymaster' && game.phase !== 'finished';
     ui.scratchpad.classList.toggle('hidden', !showScratchpad);
@@ -526,16 +526,14 @@ function renderGame(snapshot) {
   }
   renderSelectedGuess(snapshot);
 
-  // --- Render board cards (stable DOM, Wave 1.1) ---
+  // --- Render board cards ---
   const revealedNow = new Set();
 
   for (const card of game.board) {
     const cardButton = state.cardElements[card.index];
     if (!cardButton) continue;
 
-    // Reset classes
     cardButton.className = 'card';
-    cardButton.style.setProperty('--card-tilt', getCardTilt(card.index));
     cardButton.disabled = false;
     cardButton.title = '';
 
@@ -550,7 +548,6 @@ function renderGame(snapshot) {
     if (markersEl) markersEl.innerHTML = '';
     if (stampSlot) stampSlot.innerHTML = '';
 
-    // ARIA label (Wave 2.5)
     const revealedLabel = card.revealed ? t('revealed') || 'revealed' : t('unrevealed') || 'unrevealed';
     const colorLabel = card.revealed || (card.color && snapshot.me.role === 'spymaster') ? card.color : '';
     cardButton.setAttribute('aria-label',
@@ -561,11 +558,9 @@ function renderGame(snapshot) {
       revealedNow.add(card.index);
       cardButton.classList.add('revealed', card.color);
 
-      // Stamp
       const stamp = createRevealStamp(card.color);
       if (stamp && stampSlot) stampSlot.appendChild(stamp);
 
-      // Fresh reveal animation
       if (!state.revealedCardIndexes.has(card.index)) {
         cardButton.classList.add('fresh-reveal');
         cardButton.addEventListener('animationend', function handler() {
@@ -575,17 +570,14 @@ function renderGame(snapshot) {
       }
       cardButton.disabled = true;
     } else {
-      // Keycard colors for spymaster
       if (card.color) {
         cardButton.classList.add('keycard', card.color);
       }
 
-      // Finished but unrevealed - postgame reveal (Wave 2.4)
       if (game.phase === 'finished' && game.showKeycard && card.color) {
         cardButton.classList.add('finished-reveal', card.color);
       }
 
-      // Marks
       if (Array.isArray(card.marks) && card.marks.length > 0) {
         cardButton.classList.add('marked');
         const markerNames = card.marks.map((mark) => mark.name);
@@ -603,7 +595,13 @@ function renderGame(snapshot) {
         }
       }
 
+      // Spymaster hint-planning: clickable + selection display
+      const spymasterPlanning = isSpymaster && game.phase === 'hint' &&
+        snapshot.me.team === game.currentTeam;
+
       if (guessInteractive) {
+        cardButton.classList.add('clickable');
+      } else if (spymasterPlanning) {
         cardButton.classList.add('clickable');
       } else {
         cardButton.disabled = true;
@@ -612,13 +610,22 @@ function renderGame(snapshot) {
       if (guessInteractive && state.selectedGuessIndex === card.index) {
         cardButton.classList.add('selected-for-guess');
       }
+
+      if (spymasterPlanning && state.spymasterSelections.has(card.index)) {
+        cardButton.classList.add('spymaster-selected');
+      }
     }
+  }
+
+  // Clear spymaster selections when phase moves past hint
+  if (game.phase !== 'hint' && state.spymasterSelections.size > 0) {
+    state.spymasterSelections.clear();
   }
 
   state.revealedCardIndexes = revealedNow;
 }
 
-// --- Hint History (Wave 3.2) ---
+// --- Hint History ---
 function renderHintHistory(snapshot) {
   if (!ui.hintHistory || !ui.hintHistoryList) return;
   const game = snapshot?.game;
@@ -718,9 +725,4 @@ function createRevealStamp(color) {
   svg.appendChild(path);
   stamp.appendChild(svg);
   return stamp;
-}
-
-function getCardTilt(index) {
-  const wobble = ((index % 2) - 0.5) * 0.08;
-  return `${wobble.toFixed(2)}deg`;
 }

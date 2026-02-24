@@ -7,7 +7,7 @@ export function getAvatarColor(name) {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }
   const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 45%, 42%)`;
+  return `hsl(${hue}, 40%, 35%)`;
 }
 
 export function getInitials(name) {

@@ -39,6 +39,7 @@ export const state = {
   revealedCardIndexes: new Set(),
   activeGameId: null,
   selectedGuessIndex: null,
+  spymasterSelections: new Set(),
   language: DEFAULT_LANGUAGE,
   cardElements: [],
   soundMuted: false,

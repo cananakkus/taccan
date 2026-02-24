@@ -235,6 +235,7 @@ export function wireUiEvents() {
       await emitWithAck('turn:hint_submit', { word, count });
       ui.hintWordInput.value = '';
       ui.hintCountInput.value = '1';
+      state.spymasterSelections.clear();
     } catch (error) {
       showToast(error.message);
     }
@@ -270,6 +271,27 @@ export function wireUiEvents() {
     if (event.detail > 1) return;
     const index = Number(button.dataset.cardIndex);
     if (!Number.isInteger(index)) return;
+
+    // Spymaster hint planning — click to select/deselect cards and auto-update count
+    const snap = state.snapshot;
+    const game = snap.game;
+    if (game && game.phase === 'hint' && snap.me.role === 'spymaster' && snap.me.team === game.currentTeam) {
+      const card = game.board?.[index];
+      if (card && !card.revealed) {
+        if (state.spymasterSelections.has(index)) {
+          state.spymasterSelections.delete(index);
+        } else {
+          state.spymasterSelections.add(index);
+        }
+        if (ui.hintCountInput && state.spymasterSelections.size > 0) {
+          ui.hintCountInput.value = String(state.spymasterSelections.size);
+        }
+        render();
+        triggerHaptic('cardSelect');
+        playSound('mark');
+        return;
+      }
+    }
 
     if (canGuess(state.snapshot)) {
       setSelectedGuess(index);
@@ -430,10 +452,9 @@ export function wireUiEvents() {
 }
 
 function require_sound_toggle() {
-  // Lazy import to avoid circular dependency at module load time
   return { toggleMute: () => {
-    const { SoundEngine } = window._taccanSoundEngine || {};
-    if (SoundEngine) SoundEngine.toggleMute();
+    const engine = window._taccanSoundEngine;
+    if (engine && engine.SoundEngine) engine.SoundEngine.toggleMute();
   }};
 }
 

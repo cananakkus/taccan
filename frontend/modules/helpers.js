@@ -52,7 +52,9 @@ export function getReadinessIssue(snapshot) {
 }
 
 export function getRoomMode(snapshot) {
-  return snapshot?.room?.mode === 'blitz' ? 'blitz' : 'casual';
+  const mode = snapshot?.room?.mode;
+  if (mode === 'blitz' || mode === 'cipher' || mode === 'blackout') return mode;
+  return 'casual';
 }
 
 export function getCurrentMaxHintCount(snapshot) {

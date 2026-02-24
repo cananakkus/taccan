@@ -1,8 +1,5 @@
 import { ui } from './ui.js';
 
-// Minimal QR Code generator for alphanumeric URLs
-// Uses Mode 2 (alphanumeric) encoding sufficient for room URLs
-
 const ALPHANUMERIC_TABLE = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
 
 function getAlphanumericValue(char) {
@@ -30,30 +27,24 @@ function toBits(value, length) {
   return bits;
 }
 
-// Simplified QR rendering - creates an SVG-based QR representation
-// For short URLs this uses a deterministic pattern based on the input
 export function renderQRCode(roomCode) {
   if (!ui.qrCodeContainer) return;
 
   const url = `${window.location.origin}/room/${roomCode}`;
   const hash = simpleHash(url);
 
-  // Generate a 21x21 QR-like pattern (Version 1 size)
   const size = 21;
   const modules = Array.from({ length: size }, () => Array(size).fill(false));
 
-  // Fixed finder patterns (top-left, top-right, bottom-left)
   addFinderPattern(modules, 0, 0);
   addFinderPattern(modules, size - 7, 0);
   addFinderPattern(modules, 0, size - 7);
 
-  // Timing patterns
   for (let i = 8; i < size - 8; i++) {
     modules[6][i] = i % 2 === 0;
     modules[i][6] = i % 2 === 0;
   }
 
-  // Data area - fill with hash-derived pattern
   let bitIndex = 0;
   const hashBits = [];
   let h = hash;
@@ -75,16 +66,15 @@ export function renderQRCode(roomCode) {
     }
   }
 
-  // Render SVG
   const cellSize = 4;
   const svgSize = size * cellSize + 8;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="120" height="120">`;
-  svg += `<rect width="${svgSize}" height="${svgSize}" fill="#fff"/>`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="100" height="100">`;
+  svg += `<rect width="${svgSize}" height="${svgSize}" fill="#f4ecd8"/>`;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       if (modules[y][x]) {
-        svg += `<rect x="${x * cellSize + 4}" y="${y * cellSize + 4}" width="${cellSize}" height="${cellSize}" fill="#241a12"/>`;
+        svg += `<rect x="${x * cellSize + 4}" y="${y * cellSize + 4}" width="${cellSize}" height="${cellSize}" fill="#5a4a38"/>`;
       }
     }
   }
