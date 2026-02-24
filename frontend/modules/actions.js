@@ -144,8 +144,7 @@ export function wireUiEvents() {
       const mode = String(button.dataset.roomMode || '').trim();
       if (!mode) return;
       const gameActive = Boolean(snapshot.game && snapshot.game.phase !== 'finished');
-      const countdownActive = Boolean(snapshot.room?.countdown?.active);
-      if (gameActive || countdownActive) {
+      if (gameActive) {
         showToast(t('mode_lobby_only'));
         return;
       }
@@ -161,28 +160,11 @@ export function wireUiEvents() {
     const snapshot = state.snapshot;
     if (!snapshot || !snapshot.me.isHost) return;
     try {
-      const countdownActive = Boolean(snapshot.room?.countdown?.active);
-      if (countdownActive) {
-        await emitWithAck('game:countdown_cancel', {});
-      } else {
-        await emitWithAck('game:start', {});
-      }
+      await emitWithAck('game:start', {});
     } catch (error) {
       showToast(error.message);
     }
   });
-
-  if (ui.readyButton) {
-    ui.readyButton.addEventListener('click', async () => {
-      const snapshot = state.snapshot;
-      if (!snapshot) return;
-      try {
-        await emitWithAck('ready:set', { ready: !snapshot.me.ready });
-      } catch (error) {
-        showToast(error.message);
-      }
-    });
-  }
 
   if (ui.rematchButton) {
     ui.rematchButton.addEventListener('click', async () => {

@@ -39,22 +39,6 @@ export function wireSocketEvents() {
     setConnection(false, t('connection_error'));
   });
 
-  socket.on('game:countdown_started', (_payload = {}) => {
-    showToast(t('match_countdown_started'));
-    playSound('countdown');
-  });
-
-  socket.on('game:countdown_cancelled', (payload = {}) => {
-    const reason = String(payload.reason || '').trim();
-    const message =
-      reason === 'cancelled_by_host'
-        ? t('countdown_cancelled_host')
-        : reason
-          ? t('countdown_cancelled_changes')
-          : t('countdown_cancelled');
-    showToast(message);
-  });
-
   socket.on('turn:timer_started', (payload = {}) => {
     const phase = String(payload.phase || '').trim();
     if (phase === 'hint') {

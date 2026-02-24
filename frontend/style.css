@@ -96,7 +96,7 @@ html {
 
 body {
   min-height: 100dvh;
-  overflow-x: hidden;
+  overflow: hidden;
   background:
     radial-gradient(ellipse at 30% 20%, rgba(74,56,38,0.3) 0%, transparent 50%),
     radial-gradient(ellipse at 70% 80%, rgba(58,46,36,0.4) 0%, transparent 50%),
@@ -187,6 +187,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.85rem;
   padding: 5px 12px;
   width: 100%;
+  min-height: 32px;
 }
 .btn-team.red { border-color: var(--red); color: var(--red); }
 .btn-team.red:hover { background: var(--red-light); }
@@ -376,6 +377,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   color: var(--ink-light);
   font-size: 0.95rem;
   font-style: italic;
+  min-height: 2.8em;
 }
 
 .join-form { display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 2; }
@@ -401,6 +403,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   text-align: center;
   line-height: 1.4;
   font-style: italic;
+  min-height: 2.4em;
 }
 
 .join-footer {
@@ -434,6 +437,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   display: flex;
   flex-direction: column;
   height: 100dvh;
+  overflow: hidden;
   background:
     linear-gradient(175deg, var(--paper-light) 0%, var(--paper) 50%, var(--paper-dark) 100%);
 }
@@ -598,6 +602,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   font-family: var(--font-typewriter);
   font-size: 0.78rem;
   color: var(--ink-faded);
+  min-width: 6ch;
 }
 
 /* Topbar action buttons — clean text links */
@@ -618,6 +623,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   text-decoration: none;
   transition: color var(--transition);
   white-space: nowrap;
+  min-width: max-content;
 }
 .text-btn:hover {
   color: var(--ink);
@@ -645,26 +651,28 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  overflow-y: auto;
+  gap: 10px;
+  padding: 10px;
+  overflow: hidden;
   background: var(--paper);
   border-right: 1px solid var(--border);
 }
 .sidebar-settings {
   border-right: none;
   border-left: 1px solid var(--border);
+  overflow-y: auto;
 }
 
 /* ── Team Panels ── */
 .team-panel {
   background: var(--paper-light);
   border: 1px solid var(--border);
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   position: relative;
+  overflow: hidden;
 }
 
 /* Colored tab at top of team panel */
@@ -714,7 +722,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 }
 
 /* Player list */
-.player-list { display: flex; flex-direction: column; gap: 3px; min-height: 20px; }
+.player-list { display: flex; flex-direction: column; gap: 3px; min-height: 20px; max-height: 120px; overflow-y: auto; }
 
 .team-player-item {
   display: flex;
@@ -761,8 +769,6 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 }
 .tag.host { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .tag.offline { color: var(--danger); border-color: rgba(139,26,26,0.3); background: rgba(139,26,26,0.05); }
-.tag.ready { color: var(--success); border-color: rgba(61,107,46,0.3); background: rgba(61,107,46,0.06); }
-.tag.not-ready { color: var(--warning); border-color: rgba(138,109,30,0.3); background: rgba(138,109,30,0.06); }
 .tag.thinking { color: var(--accent); animation: thinking-pulse 1.2s ease-in-out infinite; }
 
 @keyframes thinking-pulse {
@@ -798,9 +804,9 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 20px;
-  overflow-y: auto;
-  gap: 12px;
+  padding: 10px 16px;
+  overflow: hidden;
+  gap: 8px;
   background: var(--paper-warm);
   position: relative;
 }
@@ -823,12 +829,25 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
     );
 }
 
+/* ── Board Area (log + board flex container) ── */
+.board-area {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 860px;
+  align-items: flex-start;
+  flex: 1;
+  min-height: 0;
+}
+
 /* ── Control Strip ── */
 .controls-strip {
   width: 100%;
-  max-width: 680px;
+  max-width: 860px;
   position: relative;
   z-index: 1;
+  order: 1;
+  flex-shrink: 0;
 }
 
 .ctrl-panel {
@@ -874,6 +893,10 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   color: var(--ink-ghost);
   margin-bottom: 6px;
   font-style: italic;
+  min-height: 1.3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Hint form */
@@ -906,6 +929,9 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   padding: 6px 0;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Guess controls */
@@ -941,8 +967,8 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
    GAME BOARD — Filing Cards
    ══════════════════════════════ */
 .board-wrap {
-  width: 100%;
-  max-width: 680px;
+  flex: 1;
+  min-width: 0;
   position: relative;
   z-index: 1;
 }
@@ -1207,34 +1233,63 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 }
 
 /* ══════════════════════════════
-   HINT HISTORY
+   GAME LOG SIDEBAR
    ══════════════════════════════ */
-.hint-history {
-  width: 100%;
-  max-width: 680px;
+.game-log {
+  width: 160px;
+  flex-shrink: 0;
+  align-self: stretch;
+  overflow-y: auto;
   background: var(--paper-light);
   border: 1px solid var(--border);
-  padding: 10px 14px;
+  padding: 8px 10px;
   position: relative;
   z-index: 1;
 }
-.hint-history h4 {
+.game-log h4 {
   font-family: var(--font-display);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-ghost);
   margin-bottom: 6px;
 }
-.history-list { display: flex; flex-direction: column; gap: 3px; }
-.hint-history-entry {
-  font-family: var(--font-typewriter);
-  font-size: 0.85rem;
-  padding: 3px 6px;
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.hint-history-entry.red { color: var(--red); border-left: 2px solid var(--red); background: var(--red-light); }
-.hint-history-entry.blue { color: var(--blue); border-left: 2px solid var(--blue); background: var(--blue-light); }
+.log-group {
+  border-left: 2px solid var(--border);
+  padding-left: 6px;
+}
+.log-group.red { border-left-color: var(--red); }
+.log-group.blue { border-left-color: var(--blue); }
+.log-group + .log-group {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-light);
+}
+.log-hint {
+  font-family: var(--font-typewriter);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.log-hint.red { color: var(--red); }
+.log-hint.blue { color: var(--blue); }
+.log-guess {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--ink-faded);
+  padding-left: 4px;
+  line-height: 1.5;
+}
+.log-guess .guess-icon { margin-right: 3px; }
+.log-guess .guess-correct { color: var(--success); }
+.log-guess .guess-wrong { color: var(--danger); }
 
 /* ══════════════════════════════
    SETTINGS SIDEBAR
@@ -1295,6 +1350,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   margin-top: 5px;
   line-height: 1.4;
   font-style: italic;
+  min-height: 2em;
 }
 
 .toggle-row {
@@ -1509,7 +1565,17 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
     min-width: 130px;
   }
 
-  .game-stage { padding: 10px; }
+  .game-stage { padding: 8px; }
+
+  .board-area {
+    flex-direction: column;
+  }
+  .game-log {
+    width: 100%;
+    max-height: 120px;
+    order: 1;
+    align-self: auto;
+  }
 }
 
 /* Phone */
@@ -1536,7 +1602,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   .team-panel { min-width: unset; }
   .sidebar-actions { flex-direction: column; }
 
-  .game-stage { padding: 6px; gap: 8px; }
+  .game-stage { padding: 6px; gap: 6px; }
   .board { gap: 3px; }
 
   .card { }
@@ -1561,7 +1627,6 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
    SCENE CLASSES (state-driven)
    ══════════════════════════════ */
 .scene-lobby .board .card { opacity: 0.3; }
-.scene-countdown .board .card { opacity: 0.5; }
 
 /* ══════════════════════════════
    THEATRICAL MODE

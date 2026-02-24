@@ -19,9 +19,6 @@ const SCHEMAS = {
   'room:word_pack_set': {
     url: { type: 'string', optional: false, maxLength: 2048 },
   },
-  'ready:set': {
-    ready: { type: 'boolean', optional: false },
-  },
   'team:set': {
     team: { type: 'string', optional: false, enum: ['red', 'blue', 'none'] },
   },
@@ -29,7 +26,6 @@ const SCHEMAS = {
     role: { type: 'string', optional: false, enum: ['spymaster', 'operative', 'spectator'] },
   },
   'game:start': {},
-  'game:countdown_cancel': {},
   'game:rematch': {
     mode: { type: 'string', optional: false, enum: ['same_teams', 'swap_teams'] },
   },

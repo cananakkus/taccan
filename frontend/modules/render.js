@@ -2,8 +2,8 @@ import { state, SCENE_CLASSES, STAMP_SVG_NS, STAMP_PATHS } from './state.js';
 import { ui } from './ui.js';
 import { t, formatCardWord, getLocaleTag } from './i18n.js';
 import {
-  canHint, canGuess, canToggleReady, canHostRematch, getReadinessIssue,
-  getRoomMode, getCurrentMaxHintCount, getCountdownRemainingMs, getPhaseTimerRemainingMs,
+  canHint, canGuess, canHostRematch, getReadinessIssue,
+  getRoomMode, getCurrentMaxHintCount, getPhaseTimerRemainingMs,
   formatTeam, formatResultReason, formatRoleLabel, truncateMarkerName,
   formatTimerRemaining, announce,
 } from './helpers.js';
@@ -110,7 +110,6 @@ function setSceneClass(snapshot) {
 // --- Live Ticker ---
 function shouldRunLiveTicker(snapshot) {
   if (!snapshot) return false;
-  if (snapshot.room?.countdown?.active) return true;
   const phase = snapshot.game?.phase;
   if (phase !== 'hint' && phase !== 'guess') return false;
   return getPhaseTimerRemainingMs(snapshot) > 0;
@@ -145,12 +144,6 @@ export function render() {
       ui.startGameButton.classList.add('hidden');
       ui.startGameButton.disabled = true;
       ui.startGameButton.textContent = t('start_game');
-    }
-    if (ui.readyButton) {
-      ui.readyButton.classList.add('hidden');
-      ui.readyButton.disabled = true;
-      ui.readyButton.classList.remove('active');
-      ui.readyButton.textContent = t('ready_up');
     }
     if (ui.pruneButton) {
       ui.pruneButton.classList.add('hidden');
@@ -257,13 +250,6 @@ function buildTeamPlayerItem(player, me, snapshot) {
     meta.appendChild(offlineTag);
   }
 
-  if (player.connected && player.team !== 'none' && player.role !== 'spectator') {
-    const readyTag = document.createElement('span');
-    readyTag.className = `tag ${player.ready ? 'ready' : 'not-ready'}`;
-    readyTag.textContent = player.ready ? t('tag_ready') : t('tag_not_ready');
-    meta.appendChild(readyTag);
-  }
-
   // Thinking indicator
   if (snapshot.game && snapshot.game.phase === 'guess' && player.role === 'operative' &&
       player.team === snapshot.game.currentTeam && player.sessionId !== me.sessionId) {
@@ -294,7 +280,6 @@ function fillEmptyTeamList(list, text) {
 // --- Controls ---
 function renderControls(snapshot) {
   const gameActive = snapshot.game && snapshot.game.phase !== 'finished';
-  const countdownActive = Boolean(snapshot.room?.countdown?.active);
   const readinessIssue = getReadinessIssue(snapshot);
 
   for (const button of ui.teamButtons) {
@@ -313,38 +298,30 @@ function renderControls(snapshot) {
 
   ui.startGameButton.classList.toggle('hidden', !snapshot.me.isHost);
   if (snapshot.me.isHost) {
-    ui.startGameButton.textContent = countdownActive ? t('cancel_start') : t('start_game');
-    ui.startGameButton.disabled = countdownActive ? false : Boolean(gameActive || readinessIssue);
-    ui.startGameButton.title = countdownActive ? '' : readinessIssue || '';
+    ui.startGameButton.textContent = t('start_game');
+    ui.startGameButton.disabled = Boolean(gameActive || readinessIssue);
+    ui.startGameButton.title = readinessIssue || '';
   } else {
     ui.startGameButton.textContent = t('start_game');
     ui.startGameButton.title = '';
     ui.startGameButton.disabled = true;
   }
 
-  if (ui.readyButton) {
-    const readyInteractive = canToggleReady(snapshot);
-    ui.readyButton.classList.toggle('hidden', !readyInteractive);
-    ui.readyButton.disabled = !readyInteractive || countdownActive;
-    ui.readyButton.classList.toggle('active', Boolean(snapshot.me.ready));
-    ui.readyButton.textContent = snapshot.me.ready ? t('unready') : t('ready_up');
-  }
   if (ui.pruneButton) {
     ui.pruneButton.classList.toggle('hidden', !snapshot.me.isHost);
-    ui.pruneButton.disabled = countdownActive;
   }
   if (ui.spectatorButton) ui.spectatorButton.classList.remove('hidden');
 
-  renderModeControls(snapshot, gameActive, countdownActive);
+  renderModeControls(snapshot, gameActive);
 }
 
-function renderModeControls(snapshot, gameActive, countdownActive) {
+function renderModeControls(snapshot, gameActive) {
   const roomMode = getRoomMode(snapshot);
   const isHost = Boolean(snapshot.me?.isHost);
-  const modeMutable = isHost && !gameActive && !countdownActive;
+  const modeMutable = isHost && !gameActive;
   const lockReason = !isHost
     ? t('mode_host_only')
-    : gameActive || countdownActive
+    : gameActive
       ? t('mode_lobby_only_lock')
       : '';
 
@@ -384,12 +361,7 @@ function renderGame(snapshot) {
   setTurnBannerStyle(game);
 
   if (!game) {
-    if (snapshot.room?.countdown?.active) {
-      const secondsRemaining = Math.max(1, Math.ceil(getCountdownRemainingMs(snapshot) / 1000));
-      ui.turnBanner.textContent = t('match_starts_in', { seconds: secondsRemaining });
-    } else {
-      ui.turnBanner.textContent = t('lobby_open');
-    }
+    ui.turnBanner.textContent = t('lobby_open');
     ui.redCount.textContent = t('score_red_empty');
     ui.blueCount.textContent = t('score_blue_empty');
     ui.hintSection.classList.add('hidden');
@@ -464,10 +436,11 @@ function renderGame(snapshot) {
   const hintInteractive = canHint(snapshot);
   const guessInteractive = canGuess(snapshot);
 
-  // Spymasters see hint form; operatives/spectators see guess section
+  // Spymasters see hint form; operatives see guess section; spectators see neither
   const isSpymaster = snapshot.me.role === 'spymaster';
+  const isOperative = snapshot.me.role === 'operative';
   const showHint = isSpymaster && game.phase !== 'finished';
-  const showGuess = !isSpymaster && game.phase !== 'finished';
+  const showGuess = isOperative && game.phase !== 'finished';
 
   ui.hintSection.classList.toggle('hidden', !showHint);
   ui.guessSection.classList.toggle('hidden', !showGuess);
@@ -625,29 +598,57 @@ function renderGame(snapshot) {
   state.revealedCardIndexes = revealedNow;
 }
 
-// --- Hint History ---
+// --- Game Log (grouped hints + guesses) ---
 function renderHintHistory(snapshot) {
   if (!ui.hintHistory || !ui.hintHistoryList) return;
-  const game = snapshot?.game;
-  if (!game || !game.history) {
-    ui.hintHistory.classList.add('hidden');
-    return;
-  }
-
-  const hints = game.history.filter(e => e.type === 'hint');
-  if (hints.length === 0) {
-    ui.hintHistory.classList.add('hidden');
-    return;
-  }
-
+  // Always show the log when in a room so the board layout stays stable
   ui.hintHistory.classList.remove('hidden');
+
+  const game = snapshot?.game;
   ui.hintHistoryList.innerHTML = '';
-  for (const hint of hints) {
-    const li = document.createElement('li');
-    li.className = `hint-history-entry ${hint.team}`;
-    li.textContent = `${formatTeam(hint.team)}: ${String(hint.word).toLocaleUpperCase(getLocaleTag())} ${hint.count}`;
-    ui.hintHistoryList.appendChild(li);
+
+  // Group history: collect guesses under each preceding hint
+  const groups = [];
+  let current = null;
+  for (const event of (game.history || [])) {
+    if (event.type === 'hint') {
+      current = { hint: event, guesses: [] };
+      groups.push(current);
+    } else if (event.type === 'guess' && current) {
+      current.guesses.push(event);
+    }
   }
+
+  if (groups.length === 0) return;
+
+  for (const group of groups) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = `log-group ${group.hint.team}`;
+
+    const hintDiv = document.createElement('div');
+    hintDiv.className = `log-hint ${group.hint.team}`;
+    hintDiv.textContent = `${String(group.hint.word).toLocaleUpperCase(getLocaleTag())} ${group.hint.count}`;
+    groupDiv.appendChild(hintDiv);
+
+    for (const guess of group.guesses) {
+      const guessDiv = document.createElement('div');
+      guessDiv.className = 'log-guess';
+      const card = game.board[guess.index];
+      const word = card ? formatCardWord(card.word) : '?';
+      const correct = guess.color === guess.team;
+      const icon = document.createElement('span');
+      icon.className = `guess-icon ${correct ? 'guess-correct' : 'guess-wrong'}`;
+      icon.textContent = correct ? '\u2713' : '\u2717';
+      guessDiv.appendChild(icon);
+      guessDiv.appendChild(document.createTextNode(` ${word}`));
+      groupDiv.appendChild(guessDiv);
+    }
+
+    ui.hintHistoryList.appendChild(groupDiv);
+  }
+
+  // Auto-scroll the log container to bottom
+  ui.hintHistory.scrollTop = ui.hintHistory.scrollHeight;
 }
 
 function renderPhaseTimer(snapshot) {

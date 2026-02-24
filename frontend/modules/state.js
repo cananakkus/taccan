@@ -15,7 +15,6 @@ export const DEFAULT_LANGUAGE =
   SUPPORTED_LANGUAGES.find((code) => code === TRANSLATIONS.defaultLanguage) || SUPPORTED_LANGUAGES[0] || 'en';
 export const SCENE_CLASSES = [
   'scene-lobby',
-  'scene-countdown',
   'scene-hint-red',
   'scene-hint-blue',
   'scene-guess-red',

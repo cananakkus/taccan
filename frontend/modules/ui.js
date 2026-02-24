@@ -22,7 +22,6 @@ export const ui = {
   redTeamList: document.getElementById('red-team-list'),
   blueTeamList: document.getElementById('blue-team-list'),
   startGameButton: document.getElementById('start-game-btn'),
-  readyButton: document.getElementById('ready-btn'),
   pruneButton: document.getElementById('prune-btn'),
   modeBadge: document.getElementById('mode-badge'),
   modeNote: document.getElementById('mode-note'),

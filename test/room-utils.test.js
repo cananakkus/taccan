@@ -123,7 +123,7 @@ test('pruneDisconnectedPlayers with force=true removes all disconnected players'
   assert.equal(room.players.has('c'), true);
 });
 
-test('getRoomReadinessError enforces connected ready team players', () => {
+test('getRoomReadinessError enforces connected team players', () => {
   const now = Date.now();
   const baseRoom = {
     players: new Map(),
@@ -136,7 +136,6 @@ test('getRoomReadinessError enforces connected ready team players', () => {
     connected: true,
     team: 'none',
     role: 'spectator',
-    ready: false,
     joinedAt: now,
     lastSeenAt: now,
   });
@@ -147,12 +146,8 @@ test('getRoomReadinessError enforces connected ready team players', () => {
     connected: true,
     team: 'red',
     role: 'operative',
-    ready: false,
     joinedAt: now + 1,
     lastSeenAt: now + 1,
   });
-  assert.equal(getRoomReadinessError(baseRoom), 'Waiting for 1 player(s) to ready up.');
-
-  baseRoom.players.get('agent').ready = true;
   assert.equal(getRoomReadinessError(baseRoom), null);
 });

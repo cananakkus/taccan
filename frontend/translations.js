@@ -93,7 +93,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mode_note_blitz: 'Blitz: {hint}s hint, {guess}s guess, max hint {max}.',
       mode_note_casual: 'Casual: no turn timer, max hint {max}.',
       match_starts_in: 'Match starts in {seconds}s.',
-      lobby_open: 'Lobby open. Assign teams, ready up, then host starts the game.',
+      lobby_open: 'Lobby open. Assign teams, then host starts the game.',
       score_red_empty: 'Red: -',
       score_blue_empty: 'Blue: -',
       score_red: 'Red: {count}',
@@ -135,6 +135,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       copy_link: 'Copy Link',
       link_copied: 'Room link copied.',
       hint_history: 'Hint History',
+      game_log: 'Game Log',
       scratchpad: 'Notes',
       scratchpad_placeholder: 'Private notes — only you can see this...',
       // Wave 4 — Sound
@@ -294,7 +295,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mode_note_blitz: 'Yıldırım: {hint}sn ipucu, {guess}sn tahmin, en fazla {max} ipucu.',
       mode_note_casual: 'Rahat: tur süresi yok, en fazla {max} ipucu.',
       match_starts_in: 'Maç {seconds} sn sonra başlıyor.',
-      lobby_open: 'Lobi açık. Takımları ayarlayın, hazır olun, sonra host oyunu başlatsın.',
+      lobby_open: 'Lobi açık. Takımları ayarlayın, sonra host oyunu başlatsın.',
       score_red_empty: 'Kırmızı: -',
       score_blue_empty: 'Mavi: -',
       score_red: 'Kırmızı: {count}',
@@ -336,6 +337,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       copy_link: 'Bağlantı Kopyala',
       link_copied: 'Oda bağlantısı kopyalandı.',
       hint_history: 'İpucu Geçmişi',
+      game_log: 'Oyun Günlüğü',
       scratchpad: 'Notlar',
       scratchpad_placeholder: 'Özel notlar — sadece siz görebilirsiniz...',
       // Dalga 4 — Ses

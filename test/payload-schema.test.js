@@ -12,13 +12,6 @@ test('validatePayload accepts valid gameplay payloads', () => {
   assert.equal(join.ok, true);
   assert.equal(join.value.code, 'ABCD');
 
-  const ready = validatePayload('ready:set', { ready: true });
-  assert.equal(ready.ok, true);
-  assert.deepEqual(ready.value, { ready: true });
-
-  const cancelCountdown = validatePayload('game:countdown_cancel', {});
-  assert.equal(cancelCountdown.ok, true);
-
   const rematch = validatePayload('game:rematch', { mode: 'swap_teams' });
   assert.equal(rematch.ok, true);
   assert.deepEqual(rematch.value, { mode: 'swap_teams' });

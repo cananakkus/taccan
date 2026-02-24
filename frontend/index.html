@@ -137,7 +137,6 @@
             <!-- Spectator & Ready -->
             <div class="sidebar-actions">
               <button id="start-game-btn" class="btn btn-accent btn-lg hidden" type="button" data-i18n="start_game">Start Game</button>
-              <button id="ready-btn" class="btn btn-secondary hidden" type="button" data-i18n="ready_up">Ready Up</button>
               <button class="btn btn-ghost spectator-btn" type="button" data-role="spectator" data-i18n="spectator">Spectator</button>
             </div>
           </aside>
@@ -186,16 +185,16 @@
               </section>
             </div>
 
-            <!-- Board -->
-            <div class="board-wrap">
-              <div id="board" class="board" role="grid" aria-label="Game board"></div>
+            <!-- Board + Game Log -->
+            <div class="board-area">
+              <aside id="hint-history" class="game-log hidden">
+                <h4 data-i18n="game_log">Game Log</h4>
+                <div id="hint-history-list" class="log-entries"></div>
+              </aside>
+              <div class="board-wrap">
+                <div id="board" class="board" role="grid" aria-label="Game board"></div>
+              </div>
             </div>
-
-            <!-- Hint History -->
-            <aside id="hint-history" class="hint-history hidden">
-              <h4 data-i18n="hint_history">History</h4>
-              <ul id="hint-history-list" class="history-list"></ul>
-            </aside>
           </div>
 
           <!-- Right Sidebar: Settings -->

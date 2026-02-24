@@ -26,12 +26,6 @@ export function canMark(snapshot, index) {
   return Boolean(card && !card.revealed);
 }
 
-export function canToggleReady(snapshot) {
-  if (!snapshot) return false;
-  if (snapshot.game && snapshot.game.phase !== 'finished') return false;
-  return snapshot.me.team !== 'none' && snapshot.me.role !== 'spectator';
-}
-
 export function canHostRematch(snapshot) {
   if (!snapshot || !snapshot.me?.isHost) return false;
   return Boolean(snapshot.game && snapshot.game.phase === 'finished');
@@ -46,8 +40,6 @@ export function getReadinessIssue(snapshot) {
     (player) => player.team !== 'none' && player.role !== 'spectator'
   );
   if (connectedTeamPlayers.length < 1) return t('readiness_need_team_player');
-  const unreadyPlayers = connectedTeamPlayers.filter((player) => !player.ready);
-  if (unreadyPlayers.length > 0) return t('readiness_waiting', { count: unreadyPlayers.length });
   return null;
 }
 
@@ -63,12 +55,6 @@ export function getCurrentMaxHintCount(snapshot) {
   const fromRoomConfig = snapshot?.room?.modeConfig?.maxHintCount;
   if (Number.isInteger(fromRoomConfig) && fromRoomConfig > 0) return fromRoomConfig;
   return getRoomMode(snapshot) === 'blitz' ? 5 : 9;
-}
-
-export function getCountdownRemainingMs(snapshot) {
-  const endsAt = snapshot?.room?.countdown?.endsAt;
-  if (!endsAt) return 0;
-  return Math.max(0, Number(endsAt) - Date.now());
 }
 
 export function getPhaseTimerRemainingMs(snapshot) {

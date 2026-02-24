@@ -98,11 +98,6 @@ function getRoomReadinessError(room) {
     return 'At least one connected team player is required to start.';
   }
 
-  const unreadyPlayers = connectedTeamPlayers.filter((player) => !player.ready);
-  if (unreadyPlayers.length > 0) {
-    return `Waiting for ${unreadyPlayers.length} player(s) to ready up.`;
-  }
-
   return null;
 }
 
