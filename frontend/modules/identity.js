@@ -1,5 +1,3 @@
-import { state } from './state.js';
-
 export function getAvatarColor(name) {
   let hash = 0;
   const str = String(name || '');
@@ -18,26 +16,4 @@ export function getInitials(name) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   return str.slice(0, 2).toUpperCase();
-}
-
-const STATS_KEY = 'taccan.stats.v1';
-
-export function recordGameResult(won) {
-  const stats = getStats();
-  if (won) stats.wins += 1;
-  else stats.losses += 1;
-  try {
-    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
-  } catch (_e) {}
-}
-
-export function getStats() {
-  try {
-    const raw = localStorage.getItem(STATS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { wins: Number(parsed.wins) || 0, losses: Number(parsed.losses) || 0 };
-    }
-  } catch (_e) {}
-  return { wins: 0, losses: 0 };
 }

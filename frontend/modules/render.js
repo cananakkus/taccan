@@ -122,7 +122,7 @@ export function syncLiveTicker(shouldRun) {
         syncLiveTicker(false);
         return;
       }
-      render();
+      renderPhaseTimer(state.snapshot);
     }, 250);
     return;
   }
@@ -309,6 +309,7 @@ function renderControls(snapshot) {
 
   if (ui.pruneButton) {
     ui.pruneButton.classList.toggle('hidden', !snapshot.me.isHost);
+    ui.pruneButton.disabled = !snapshot.me.isHost;
   }
   if (ui.spectatorButton) ui.spectatorButton.classList.remove('hidden');
 
@@ -349,6 +350,10 @@ function renderModeControls(snapshot, gameActive) {
         guess: Math.round(guessTimerMs / 1000),
         max: hintMax,
       });
+    } else if (roomMode === 'cipher') {
+      ui.modeNote.textContent = t('mode_note_cipher', { max: hintMax });
+    } else if (roomMode === 'blackout') {
+      ui.modeNote.textContent = t('mode_note_blackout', { max: hintMax });
     } else {
       ui.modeNote.textContent = t('mode_note_casual', { max: hintMax });
     }

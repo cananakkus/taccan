@@ -12,6 +12,16 @@ import { renderQRCode } from './qrcode.js';
 import { renderRoomSeal } from './room-seal.js';
 import { generateDebriefNarrative } from './debrief.js';
 
+const SERVER_ERROR_MAP = {
+  'Hint must be a single alphabetical word.': 'hint_invalid_word',
+  'Your hint cannot be a word on the board.': 'hint_on_board',
+};
+
+function translateServerError(message) {
+  const key = SERVER_ERROR_MAP[message];
+  return key ? t(key) : message;
+}
+
 export function wireUiEvents() {
   for (const button of ui.languageButtons) {
     button.addEventListener('click', () => {
@@ -26,6 +36,7 @@ export function wireUiEvents() {
       showToast(t('enter_name_create'));
       return;
     }
+    ui.createButton.classList.add('btn-loading');
     try {
       const response = await emitWithAck('room:create', { name });
       ui.codeInput.value = response.roomCode;
@@ -33,6 +44,8 @@ export function wireUiEvents() {
       onRoomJoined(response.roomCode);
     } catch (error) {
       showToast(error.message);
+    } finally {
+      ui.createButton.classList.remove('btn-loading');
     }
   });
 
@@ -47,6 +60,7 @@ export function wireUiEvents() {
       showToast(t('enter_room_code'));
       return;
     }
+    ui.joinButton.classList.add('btn-loading');
     try {
       const response = await emitWithAck('room:join', { code, name });
       ui.codeInput.value = response.roomCode;
@@ -54,18 +68,19 @@ export function wireUiEvents() {
       onRoomJoined(response.roomCode);
     } catch (error) {
       showToast(error.message);
+    } finally {
+      ui.joinButton.classList.remove('btn-loading');
     }
   });
 
   ui.copyRoomButton.addEventListener('click', async () => {
     const snapshot = state.snapshot;
     if (!snapshot) return;
-    const roomUrl = getRoomUrl(snapshot.room.code);
     try {
-      await navigator.clipboard.writeText(roomUrl);
-      showToast(t('room_code_copied'));
+      await navigator.clipboard.writeText(snapshot.room.code);
+      showToast(t('room_code_copied'), 'success');
     } catch (_error) {
-      showToast(t('copy_failed'));
+      showToast(t('copy_failed'), 'error');
     }
   });
 
@@ -82,9 +97,9 @@ export function wireUiEvents() {
       } else {
         try {
           await navigator.clipboard.writeText(roomUrl);
-          showToast(t('room_code_copied'));
+          showToast(t('link_copied'), 'success');
         } catch (_error) {
-          showToast(t('copy_failed'));
+          showToast(t('copy_failed'), 'error');
         }
       }
     });
@@ -213,13 +228,16 @@ export function wireUiEvents() {
       showToast(t('hint_count_range', { max: maxHintCount }));
       return;
     }
+    if (ui.hintSubmitButton) ui.hintSubmitButton.classList.add('btn-loading');
     try {
       await emitWithAck('turn:hint_submit', { word, count });
       ui.hintWordInput.value = '';
       ui.hintCountInput.value = '1';
       state.spymasterSelections.clear();
     } catch (error) {
-      showToast(error.message);
+      showToast(translateServerError(error.message), 'error');
+    } finally {
+      if (ui.hintSubmitButton) ui.hintSubmitButton.classList.remove('btn-loading');
     }
   });
 
@@ -242,7 +260,12 @@ export function wireUiEvents() {
         showToast(t('select_card_before_guess'));
         return;
       }
-      await submitGuess(state.selectedGuessIndex);
+      ui.submitGuessButton.classList.add('btn-loading');
+      try {
+        await submitGuess(state.selectedGuessIndex);
+      } finally {
+        ui.submitGuessButton.classList.remove('btn-loading');
+      }
     });
   }
 
@@ -254,59 +277,10 @@ export function wireUiEvents() {
     const index = Number(button.dataset.cardIndex);
     if (!Number.isInteger(index)) return;
 
-    // Spymaster hint planning — click to select/deselect cards and auto-update count
     const snap = state.snapshot;
-    const game = snap.game;
-    if (game && game.phase === 'hint' && snap.me.role === 'spymaster' && snap.me.team === game.currentTeam) {
-      const card = game.board?.[index];
-      if (card && !card.revealed) {
-        if (state.spymasterSelections.has(index)) {
-          state.spymasterSelections.delete(index);
-        } else {
-          state.spymasterSelections.add(index);
-        }
-        if (ui.hintCountInput && state.spymasterSelections.size > 0) {
-          ui.hintCountInput.value = String(state.spymasterSelections.size);
-        }
-        render();
-        triggerHaptic('cardSelect');
-        playSound('mark');
-        return;
-      }
-    }
-
-    if (canGuess(state.snapshot)) {
-      setSelectedGuess(index);
-      renderSelectedGuess(state.snapshot);
-      triggerHaptic('cardSelect');
-      playSound('mark');
-    }
-
-    if (!canMark(state.snapshot, index)) return;
-
-    // Optimistic mark toggle (Wave 8.2)
-    const board = state.snapshot.game?.board;
-    if (board && board[index] && !board[index].revealed) {
-      const marks = board[index].marks || [];
-      const myId = state.snapshot.me.sessionId;
-      const alreadyMarked = marks.findIndex(m => m.sessionId === myId);
-      if (alreadyMarked >= 0) {
-        board[index].marks.splice(alreadyMarked, 1);
-      } else {
-        board[index].marks.push({
-          sessionId: myId,
-          name: state.snapshot.me.name,
-          team: state.snapshot.me.team,
-        });
-      }
-      render();
-    }
-
-    try {
-      await emitWithAck('turn:mark_toggle', { index });
-    } catch (error) {
-      showToast(error.message);
-    }
+    if (handleSpymasterPlanning(snap, index)) return;
+    handleOperativeSelect(snap, index);
+    await handleMarkToggle(snap, index);
   });
 
   ui.board.addEventListener('dblclick', async (event) => {
@@ -351,13 +325,6 @@ export function wireUiEvents() {
 
   // Analyst Review (Wave 10.2) — AI-powered postgame analysis
   if (ui.analystButton) {
-    // Check if AI is available on this server
-    fetch('/api/ai-available').then(r => r.json()).then(data => {
-      if (data.available) {
-        state.aiAvailable = true;
-      }
-    }).catch(() => {});
-
     ui.analystButton.addEventListener('click', async () => {
       const snapshot = state.snapshot;
       if (!snapshot?.game) return;
@@ -398,8 +365,8 @@ export function wireUiEvents() {
   // Sound toggle (Wave 4.4)
   if (ui.soundToggleButton) {
     ui.soundToggleButton.addEventListener('click', () => {
-      const { toggleMute } = require_sound_toggle();
-      toggleMute();
+      const engine = window._taccanSoundEngine;
+      if (engine?.SoundEngine) engine.SoundEngine.toggleMute();
     });
   }
 
@@ -433,11 +400,58 @@ export function wireUiEvents() {
   initScratchpad();
 }
 
-function require_sound_toggle() {
-  return { toggleMute: () => {
-    const engine = window._taccanSoundEngine;
-    if (engine && engine.SoundEngine) engine.SoundEngine.toggleMute();
-  }};
+function handleSpymasterPlanning(snap, index) {
+  const game = snap.game;
+  if (!game || game.phase !== 'hint' || snap.me.role !== 'spymaster' || snap.me.team !== game.currentTeam) {
+    return false;
+  }
+  const card = game.board?.[index];
+  if (!card || card.revealed) return false;
+  if (state.spymasterSelections.has(index)) {
+    state.spymasterSelections.delete(index);
+  } else {
+    state.spymasterSelections.add(index);
+  }
+  if (ui.hintCountInput && state.spymasterSelections.size > 0) {
+    ui.hintCountInput.value = String(state.spymasterSelections.size);
+  }
+  render();
+  triggerHaptic('cardSelect');
+  playSound('mark');
+  return true;
+}
+
+function handleOperativeSelect(snap, index) {
+  if (!canGuess(snap)) return;
+  setSelectedGuess(index);
+  renderSelectedGuess(snap);
+  triggerHaptic('cardSelect');
+  playSound('mark');
+}
+
+async function handleMarkToggle(snap, index) {
+  if (!canMark(snap, index)) return;
+  const board = snap.game?.board;
+  if (board && board[index] && !board[index].revealed) {
+    const marks = board[index].marks || [];
+    const myId = snap.me.sessionId;
+    const alreadyMarked = marks.findIndex(m => m.sessionId === myId);
+    if (alreadyMarked >= 0) {
+      board[index].marks.splice(alreadyMarked, 1);
+    } else {
+      board[index].marks.push({
+        sessionId: myId,
+        name: snap.me.name,
+        team: snap.me.team,
+      });
+    }
+    render();
+  }
+  try {
+    await emitWithAck('turn:mark_toggle', { index });
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 async function submitGuess(index) {

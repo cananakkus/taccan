@@ -5,7 +5,6 @@ import { wireSocketEvents } from './modules/socket.js';
 import { wireUiEvents } from './modules/actions.js';
 import { render, initBoard } from './modules/render.js';
 import { initKeyboardNav } from './modules/keyboard-nav.js';
-import { initVoiceHints } from './modules/voice-hints.js';
 import './modules/sound.js';
 
 // Parse /room/XXXX URL and auto-fill code input
@@ -27,12 +26,16 @@ if (new URLSearchParams(window.location.search).get('theater') === '1') {
   document.body.classList.add('theatrical-mode');
 }
 
+// Check AI availability once at init
+fetch('/api/ai-available').then(r => r.json()).then(data => {
+  if (data.available) state.aiAvailable = true;
+}).catch(() => {});
+
 initBoard();
 initLanguage();
 wireSocketEvents();
 wireUiEvents();
 initKeyboardNav();
-initVoiceHints();
 render();
 
 // Register service worker

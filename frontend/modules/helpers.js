@@ -103,9 +103,10 @@ export function setConnection(isOnline, label) {
   ui.connectionDot.classList.toggle('offline', !isOnline);
 }
 
-export function showToast(message) {
+export function showToast(message, type = '') {
   ui.toast.textContent = message;
-  ui.toast.classList.remove('hidden');
+  ui.toast.classList.remove('hidden', 'toast-success', 'toast-error', 'toast-info');
+  if (type) ui.toast.classList.add(`toast-${type}`);
   if (state.toastTimer) clearTimeout(state.toastTimer);
   state.toastTimer = setTimeout(() => {
     ui.toast.classList.add('hidden');

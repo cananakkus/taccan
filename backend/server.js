@@ -16,7 +16,10 @@ const {
 
 const app = express();
 const httpServer = http.createServer(app);
-const io = new Server(httpServer);
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const io = new Server(httpServer, {
+  cors: { origin: CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(','), methods: ['GET', 'POST'] },
+});
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = String(process.env.HOST || '127.0.0.1');
@@ -94,6 +97,8 @@ const metrics = {
 const rooms = new Map();
 /** @type {Map<string, NodeJS.Timeout>} */
 const phaseTimers = new Map();
+/** @type {Map<string, NodeJS.Timeout>} */
+const mvpTimers = new Map();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'frontend'), {
@@ -677,6 +682,12 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const hintUpper = hintWord.toUpperCase();
+    if (game.board.some(c => c.word === hintUpper)) {
+      ackError(callback, 'Your hint cannot be a word on the board.');
+      return;
+    }
+
     // Cipher mode validation (Wave 9.1)
     if (game.mode === 'cipher') {
       if (!validateCipherHint(hintWord, game.board)) {
@@ -867,6 +878,7 @@ io.on('connection', (socket) => {
 
     if (game.phase === 'finished') {
       clearPhaseTimerState(context.room);
+      scheduleMvpTimeout(context.room);
     } else if (phaseBeforeGuess !== game.phase) {
       syncPhaseTimerForCurrentPhase(context.room, game.phase, 'phase_changed_after_guess');
     }
@@ -980,6 +992,7 @@ io.on('connection', (socket) => {
     const allVoted = connectedTeam.every(p => context.room.game.mvpVotes[p.sessionId]);
 
     if (allVoted) {
+      clearMvpTimer(context.room.code);
       broadcastMvpResult(context.room);
     }
 
@@ -1052,11 +1065,14 @@ io.on('connection', (socket) => {
     }
 
     // Fetch and validate word pack asynchronously
+    const roomCode = context.room.code;
     fetchWordPack(url)
       .then((words) => {
-        context.room.customWords = words;
-        context.room.lastActiveAt = Date.now();
-        emitStateToRoom(context.room);
+        const room = rooms.get(roomCode);
+        if (!room) return;
+        room.customWords = words;
+        room.lastActiveAt = Date.now();
+        emitStateToRoom(room);
         ackOk(callback, { loaded: true, wordCount: words.length });
       })
       .catch((error) => {
@@ -1105,6 +1121,22 @@ httpServer.listen(PORT, HOST, () => {
   console.log(`Taccan server listening on http://${HOST}:${PORT}`);
 });
 
+function gracefulShutdown(signal) {
+  logEvent('shutdown_initiated', { signal });
+  console.log(`\n${signal} received, shutting down gracefully...`);
+  httpServer.close(() => {
+    logEvent('server_closed', {});
+    process.exit(0);
+  });
+  io.disconnectSockets(true);
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10_000).unref();
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 function sanitizeName(value) {
   const normalized = String(value || '')
     .trim()
@@ -1146,6 +1178,7 @@ function createRoomCode() {
 
 function startNewRound(room, trigger = 'manual') {
   clearPhaseTimerState(room);
+  clearMvpTimer(room.code);
   const match = getNextMatch(room);
   const roomMode = getRoomMode(room);
   const modeConfig = getModeConfig(roomMode);
@@ -1549,6 +1582,22 @@ function broadcastMvpResult(room) {
     winner: winner ? { sessionId: winner.sessionId, name: winner.name } : null,
     votes: tally,
   });
+}
+
+function scheduleMvpTimeout(room) {
+  clearMvpTimer(room.code);
+  mvpTimers.set(room.code, setTimeout(() => {
+    mvpTimers.delete(room.code);
+    broadcastMvpResult(room);
+  }, 30_000));
+}
+
+function clearMvpTimer(roomCode) {
+  const timer = mvpTimers.get(roomCode);
+  if (timer) {
+    clearTimeout(timer);
+    mvpTimers.delete(roomCode);
+  }
 }
 
 async function fetchWordPack(url) {

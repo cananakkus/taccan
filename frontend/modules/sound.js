@@ -25,6 +25,12 @@ export function toggleMute() {
   if (ui.soundToggleButton) {
     ui.soundToggleButton.textContent = state.soundMuted ? t('sound_off') : t('sound_on');
   }
+  if (!state.soundMuted) {
+    try {
+      const ctx = getContext();
+      playTone(ctx, 880, 0.06, 'sine', 0.15);
+    } catch (_e) {}
+  }
 }
 
 export function playSound(name, volume = 0.3) {

@@ -13,16 +13,17 @@ function mulberry32(seed) {
 }
 
 function normalizeHint(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) {
+  const trimmed = String(value || '').trim().normalize('NFC');
+  if (!trimmed) {
     return null;
   }
 
-  if (!/^[a-z][a-z-]*$/i.test(normalized)) {
+  // Accept Unicode letters, combining marks (accents, etc.), and hyphens
+  if (!/^\p{L}[\p{L}\p{M}-]*$/u.test(trimmed)) {
     return null;
   }
 
-  return normalized;
+  return trimmed;
 }
 
 function getOtherTeam(team) {

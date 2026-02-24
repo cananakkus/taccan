@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { normalizeHint, createGameState, createDuetGameState, resolveGuess, validateCipherHint, mulberry32 } = require('../backend/game-engine');
 
 test('normalizeHint accepts single-word alpha hint and rejects invalid forms', () => {
-  assert.equal(normalizeHint('  Galaxy  '), 'galaxy');
+  assert.equal(normalizeHint('  Galaxy  '), 'Galaxy');
   assert.equal(normalizeHint(''), null);
   assert.equal(normalizeHint('two words'), null);
   assert.equal(normalizeHint('hint_1'), null);
