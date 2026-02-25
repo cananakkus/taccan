@@ -233,7 +233,13 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       debrief_turn_reason_guess_timeout: 'Field operation timed out',
       debrief_game_reason_assassin: 'Assassin protocol activated',
       debrief_game_reason_all_agents: 'All agents successfully identified',
-      debrief_game_reason_opponent: 'Opposing agents exposed by error'
+      debrief_game_reason_opponent: 'Opposing agents exposed by error',
+      reconnected: 'Reconnected',
+      confirm_prune: 'Remove all disconnected players?',
+      confirm_end_turn: 'End your turn?',
+      confirm_leave: 'Leave this room?',
+      confirm_yes: 'Confirm',
+      confirm_no: 'Cancel'
     }),
     tr: Object.freeze({
       brand_eyebrow: 'Şifre Loncası Masası',
@@ -464,7 +470,13 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       debrief_turn_reason_guess_timeout: 'Saha operasyonu zaman aşımına uğradı',
       debrief_game_reason_assassin: 'Suikastçı protokolü devreye girdi',
       debrief_game_reason_all_agents: 'Tüm ajanlar başarıyla tanımlandı',
-      debrief_game_reason_opponent: 'Hata sonucu karşı ajan ifşa edildi'
+      debrief_game_reason_opponent: 'Hata sonucu karşı ajan ifşa edildi',
+      reconnected: 'Yeniden bağlandı',
+      confirm_prune: 'Bağlantısı kopan oyuncular kaldırılsın mı?',
+      confirm_end_turn: 'Turunuzu bitirmek istiyor musunuz?',
+      confirm_leave: 'Odadan ayrılmak istiyor musunuz?',
+      confirm_yes: 'Onayla',
+      confirm_no: 'İptal'
     })
   }),
   words: Object.freeze({

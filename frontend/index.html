@@ -84,6 +84,7 @@
             </div>
           </div>
           <div class="topbar-right" id="topbar-room-utility">
+            <button id="keyboard-help-btn" class="text-btn" type="button" aria-label="Keyboard shortcuts">?</button>
             <div class="status-indicator">
               <span id="connection-dot" class="conn-dot offline"></span>
               <span id="connection-label" class="conn-label">Offline</span>
@@ -158,6 +159,7 @@
                   <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
                   <button type="submit" class="btn btn-primary" data-i18n="transmit">Transmit</button>
                 </form>
+                <span id="spymaster-badge" class="spymaster-badge hidden"></span>
               </section>
 
               <section id="guess-section" class="ctrl-panel guess-ctrl hidden">
@@ -264,6 +266,29 @@
       <div class="overlay-panel">
         <button id="debrief-close-btn" class="overlay-close" type="button">&times;</button>
         <div id="debrief-content" class="overlay-content"></div>
+      </div>
+    </div>
+
+    <div id="confirm-overlay" class="overlay hidden">
+      <div class="overlay-panel confirm-panel">
+        <p id="confirm-message" class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button id="confirm-yes-btn" class="btn btn-primary" type="button">Confirm</button>
+          <button id="confirm-no-btn" class="btn btn-ghost" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="keyboard-help-overlay" class="overlay hidden">
+      <div class="overlay-panel shortcuts-panel">
+        <button id="keyboard-help-close-btn" class="overlay-close" type="button">&times;</button>
+        <h2>Keyboard Shortcuts</h2>
+        <dl class="shortcuts-list">
+          <div class="shortcut-row"><dt class="shortcut-key">&uarr; &darr; &larr; &rarr;</dt><dd>Navigate board</dd></div>
+          <div class="shortcut-row"><dt class="shortcut-key">Home / End</dt><dd>Jump to row start / end</dd></div>
+          <div class="shortcut-row"><dt class="shortcut-key">Enter / Space</dt><dd>Select / activate card</dd></div>
+          <div class="shortcut-row"><dt class="shortcut-key">Esc</dt><dd>Close overlay</dd></div>
+        </dl>
       </div>
     </div>
 

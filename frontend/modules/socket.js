@@ -4,6 +4,7 @@ import { t } from './i18n.js';
 import { setConnection, showToast, announce } from './helpers.js';
 import { render } from './render.js';
 import { playSound } from './sound.js';
+import { canHint, canGuess } from './helpers.js';
 
 const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
 export const socket = io({ path: basePath + '/socket.io' });
@@ -11,14 +12,31 @@ export const socket = io({ path: basePath + '/socket.io' });
 export function wireSocketEvents() {
   socket.on('connect', async () => {
     setConnection(true, t('connected'));
+    if (state.wasDisconnected) {
+      showToast(t('reconnected'), 'success');
+      state.wasDisconnected = false;
+    }
     await tryAutoRejoin();
   });
 
   socket.on('disconnect', () => {
+    state.wasDisconnected = true;
     setConnection(false, t('disconnected'));
   });
 
   socket.on('state:full', (snapshot) => {
+    // Turn notification sound
+    const game = snapshot.game;
+    if (game && game.phase !== 'finished') {
+      const isMyTurn = canHint(snapshot) || canGuess(snapshot);
+      if (isMyTurn && !state.previousIsMyTurn) {
+        playSound('yourTurn');
+      }
+      state.previousIsMyTurn = isMyTurn;
+    } else {
+      state.previousIsMyTurn = false;
+    }
+
     state.snapshot = snapshot;
     writeSession({
       code: snapshot.room.code,

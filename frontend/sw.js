@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taccan-v1';
+const CACHE_NAME = 'taccan-v2';
 const STATIC_ASSETS = [
   '/',
   '/app.js',
@@ -24,27 +24,23 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
-  // Network-first for socket.io and API calls
-  if (url.pathname.startsWith('/socket.io') || url.pathname.startsWith('/api')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
+  // Skip socket.io and API calls
+  if (url.pathname.includes('/socket.io') || url.pathname.includes('/api')) return;
 
-  // Cache-first for static assets
+  // Network-first for all static assets
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response.ok && event.request.method === 'GET') {
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });

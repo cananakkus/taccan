@@ -122,6 +122,28 @@ export function announce(message) {
   });
 }
 
+export function confirmAction(message) {
+  const overlay = document.getElementById('confirm-overlay');
+  const msgEl = document.getElementById('confirm-message');
+  const yesBtn = document.getElementById('confirm-yes-btn');
+  const noBtn = document.getElementById('confirm-no-btn');
+  if (!overlay || !msgEl || !yesBtn || !noBtn) return Promise.resolve(window.confirm(message));
+  return new Promise((resolve) => {
+    msgEl.textContent = message;
+    overlay.classList.remove('hidden');
+    function cleanup(result) {
+      overlay.classList.add('hidden');
+      yesBtn.removeEventListener('click', onYes);
+      noBtn.removeEventListener('click', onNo);
+      resolve(result);
+    }
+    function onYes() { cleanup(true); }
+    function onNo() { cleanup(false); }
+    yesBtn.addEventListener('click', onYes);
+    noBtn.addEventListener('click', onNo);
+  });
+}
+
 export function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')

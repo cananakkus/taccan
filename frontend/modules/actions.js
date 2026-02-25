@@ -4,7 +4,7 @@ import { t } from './i18n.js';
 import { setLanguage } from './i18n.js';
 import { socket, emitWithAck } from './socket.js';
 import { render, renderSelectedGuess } from './render.js';
-import { canGuess, canMark, showToast, getCurrentMaxHintCount, escapeHtml } from './helpers.js';
+import { canGuess, canMark, showToast, confirmAction, getCurrentMaxHintCount, escapeHtml } from './helpers.js';
 import { playSound } from './sound.js';
 import { triggerHaptic } from './haptics.js';
 import { initScratchpad } from './scratchpad.js';
@@ -115,6 +115,8 @@ export function wireUiEvents() {
   }
 
   ui.leaveRoomButton.addEventListener('click', async () => {
+    const confirmed = await confirmAction(t('confirm_leave'));
+    if (!confirmed) return;
     leaveVoice();
     try {
       await emitWithAck('room:leave', {});
@@ -215,6 +217,8 @@ export function wireUiEvents() {
 
   if (ui.pruneButton) {
     ui.pruneButton.addEventListener('click', async () => {
+      const confirmed = await confirmAction(t('confirm_prune'));
+      if (!confirmed) return;
       try {
         const response = await emitWithAck('room:prune_disconnected', {});
         const removed = Number(response.removedCount || 0);
@@ -252,6 +256,8 @@ export function wireUiEvents() {
   });
 
   ui.endTurnButton.addEventListener('click', async () => {
+    const confirmed = await confirmAction(t('confirm_end_turn'));
+    if (!confirmed) return;
     try {
       await emitWithAck('turn:end', {});
     } catch (error) {
@@ -425,6 +431,28 @@ export function wireUiEvents() {
   if (ui.mobileBackdrop) {
     ui.mobileBackdrop.addEventListener('click', closeMobileOverlays);
   }
+
+  // Keyboard help overlay
+  if (ui.keyboardHelpBtn) {
+    ui.keyboardHelpBtn.addEventListener('click', () => {
+      ui.keyboardHelpOverlay?.classList.toggle('hidden');
+    });
+  }
+  if (ui.keyboardHelpCloseBtn) {
+    ui.keyboardHelpCloseBtn.addEventListener('click', () => {
+      ui.keyboardHelpOverlay?.classList.add('hidden');
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      ui.keyboardHelpOverlay?.classList.add('hidden');
+      const confirmOverlay = document.getElementById('confirm-overlay');
+      if (confirmOverlay && !confirmOverlay.classList.contains('hidden')) {
+        const noBtn = document.getElementById('confirm-no-btn');
+        if (noBtn) noBtn.click();
+      }
+    }
+  });
 }
 
 function handleSpymasterPlanning(snap, index) {

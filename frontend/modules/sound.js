@@ -62,6 +62,14 @@ export function playSound(name, volume = 0.3) {
       case 'timerWarning':
         playTone(ctx, 800, 0.1, 'sawtooth', volume * 0.3);
         break;
+      case 'cardFlip':
+        playTone(ctx, 80, 0.04, 'sine', volume * 0.4);
+        playNoiseBurst(ctx, 0.03, volume * 0.15);
+        break;
+      case 'yourTurn':
+        playTone(ctx, 698, 0.1, 'triangle', volume * 0.5);
+        setTimeout(() => playTone(ctx, 880, 0.14, 'triangle', volume * 0.5), 120);
+        break;
       default:
         playTone(ctx, 600, 0.05, 'sine', volume * 0.3);
     }

@@ -9,6 +9,7 @@ import {
 } from './helpers.js';
 import { deriveScene, sceneToBodyClass } from './state-machine.js';
 import { getAvatarColor, getInitials } from './identity.js';
+import { playSound } from './sound.js';
 
 // --- Turn Banner Swap Helper ---
 let _lastBannerText = '';
@@ -118,7 +119,7 @@ function setSceneClass(snapshot) {
   document.body.classList.remove(...SCENE_CLASSES);
   document.body.classList.add(cls);
 
-  state.previousScene = scene;
+
 }
 
 // --- Live Ticker ---
@@ -442,6 +443,8 @@ function renderGame(snapshot) {
     state.revealedCardIndexes = new Set();
     state.activeGameId = null;
     state.selectedGuessIndex = null;
+    state.previousRedRemaining = null;
+    state.previousBlueRemaining = null;
     if (ui.selectedGuess) ui.selectedGuess.textContent = t('no_card_selected');
     if (ui.submitGuessButton) ui.submitGuessButton.disabled = true;
     if (ui.rematchButton && ui.swapRematchButton) {
@@ -479,6 +482,24 @@ function renderGame(snapshot) {
 
   ui.redCount.textContent = t('score_red', { count: game.remaining.red });
   ui.blueCount.textContent = t('score_blue', { count: game.remaining.blue });
+
+  // Score pulse animation on change
+  if (state.previousRedRemaining !== null && state.previousRedRemaining !== game.remaining.red) {
+    ui.redCount.classList.add('score-change');
+    ui.redCount.addEventListener('animationend', function handler() {
+      ui.redCount.classList.remove('score-change');
+      ui.redCount.removeEventListener('animationend', handler);
+    }, { once: true });
+  }
+  if (state.previousBlueRemaining !== null && state.previousBlueRemaining !== game.remaining.blue) {
+    ui.blueCount.classList.add('score-change');
+    ui.blueCount.addEventListener('animationend', function handler() {
+      ui.blueCount.classList.remove('score-change');
+      ui.blueCount.removeEventListener('animationend', handler);
+    }, { once: true });
+  }
+  state.previousRedRemaining = game.remaining.red;
+  state.previousBlueRemaining = game.remaining.blue;
 
   if (game.phase === 'finished') {
     const roundLabel = Number.isInteger(game.roundNumber) ? t('round_prefix', { round: game.roundNumber }) : '';
@@ -536,6 +557,16 @@ function renderGame(snapshot) {
   ui.guessSection.classList.toggle('hidden', !showGuess);
   if (showHint) ui.hintSection.classList.toggle('locked', !hintInteractive);
   if (showGuess) ui.guessSection.classList.toggle('locked', !guessInteractive);
+
+  // Spymaster selection badge
+  if (ui.spymasterBadge) {
+    if (showHint && state.spymasterSelections.size > 0) {
+      ui.spymasterBadge.textContent = `${state.spymasterSelections.size} / ${ui.hintCountInput.value}`;
+      ui.spymasterBadge.classList.remove('hidden');
+    } else {
+      ui.spymasterBadge.classList.add('hidden');
+    }
+  }
 
   // Scratchpad visibility
   if (ui.scratchpad) {
@@ -625,6 +656,7 @@ function renderGame(snapshot) {
       if (stamp && stampSlot) stampSlot.appendChild(stamp);
 
       if (!state.revealedCardIndexes.has(card.index)) {
+        playSound('cardFlip');
         cardButton.classList.add('fresh-reveal');
         cardButton.addEventListener('animationend', function handler() {
           cardButton.classList.remove('fresh-reveal');
@@ -695,7 +727,6 @@ function renderHintHistory(snapshot) {
   ui.hintHistory.classList.remove('hidden');
 
   const game = snapshot?.game;
-  ui.hintHistoryList.innerHTML = '';
 
   // Group history: collect guesses under each preceding hint
   const groups = [];
@@ -710,32 +741,51 @@ function renderHintHistory(snapshot) {
   }
 
   if (groups.length === 0) {
+    ui.hintHistoryList.innerHTML = '';
     state.lastLogCount = 0;
     return;
   }
 
+  const existing = ui.hintHistoryList.children;
   const isNewEntry = groups.length > state.lastLogCount;
+
+  // Remove excess groups
+  while (existing.length > groups.length) {
+    ui.hintHistoryList.removeChild(ui.hintHistoryList.lastChild);
+  }
 
   for (let gi = 0; gi < groups.length; gi++) {
     const group = groups[gi];
-    const groupDiv = document.createElement('div');
-    groupDiv.className = `log-group ${group.hint.team}`;
+    let groupDiv = existing[gi];
 
-    // Animate the newest group
-    if (isNewEntry && gi === groups.length - 1) {
-      groupDiv.classList.add('log-new');
-      groupDiv.addEventListener('animationend', function handler() {
-        groupDiv.classList.remove('log-new');
-        groupDiv.removeEventListener('animationend', handler);
-      }, { once: true });
+    if (!groupDiv) {
+      // Create new group
+      groupDiv = document.createElement('div');
+      groupDiv.className = `log-group ${group.hint.team}`;
+
+      const hintDiv = document.createElement('div');
+      hintDiv.className = `log-hint ${group.hint.team}`;
+      hintDiv.textContent = `${String(group.hint.word).toLocaleUpperCase(getLocaleTag())} ${group.hint.count}`;
+      groupDiv.appendChild(hintDiv);
+
+      ui.hintHistoryList.appendChild(groupDiv);
+
+      // Animate the newest group
+      if (isNewEntry && gi === groups.length - 1) {
+        groupDiv.classList.add('log-new');
+        groupDiv.addEventListener('animationend', function handler() {
+          groupDiv.classList.remove('log-new');
+          groupDiv.removeEventListener('animationend', handler);
+        }, { once: true });
+      }
     }
 
-    const hintDiv = document.createElement('div');
-    hintDiv.className = `log-hint ${group.hint.team}`;
-    hintDiv.textContent = `${String(group.hint.word).toLocaleUpperCase(getLocaleTag())} ${group.hint.count}`;
-    groupDiv.appendChild(hintDiv);
+    // Count existing guess elements (skip the first child which is the hint div)
+    const existingGuesses = groupDiv.querySelectorAll('.log-guess').length;
 
-    for (const guess of group.guesses) {
+    // Only append new guesses
+    for (let gsi = existingGuesses; gsi < group.guesses.length; gsi++) {
+      const guess = group.guesses[gsi];
       const guessDiv = document.createElement('div');
       guessDiv.className = 'log-guess';
       const card = game.board[guess.index];
@@ -748,8 +798,6 @@ function renderHintHistory(snapshot) {
       guessDiv.appendChild(document.createTextNode(` ${word}`));
       groupDiv.appendChild(guessDiv);
     }
-
-    ui.hintHistoryList.appendChild(groupDiv);
   }
 
   state.lastLogCount = groups.length;
