@@ -444,12 +444,13 @@ async function handleMarkToggle(snap, index) {
   const board = snap.game?.board;
   if (board && board[index] && !board[index].revealed) {
     const marks = board[index].marks || [];
+    board[index].marks = marks;
     const myId = snap.me.sessionId;
     const alreadyMarked = marks.findIndex(m => m.sessionId === myId);
     if (alreadyMarked >= 0) {
-      board[index].marks.splice(alreadyMarked, 1);
+      marks.splice(alreadyMarked, 1);
     } else {
-      board[index].marks.push({
+      marks.push({
         sessionId: myId,
         name: snap.me.name,
         team: snap.me.team,

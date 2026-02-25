@@ -359,6 +359,7 @@ io.on('connection', (socket) => {
     }
 
     if (player.socketId && player.socketId !== socket.id) {
+      handleVoiceLeave(room, player);
       const staleSocket = io.sockets.sockets.get(player.socketId);
       if (staleSocket) {
         staleSocket.emit('server:info', { message: 'This session was reconnected from another tab.' });
