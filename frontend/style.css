@@ -153,7 +153,14 @@ button:focus-visible, .card:focus-visible {
 .btn:hover { background: var(--paper-warm); border-color: var(--ink-faded); }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-.btn-loading { pointer-events: none; opacity: 0.6; }
+.btn-loading {
+  pointer-events: none;
+  animation: btn-loading-pulse 1s ease-in-out infinite;
+}
+@keyframes btn-loading-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.35; }
+}
 
 .btn-primary {
   background: var(--ink);
@@ -581,13 +588,13 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 .phase-timer.warning-10 .timer-value { color: #d4b848; }
 .phase-timer.warning-5 {
   border-color: #c06060;
-  animation: timer-pulse 0.6s ease-in-out infinite;
+  animation: timer-pulse-critical 0.5s ease-in-out infinite;
 }
 .phase-timer.warning-5 .timer-value { color: #e08080; }
 
-@keyframes timer-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+@keyframes timer-pulse-critical {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.05); }
 }
 
 .topbar-right {
@@ -905,6 +912,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   animation: ctrl-slide-in 250ms ease-out;
   position: relative;
 }
+.ctrl-panel { transition: opacity 200ms ease; }
 .ctrl-panel.locked { opacity: 0.4; pointer-events: none; }
 
 /* Ragged torn-edge at top of control panel */
@@ -1137,6 +1145,8 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   transform: translateY(-1px);
 }
 .card.clickable:active { transform: translateY(0) scale(0.98); }
+
+.card:disabled:not(.revealed):not(.finished-reveal) { opacity: 0.65; }
 
 .card.marked {}
 
@@ -1837,7 +1847,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 /* ══════════════════════════════
    SCENE CLASSES (state-driven)
    ══════════════════════════════ */
-.scene-lobby .board .card { opacity: 0.3; }
+.scene-lobby .board .card { opacity: 0.35; filter: grayscale(0.7) sepia(0.3); }
 
 /* ══════════════════════════════
    THEATRICAL MODE
@@ -1868,6 +1878,62 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 }
 .voice-btn:hover { border-color: var(--border-dark); color: var(--ink); }
 .voice-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+/* ══════════════════════════════
+   JS-DRIVEN ANIMATION CLASSES
+   ══════════════════════════════ */
+
+/* Phase pulse — subtle brightness flash on phase change */
+.board.phase-pulse { animation: board-phase-pulse 400ms ease-out; }
+@keyframes board-phase-pulse {
+  0% { filter: brightness(1.08); }
+  100% { filter: brightness(1); }
+}
+
+/* Card deal — staggered entry from below with slight rotation */
+.card.card-deal { opacity: 0; animation: card-deal-in 300ms ease-out forwards; }
+@keyframes card-deal-in {
+  from { opacity: 0; transform: translateY(8px) rotate(-1deg); }
+  to   { opacity: 1; transform: translateY(0) rotate(0deg); }
+}
+
+/* Result flourish — stamp-in effect for game-over panel */
+.result-ctrl.result-flourish { animation: result-stamp-in 500ms ease-out; }
+@keyframes result-stamp-in {
+  0%   { opacity: 0; transform: scale(1.02) rotate(-0.3deg); box-shadow: 0 0 0 0 rgba(107,58,42,0); }
+  40%  { opacity: 1; transform: scale(0.99) rotate(0.1deg); box-shadow: 0 0 20px 4px rgba(107,58,42,0.15); }
+  100% { transform: scale(1) rotate(0deg); box-shadow: none; }
+}
+
+/* Turn banner text swap — brief opacity dip */
+.turn-banner.banner-swap { opacity: 0; transition: opacity 150ms ease-out; }
+
+/* Game log entry slide — slide in from left */
+.log-group.log-new { animation: log-slide-in 250ms ease-out; }
+@keyframes log-slide-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Player highlight — background flash on join */
+.team-player-item.player-new { animation: player-highlight 600ms ease-out; }
+@keyframes player-highlight {
+  0%   { background: rgba(107,58,42,0.2); }
+  100% { background: transparent; }
+}
+
+/* Join→Room crossfade */
+.join-screen.fade-out {
+  opacity: 0; visibility: hidden;
+  transition: opacity 350ms ease, visibility 0s linear 350ms;
+}
+.room-screen.fade-in {
+  opacity: 0; animation: room-fade-in 400ms ease-out 100ms forwards;
+}
+@keyframes room-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ══════════════════════════════
    REDUCED MOTION

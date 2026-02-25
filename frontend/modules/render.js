@@ -10,6 +10,18 @@ import {
 import { deriveScene, sceneToBodyClass } from './state-machine.js';
 import { getAvatarColor, getInitials } from './identity.js';
 
+// --- Turn Banner Swap Helper ---
+let _lastBannerText = '';
+function setTurnBannerText(text) {
+  if (text === _lastBannerText) return;
+  _lastBannerText = text;
+  ui.turnBanner.classList.add('banner-swap');
+  setTimeout(() => {
+    ui.turnBanner.textContent = text;
+    ui.turnBanner.classList.remove('banner-swap');
+  }, 150);
+}
+
 // --- Stable Card DOM ---
 export function initBoard() {
   ui.board.innerHTML = '';
@@ -105,6 +117,15 @@ function setSceneClass(snapshot) {
   const cls = sceneToBodyClass(scene);
   document.body.classList.remove(...SCENE_CLASSES);
   document.body.classList.add(cls);
+
+  if (state.previousScene !== null && state.previousScene !== scene) {
+    ui.board.classList.add('phase-pulse');
+    ui.board.addEventListener('animationend', function handler() {
+      ui.board.classList.remove('phase-pulse');
+      ui.board.removeEventListener('animationend', handler);
+    }, { once: true });
+  }
+  state.previousScene = scene;
 }
 
 // --- Live Ticker ---
@@ -171,8 +192,9 @@ export function render() {
     state.revealedCardIndexes = new Set();
     state.activeGameId = null;
     state.selectedGuessIndex = null;
-    ui.joinPanel.classList.remove('hidden');
+    ui.joinPanel.classList.remove('hidden', 'fade-out');
     ui.roomPanel.classList.add('hidden');
+    ui.roomPanel.classList.remove('fade-in');
     clearBoard();
     ui.joinNote.textContent = t('join_note_default');
     if (ui.hintHistory) ui.hintHistory.classList.add('hidden');
@@ -181,8 +203,21 @@ export function render() {
     return;
   }
 
-  ui.joinPanel.classList.add('hidden');
-  ui.roomPanel.classList.remove('hidden');
+  if (!ui.joinPanel.classList.contains('hidden') && !state.transitioningToRoom) {
+    state.transitioningToRoom = true;
+    ui.joinPanel.classList.add('fade-out');
+    ui.roomPanel.classList.remove('hidden');
+    ui.roomPanel.classList.add('fade-in');
+    setTimeout(() => {
+      ui.joinPanel.classList.add('hidden');
+      ui.joinPanel.classList.remove('fade-out');
+      ui.roomPanel.classList.remove('fade-in');
+      state.transitioningToRoom = false;
+    }, 450);
+  } else if (!state.transitioningToRoom) {
+    ui.joinPanel.classList.add('hidden');
+    ui.roomPanel.classList.remove('hidden');
+  }
 
   ui.roomCode.textContent = snapshot.room.code;
   renderTeamBoxes(snapshot);
@@ -199,12 +234,27 @@ function renderTeamBoxes(snapshot) {
   ui.redTeamList.innerHTML = '';
   ui.blueTeamList.innerHTML = '';
 
+  const currentIds = new Set();
+
   for (const player of snapshot.players) {
     const targetList = player.team === 'red' ? ui.redTeamList : player.team === 'blue' ? ui.blueTeamList : null;
     if (!targetList) continue;
+    currentIds.add(player.sessionId);
     const item = buildTeamPlayerItem(player, me, snapshot);
+
+    // Highlight newly joined players
+    if (state.knownPlayerIds.size > 0 && !state.knownPlayerIds.has(player.sessionId)) {
+      item.classList.add('player-new');
+      item.addEventListener('animationend', function handler() {
+        item.classList.remove('player-new');
+        item.removeEventListener('animationend', handler);
+      }, { once: true });
+    }
+
     targetList.appendChild(item);
   }
+
+  state.knownPlayerIds = currentIds;
 
   fillEmptyTeamList(ui.redTeamList, t('no_red_agents'));
   fillEmptyTeamList(ui.blueTeamList, t('no_blue_agents'));
@@ -389,7 +439,7 @@ function renderGame(snapshot) {
   setTurnBannerStyle(game);
 
   if (!game) {
-    ui.turnBanner.textContent = t('lobby_open');
+    setTurnBannerText(t('lobby_open'));
     ui.redCount.textContent = t('score_red_empty');
     ui.blueCount.textContent = t('score_blue_empty');
     ui.hintSection.classList.add('hidden');
@@ -420,6 +470,18 @@ function renderGame(snapshot) {
     state.revealedCardIndexes = new Set();
     state.selectedGuessIndex = null;
     state.spymasterSelections.clear();
+
+    // Card deal animation — staggered cascade
+    for (let i = 0; i < state.cardElements.length; i++) {
+      const card = state.cardElements[i];
+      card.classList.add('card-deal');
+      card.style.animationDelay = `${40 * i}ms`;
+      card.addEventListener('animationend', function handler() {
+        card.classList.remove('card-deal');
+        card.style.animationDelay = '';
+        card.removeEventListener('animationend', handler);
+      }, { once: true });
+    }
   }
 
   ui.redCount.textContent = t('score_red', { count: game.remaining.red });
@@ -427,24 +489,31 @@ function renderGame(snapshot) {
 
   if (game.phase === 'finished') {
     const roundLabel = Number.isInteger(game.roundNumber) ? t('round_prefix', { round: game.roundNumber }) : '';
-    ui.turnBanner.textContent = t('game_over_banner', {
+    setTurnBannerText(t('game_over_banner', {
       round: roundLabel,
       team: formatTeam(game.winner),
-    });
+    }));
     ui.resultSection.classList.remove('hidden');
+    if (!ui.resultSection.classList.contains('result-flourish')) {
+      ui.resultSection.classList.add('result-flourish');
+      ui.resultSection.addEventListener('animationend', function handler() {
+        ui.resultSection.classList.remove('result-flourish');
+        ui.resultSection.removeEventListener('animationend', handler);
+      }, { once: true });
+    }
     const matchLabel = game.matchId ? t('result_match_label', { id: String(game.matchId).slice(0, 8) }) : '';
     ui.resultText.textContent = `${formatResultReason(game)} ${matchLabel}`.trim();
     if (ui.ggButton) ui.ggButton.classList.remove('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.remove('hidden');
     if (ui.analystButton) ui.analystButton.classList.toggle('hidden', !state.aiAvailable);
   } else if (game.phase === 'hint') {
-    ui.turnBanner.textContent = t('turn_spymaster_choosing', { team: formatTeam(game.currentTeam) });
+    setTurnBannerText(t('turn_spymaster_choosing', { team: formatTeam(game.currentTeam) }));
     ui.resultSection.classList.add('hidden');
     if (ui.ggButton) ui.ggButton.classList.add('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.add('hidden');
     if (ui.analystButton) ui.analystButton.classList.add('hidden');
   } else {
-    ui.turnBanner.textContent = t('turn_operatives_guessing', { team: formatTeam(game.currentTeam) });
+    setTurnBannerText(t('turn_operatives_guessing', { team: formatTeam(game.currentTeam) }));
     ui.resultSection.classList.add('hidden');
     if (ui.ggButton) ui.ggButton.classList.add('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.add('hidden');
@@ -647,11 +716,26 @@ function renderHintHistory(snapshot) {
     }
   }
 
-  if (groups.length === 0) return;
+  if (groups.length === 0) {
+    state.lastLogCount = 0;
+    return;
+  }
 
-  for (const group of groups) {
+  const isNewEntry = groups.length > state.lastLogCount;
+
+  for (let gi = 0; gi < groups.length; gi++) {
+    const group = groups[gi];
     const groupDiv = document.createElement('div');
     groupDiv.className = `log-group ${group.hint.team}`;
+
+    // Animate the newest group
+    if (isNewEntry && gi === groups.length - 1) {
+      groupDiv.classList.add('log-new');
+      groupDiv.addEventListener('animationend', function handler() {
+        groupDiv.classList.remove('log-new');
+        groupDiv.removeEventListener('animationend', handler);
+      }, { once: true });
+    }
 
     const hintDiv = document.createElement('div');
     hintDiv.className = `log-hint ${group.hint.team}`;
@@ -674,6 +758,8 @@ function renderHintHistory(snapshot) {
 
     ui.hintHistoryList.appendChild(groupDiv);
   }
+
+  state.lastLogCount = groups.length;
 
   // Auto-scroll the log container to bottom
   ui.hintHistory.scrollTop = ui.hintHistory.scrollHeight;

@@ -49,6 +49,10 @@ export const state = {
   voicePeers: new Set(),
   voiceSpeaking: new Map(),
   voiceMutedPeers: new Set(),
+  previousScene: null,
+  lastLogCount: 0,
+  knownPlayerIds: new Set(),
+  transitioningToRoom: false,
 };
 
 // --- Session persistence ---

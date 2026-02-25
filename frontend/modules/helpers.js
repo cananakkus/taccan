@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { ui } from './ui.js';
 import { t } from './i18n.js';
+import { triggerHaptic } from './haptics.js';
 
 export function canHint(snapshot) {
   return Boolean(
@@ -107,6 +108,8 @@ export function showToast(message, type = '') {
   ui.toast.textContent = message;
   ui.toast.classList.remove('hidden', 'toast-success', 'toast-error', 'toast-info');
   if (type) ui.toast.classList.add(`toast-${type}`);
+  if (type === 'success') triggerHaptic('toastSuccess');
+  else if (type === 'error') triggerHaptic('toastError');
   if (state.toastTimer) clearTimeout(state.toastTimer);
   state.toastTimer = setTimeout(() => {
     ui.toast.classList.add('hidden');

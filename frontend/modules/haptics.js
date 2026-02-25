@@ -3,6 +3,8 @@ const patterns = {
   correctGuess: [30, 50, 30],
   assassin: [100, 50, 100, 50, 200],
   heartbeat: [60, 120, 60],
+  toastSuccess: [15],
+  toastError: [40, 30, 40],
 };
 
 export function triggerHaptic(name) {
