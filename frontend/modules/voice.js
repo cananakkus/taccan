@@ -124,11 +124,8 @@ export async function joinVoice() {
   joining = true;
 
   try {
-    console.log('[voice] requesting mic access...');
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    console.log('[voice] mic access granted');
   } catch (_err) {
-    console.error('[voice] mic access denied:', _err);
     showToast('Microphone access denied');
     joining = false;
     return;
@@ -139,10 +136,8 @@ export async function joinVoice() {
   updateVoiceButtons();
 
   try {
-    console.log('[voice] emitting voice:join...');
     const response = await emitWithAck('voice:join', {});
     const existingPeers = response.peers || [];
-    console.log('[voice] joined, existing peers:', existingPeers);
     for (const peerId of existingPeers) {
       state.voicePeers.add(peerId);
     }
