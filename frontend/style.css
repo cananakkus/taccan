@@ -1585,7 +1585,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   }
 }
 
-/* Small tablet / large phone */
+/* Small tablet / large phone landscape */
 @media (max-width: 860px) {
   .room-body {
     grid-template-columns: 1fr;
@@ -1597,15 +1597,16 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
     gap: 8px;
     border-right: none;
     border-bottom: 1px solid var(--border);
-    padding: 10px 14px;
+    padding: 8px 12px;
     overflow-x: auto;
     overflow-y: hidden;
   }
-  .team-panel { min-width: 190px; flex: 1; }
+  .sidebar-teams .player-list { max-height: 80px; }
+  .team-panel { min-width: 180px; flex: 1; }
   .sidebar-actions {
     flex-direction: row;
     align-items: center;
-    min-width: 130px;
+    min-width: 120px;
     margin-top: 0;
     padding-top: 0;
   }
@@ -1613,10 +1614,10 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   .sidebar-settings {
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     border-left: none;
     border-top: 1px solid var(--border);
-    padding: 10px 14px;
+    padding: 8px 12px;
   }
   .settings-block {
     border-bottom: none;
@@ -1628,58 +1629,71 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 
   .game-stage { padding: 8px; }
 
-  .board-area {
-    grid-template-columns: 1fr;
-  }
-  .game-log {
-    max-height: 120px;
-    order: 1;
-  }
+  .board-area { grid-template-columns: 1fr; }
+  .game-log { max-height: 120px; order: 1; }
 }
 
 /* Phone */
 @media (max-width: 600px) {
   :root { font-size: 15px; }
 
+  /* Topbar */
   .topbar {
     height: auto;
     flex-wrap: wrap;
-    padding: 8px 10px;
-    gap: 6px;
+    padding: 6px 10px;
+    gap: 4px;
   }
   .topbar::before { display: none; }
+  .topbar-logo { font-size: 1.25rem; letter-spacing: 0.08em; }
+  .room-code-val { padding: 3px 7px; font-size: 0.75rem; }
+  .mode-tag { display: none; }
   .topbar-center { order: 3; width: 100%; justify-content: center; }
   .topbar-right { flex-wrap: wrap; }
   .topbar-actions { flex-wrap: wrap; }
-  .text-btn { font-size: 0.78rem; padding: 4px 8px; }
-  .turn-banner { font-size: 0.88rem; }
+  .conn-label { display: none; }
+  .status-indicator { padding: 4px 8px; }
+  .text-btn { font-size: 0.75rem; padding: 4px 7px; }
+  .turn-banner { font-size: 0.85rem; }
 
-  .sidebar-teams {
-    flex-direction: column;
-    gap: 6px;
-  }
-  .team-panel { min-width: unset; }
-  .sidebar-actions { flex-direction: column; }
+  /* Teams: stay horizontal, tighter */
+  .sidebar-teams { padding: 6px 10px; gap: 6px; }
+  .team-panel { min-width: 140px; }
+  .sidebar-teams .player-list { max-height: 60px; }
+  .sidebar-actions { flex-direction: row; }
 
-  .game-stage { padding: 6px; gap: 6px; }
+  /* Game stage */
+  .game-stage { padding: 6px; gap: 4px; }
   .board { gap: 3px; }
-
-  .card { }
   .card-word { font-size: clamp(0.55rem, 2.8vw, 0.82rem); }
 
+  /* Controls */
   .ctrl-panel { padding: 8px 10px; }
   .hint-form { flex-wrap: wrap; }
   .hint-form input[type="text"] { flex: 1 1 100%; }
-
   .guess-row { flex-wrap: wrap; }
   .selected-label { width: 100%; }
   .result-actions { flex-direction: column; }
   .result-actions .btn { width: 100%; }
 
-  .sidebar-settings { flex-direction: column; }
+  /* Settings: stays row/wrap from 860px rule; hide QR/seal (useless on your own phone) */
+  .settings-block-meta { display: none; }
+  .settings-block { min-width: 110px; }
 
-  .join-card { padding: 30px 24px 22px; }
+  /* Join */
+  .join-screen { padding: 16px; }
+  .join-card { padding: 28px 20px 20px; }
   .logo-title { font-size: 1.8rem; }
+}
+
+/* Very small phones */
+@media (max-width: 400px) {
+  :root { font-size: 14px; }
+  .topbar-logo { font-size: 1.05rem; }
+  .team-panel { min-width: 120px; }
+  .join-screen { padding: 10px; }
+  .join-card { padding: 22px 14px 18px; }
+  .logo-title { font-size: 1.5rem; }
 }
 
 /* ══════════════════════════════
