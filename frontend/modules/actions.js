@@ -408,6 +408,23 @@ export function wireUiEvents() {
 
   // Scratchpad init
   initScratchpad();
+
+  // Mobile bottom-sheet overlays
+  if (ui.mobileTeamsBtn) {
+    ui.mobileTeamsBtn.addEventListener('click', () => toggleMobileOverlay('teams'));
+  }
+  if (ui.mobileLogBtn) {
+    ui.mobileLogBtn.addEventListener('click', () => toggleMobileOverlay('log'));
+  }
+  if (ui.mobileSettingsBtn) {
+    ui.mobileSettingsBtn.addEventListener('click', () => toggleMobileOverlay('settings'));
+  }
+  if (ui.mobileLeaveBtn) {
+    ui.mobileLeaveBtn.addEventListener('click', () => ui.leaveRoomButton.click());
+  }
+  if (ui.mobileBackdrop) {
+    ui.mobileBackdrop.addEventListener('click', closeMobileOverlays);
+  }
 }
 
 function handleSpymasterPlanning(snap, index) {
@@ -481,6 +498,33 @@ function setSelectedGuess(index) {
     return;
   }
   state.selectedGuessIndex = index;
+}
+
+const MOBILE_OVERLAY_MAP = [
+  { key: 'teams',    getEl: () => ui.sidebarTeams,    getBtn: () => ui.mobileTeamsBtn },
+  { key: 'log',      getEl: () => ui.hintHistory,     getBtn: () => ui.mobileLogBtn },
+  { key: 'settings', getEl: () => ui.sidebarSettings, getBtn: () => ui.mobileSettingsBtn },
+];
+
+function toggleMobileOverlay(which) {
+  const entry = MOBILE_OVERLAY_MAP.find(e => e.key === which);
+  if (!entry) return;
+  const el = entry.getEl();
+  const alreadyOpen = el && el.classList.contains('mobile-open');
+  closeMobileOverlays();
+  if (!alreadyOpen && el) {
+    el.classList.add('mobile-open');
+    if (ui.mobileBackdrop) ui.mobileBackdrop.classList.add('visible');
+    entry.getBtn()?.classList.add('active');
+  }
+}
+
+function closeMobileOverlays() {
+  for (const { getEl, getBtn } of MOBILE_OVERLAY_MAP) {
+    getEl()?.classList.remove('mobile-open');
+    getBtn()?.classList.remove('active');
+  }
+  if (ui.mobileBackdrop) ui.mobileBackdrop.classList.remove('visible');
 }
 
 function getRoomUrl(code) {
