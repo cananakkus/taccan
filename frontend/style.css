@@ -1146,8 +1146,6 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 }
 .card.clickable:active { transform: translateY(0) scale(0.98); }
 
-.card:disabled:not(.revealed):not(.finished-reveal) { opacity: 0.65; }
-
 .card.marked {}
 
 .card.selected-for-guess {}
