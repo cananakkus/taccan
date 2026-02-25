@@ -627,11 +627,6 @@ function renderGame(snapshot) {
 
       if (!state.revealedCardIndexes.has(card.index)) {
         playSound('cardFlip');
-        cardButton.classList.add('fresh-reveal');
-        cardButton.addEventListener('animationend', function handler() {
-          cardButton.classList.remove('fresh-reveal');
-          cardButton.removeEventListener('animationend', handler);
-        }, { once: true });
       }
       cardButton.disabled = true;
     } else {
