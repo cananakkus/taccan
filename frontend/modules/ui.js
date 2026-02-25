@@ -77,7 +77,6 @@ export const ui = {
   roleButtons: [...document.querySelectorAll('[data-role]')],
   modeButtons: [...document.querySelectorAll('[data-room-mode]')],
   languageButtons: [...document.querySelectorAll('[data-language]')],
-  spymasterBadge: document.getElementById('spymaster-badge'),
   keyboardHelpBtn: document.getElementById('keyboard-help-btn'),
   keyboardHelpOverlay: document.getElementById('keyboard-help-overlay'),
   keyboardHelpCloseBtn: document.getElementById('keyboard-help-close-btn'),

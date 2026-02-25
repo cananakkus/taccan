@@ -443,8 +443,6 @@ function renderGame(snapshot) {
     state.revealedCardIndexes = new Set();
     state.activeGameId = null;
     state.selectedGuessIndex = null;
-    state.previousRedRemaining = null;
-    state.previousBlueRemaining = null;
     if (ui.selectedGuess) ui.selectedGuess.textContent = t('no_card_selected');
     if (ui.submitGuessButton) ui.submitGuessButton.disabled = true;
     if (ui.rematchButton && ui.swapRematchButton) {
@@ -482,24 +480,6 @@ function renderGame(snapshot) {
 
   ui.redCount.textContent = t('score_red', { count: game.remaining.red });
   ui.blueCount.textContent = t('score_blue', { count: game.remaining.blue });
-
-  // Score pulse animation on change
-  if (state.previousRedRemaining !== null && state.previousRedRemaining !== game.remaining.red) {
-    ui.redCount.classList.add('score-change');
-    ui.redCount.addEventListener('animationend', function handler() {
-      ui.redCount.classList.remove('score-change');
-      ui.redCount.removeEventListener('animationend', handler);
-    }, { once: true });
-  }
-  if (state.previousBlueRemaining !== null && state.previousBlueRemaining !== game.remaining.blue) {
-    ui.blueCount.classList.add('score-change');
-    ui.blueCount.addEventListener('animationend', function handler() {
-      ui.blueCount.classList.remove('score-change');
-      ui.blueCount.removeEventListener('animationend', handler);
-    }, { once: true });
-  }
-  state.previousRedRemaining = game.remaining.red;
-  state.previousBlueRemaining = game.remaining.blue;
 
   if (game.phase === 'finished') {
     const roundLabel = Number.isInteger(game.roundNumber) ? t('round_prefix', { round: game.roundNumber }) : '';
@@ -557,16 +537,6 @@ function renderGame(snapshot) {
   ui.guessSection.classList.toggle('hidden', !showGuess);
   if (showHint) ui.hintSection.classList.toggle('locked', !hintInteractive);
   if (showGuess) ui.guessSection.classList.toggle('locked', !guessInteractive);
-
-  // Spymaster selection badge
-  if (ui.spymasterBadge) {
-    if (showHint && state.spymasterSelections.size > 0) {
-      ui.spymasterBadge.textContent = `${state.spymasterSelections.size} / ${ui.hintCountInput.value}`;
-      ui.spymasterBadge.classList.remove('hidden');
-    } else {
-      ui.spymasterBadge.classList.add('hidden');
-    }
-  }
 
   // Scratchpad visibility
   if (ui.scratchpad) {

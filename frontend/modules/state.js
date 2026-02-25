@@ -51,8 +51,6 @@ export const state = {
   voiceMutedPeers: new Set(),
   lastLogCount: 0,
   wasDisconnected: false,
-  previousRedRemaining: null,
-  previousBlueRemaining: null,
   previousIsMyTurn: false,
   knownPlayerIds: new Set(),
   transitioningToRoom: false,
