@@ -118,13 +118,6 @@ function setSceneClass(snapshot) {
   document.body.classList.remove(...SCENE_CLASSES);
   document.body.classList.add(cls);
 
-  if (state.previousScene !== null && state.previousScene !== scene) {
-    ui.board.classList.add('phase-pulse');
-    ui.board.addEventListener('animationend', function handler() {
-      ui.board.classList.remove('phase-pulse');
-      ui.board.removeEventListener('animationend', handler);
-    }, { once: true });
-  }
   state.previousScene = scene;
 }
 
