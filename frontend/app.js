@@ -8,8 +8,8 @@ import { initKeyboardNav } from './modules/keyboard-nav.js';
 import { initVoice } from './modules/voice.js';
 import './modules/sound.js';
 
-// Parse /room/XXXX URL and auto-fill code input
-const pathMatch = window.location.pathname.match(/^\/room\/([A-Za-z0-9]{4})$/);
+// Parse /room/XXXX URL and auto-fill code input (supports subpath deployment)
+const pathMatch = window.location.pathname.match(/\/room\/([A-Za-z0-9]{4})$/);
 if (pathMatch && ui.codeInput) {
   ui.codeInput.value = pathMatch[1].toUpperCase();
 }
@@ -28,7 +28,7 @@ if (new URLSearchParams(window.location.search).get('theater') === '1') {
 }
 
 // Check AI availability once at init
-fetch('/api/ai-available').then(r => r.json()).then(data => {
+fetch('api/ai-available').then(r => r.json()).then(data => {
   if (data.available) state.aiAvailable = true;
 }).catch(() => {});
 
@@ -42,5 +42,5 @@ render();
 
 // Register service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }

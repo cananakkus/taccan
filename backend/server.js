@@ -1100,6 +1100,7 @@ io.on('connection', (socket) => {
     // Send list of existing voice peers before adding this player
     const existingPeers = [...room.voicePeers].filter(id => id !== player.sessionId);
     room.voicePeers.add(player.sessionId);
+    logEvent('voice_joined', { roomCode: room.code, sessionId: player.sessionId, existingPeers });
 
     // Notify existing voice peers about the new joiner
     for (const peerId of existingPeers) {
@@ -1142,6 +1143,7 @@ io.on('connection', (socket) => {
     const targetSocket = io.sockets.sockets.get(targetPlayer.socketId);
     if (!targetSocket) { ackError(callback, 'Target peer not connected.'); return; }
 
+    logEvent('voice_signal', { roomCode: room.code, from: player.sessionId, to: validatedPayload.targetSessionId, type: validatedPayload.type });
     targetSocket.emit('voice:signal', {
       fromSessionId: player.sessionId,
       type: validatedPayload.type,

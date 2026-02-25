@@ -345,7 +345,7 @@ export function wireUiEvents() {
       ui.analystButton.disabled = true;
       ui.analystButton.textContent = '...';
       try {
-        const resp = await fetch('/api/analyze', {
+        const resp = await fetch('api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -483,7 +483,8 @@ function setSelectedGuess(index) {
 }
 
 function getRoomUrl(code) {
-  return `${window.location.origin}/room/${code}`;
+  const base = window.location.pathname.replace(/\/[^/]*$/, '');
+  return `${window.location.origin}${base}/room/${code}`;
 }
 
 function onRoomJoined(code) {

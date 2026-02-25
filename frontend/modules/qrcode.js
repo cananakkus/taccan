@@ -292,7 +292,8 @@ function generateQR(url) {
 export function renderQRCode(roomCode) {
   if (!ui.qrCodeContainer) return;
 
-  const url = `${window.location.origin}/room/${roomCode}`;
+  const base = window.location.pathname.replace(/\/[^/]*$/, '');
+  const url = `${window.location.origin}${base}/room/${roomCode}`;
   let qr;
   try {
     qr = generateQR(url);

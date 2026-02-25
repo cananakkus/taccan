@@ -5,7 +5,8 @@ import { setConnection, showToast, announce } from './helpers.js';
 import { render } from './render.js';
 import { playSound } from './sound.js';
 
-export const socket = io();
+const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+export const socket = io({ path: basePath + '/socket.io' });
 
 export function wireSocketEvents() {
   socket.on('connect', async () => {
@@ -102,8 +103,8 @@ export async function tryAutoRejoin() {
   ui.nameInput.value = stored.name || '';
   ui.codeInput.value = stored.code || '';
 
-  // Check for /room/XXXX URL pattern
-  const pathMatch = window.location.pathname.match(/^\/room\/([A-Za-z0-9]{4})$/);
+  // Check for /room/XXXX URL pattern (supports subpath deployment)
+  const pathMatch = window.location.pathname.match(/\/room\/([A-Za-z0-9]{4})$/);
   if (pathMatch) {
     ui.codeInput.value = pathMatch[1].toUpperCase();
   }

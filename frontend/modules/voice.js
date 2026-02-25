@@ -6,13 +6,23 @@ import { render } from './render.js';
 
 // --- Private state ---
 let localStream = null;
+let joining = false;
 const peers = new Map(); // sessionId → { pc, stream, analyser }
 const audioElements = new Map(); // sessionId → HTMLAudioElement
 let speakingInterval = null;
 let audioCtx = null;
 
 const RTC_CONFIG = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:46.225.102.80:3478' },
+    {
+      urls: ['turn:46.225.102.80:3478', 'turn:46.225.102.80:3478?transport=tcp'],
+      username: 'taccan',
+      credential: 'taccanturn2026',
+    },
+  ],
 };
 
 const SPEAKING_THRESHOLD = 15;
@@ -32,6 +42,7 @@ export function initVoice() {
   });
 
   socket.on('voice:peer_left', ({ sessionId }) => {
+    if (!state.voiceActive) return;
     closePeer(sessionId);
     state.voicePeers.delete(sessionId);
     state.voiceSpeaking.delete(sessionId);
@@ -42,41 +53,54 @@ export function initVoice() {
   socket.on('voice:signal', async ({ fromSessionId, type, sdp, candidate }) => {
     if (!state.voiceActive) return;
 
-    let entry = peers.get(fromSessionId);
+    try {
+      let entry = peers.get(fromSessionId);
 
-    if (type === 'offer') {
-      if (entry) {
-        // Glare handling: peer with lower sessionId is "polite" (rolls back)
-        const myId = state.snapshot?.me?.sessionId || '';
-        const polite = myId < fromSessionId;
-        if (!polite) return; // ignore incoming offer, we're impolite
-        // Polite: rollback and accept
-        await entry.pc.setLocalDescription({ type: 'rollback' });
-      } else {
-        createPeerConnection(fromSessionId, false);
-        entry = peers.get(fromSessionId);
+      if (type === 'offer') {
+        if (entry) {
+          // Glare handling: peer with lower sessionId is "polite" (rolls back)
+          const myId = state.snapshot?.me?.sessionId || '';
+          const polite = myId < fromSessionId;
+          if (!polite) return; // ignore incoming offer, we're impolite
+          // Polite: rollback and accept
+          await entry.pc.setLocalDescription({ type: 'rollback' });
+        } else {
+          createPeerConnection(fromSessionId, false);
+          entry = peers.get(fromSessionId);
+        }
+        if (!entry) return;
+        await entry.pc.setRemoteDescription({ type: 'offer', sdp });
+        const answer = await entry.pc.createAnswer();
+        await entry.pc.setLocalDescription(answer);
+        emitWithAck('voice:signal', {
+          targetSessionId: fromSessionId,
+          type: 'answer',
+          sdp: entry.pc.localDescription.sdp,
+        }).catch(() => {});
+      } else if (type === 'answer') {
+        if (!entry) return;
+        await entry.pc.setRemoteDescription({ type: 'answer', sdp });
+      } else if (type === 'candidate') {
+        if (!entry) return;
+        if (candidate) {
+          try {
+            await entry.pc.addIceCandidate(JSON.parse(candidate));
+          } catch (_e) {}
+        }
       }
-      if (!entry) return;
-      await entry.pc.setRemoteDescription({ type: 'offer', sdp });
-      const answer = await entry.pc.createAnswer();
-      await entry.pc.setLocalDescription(answer);
-      emitWithAck('voice:signal', {
-        targetSessionId: fromSessionId,
-        type: 'answer',
-        sdp: entry.pc.localDescription.sdp,
-      }).catch(() => {});
-    } else if (type === 'answer') {
-      if (!entry) return;
-      await entry.pc.setRemoteDescription({ type: 'answer', sdp });
-    } else if (type === 'candidate') {
-      if (!entry) return;
-      if (candidate) {
-        await entry.pc.addIceCandidate(JSON.parse(candidate)).catch(() => {});
+    } catch (_err) {
+      // WebRTC negotiation error — peer connection may be in bad state
+      const entry = peers.get(fromSessionId);
+      if (entry) {
+        closePeer(fromSessionId);
+        state.voicePeers.delete(fromSessionId);
+        render();
       }
     }
   });
 
   socket.on('voice:mute_changed', ({ sessionId, muted }) => {
+    if (!state.voiceActive) return;
     if (muted) {
       state.voiceMutedPeers.add(sessionId);
     } else {
@@ -96,10 +120,17 @@ export async function joinVoice() {
     return;
   }
 
+  if (joining) return;
+  joining = true;
+
   try {
+    console.log('[voice] requesting mic access...');
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    console.log('[voice] mic access granted');
   } catch (_err) {
+    console.error('[voice] mic access denied:', _err);
     showToast('Microphone access denied');
+    joining = false;
     return;
   }
 
@@ -108,22 +139,24 @@ export async function joinVoice() {
   updateVoiceButtons();
 
   try {
+    console.log('[voice] emitting voice:join...');
     const response = await emitWithAck('voice:join', {});
     const existingPeers = response.peers || [];
+    console.log('[voice] joined, existing peers:', existingPeers);
     for (const peerId of existingPeers) {
       state.voicePeers.add(peerId);
     }
-    // Existing peers initiate to us, so we wait for their offers
-    // But actually per the plan: existing peers initiate to NEW peer
-    // So WE are the new peer — existing peers will get voice:peer_joined and call us
   } catch (err) {
+    console.error('[voice] join failed:', err);
     showToast(err.message || 'Failed to join voice');
     stopLocalStream();
     state.voiceActive = false;
     updateVoiceButtons();
+    joining = false;
     return;
   }
 
+  joining = false;
   startSpeakingDetection();
   render();
 }
@@ -131,7 +164,10 @@ export async function joinVoice() {
 export function leaveVoice() {
   if (!state.voiceActive) return;
 
-  destroyAllPeers();
+  // Clean up local state without the server-notify path in destroyAllPeers
+  for (const [sessionId] of peers) {
+    closePeer(sessionId);
+  }
   stopLocalStream();
   stopSpeakingDetection();
 
@@ -217,17 +253,16 @@ function createPeerConnection(sessionId, isInitiator) {
       if (ui.voiceAudioContainer) ui.voiceAudioContainer.appendChild(audio);
     }
     audio.srcObject = remoteStream;
+    audio.play().catch(() => {});
 
     // Set up analyser for speaking detection
     setupAnalyser(sessionId, remoteStream, entry);
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+    if (pc.iceConnectionState === 'failed') {
       const playerName = getPlayerName(sessionId);
-      if (pc.iceConnectionState === 'failed') {
-        showToast(`Could not connect to ${playerName}`);
-      }
+      showToast(`Could not connect to ${playerName}`);
       closePeer(sessionId);
       state.voicePeers.delete(sessionId);
       state.voiceSpeaking.delete(sessionId);
@@ -343,7 +378,6 @@ function startSpeakingDetection() {
     }
 
     if (changed) {
-      // Toggle .speaking class directly on player items instead of full re-render
       updateSpeakingClasses();
     }
   }, SPEAKING_POLL_MS);
@@ -367,8 +401,6 @@ function isSpeaking(analyser) {
 function updateSpeakingClasses() {
   const items = document.querySelectorAll('.team-player-item');
   for (const item of items) {
-    // Find the sessionId from the item's data or match by name
-    // We'll use a data attribute set during render
     const sid = item.dataset.sessionId;
     if (!sid) continue;
     item.classList.toggle('speaking', state.voiceSpeaking.has(sid));

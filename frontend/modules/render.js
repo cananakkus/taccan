@@ -638,7 +638,7 @@ function renderHintHistory(snapshot) {
   // Group history: collect guesses under each preceding hint
   const groups = [];
   let current = null;
-  for (const event of (game.history || [])) {
+  for (const event of (game?.history || [])) {
     if (event.type === 'hint') {
       current = { hint: event, guesses: [] };
       groups.push(current);
