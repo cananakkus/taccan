@@ -23,7 +23,7 @@ jobs:
           docker rm taccan || true
           docker run -d \
             --name taccan \
-            --network wleeaf_internal \
+            --network wleeaf_services \
             --restart unless-stopped \
             -e HOST=0.0.0.0 \
             taccan
