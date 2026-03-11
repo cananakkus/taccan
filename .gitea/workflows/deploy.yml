@@ -25,4 +25,5 @@ jobs:
             --name taccan \
             --network wleeaf_internal \
             --restart unless-stopped \
+            -e HOST=0.0.0.0 \
             taccan
