@@ -141,10 +141,20 @@ export async function joinVoice() {
       },
       video: false,
     });
-  } catch (_err) {
-    showToast('Microphone access denied');
-    joining = false;
-    return;
+  } catch (err) {
+    if (err.name === 'OverconstrainedError' || err.name === 'TypeError') {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      } catch (_fallbackErr) {
+        showToast('Microphone access denied');
+        joining = false;
+        return;
+      }
+    } else {
+      showToast('Microphone access denied');
+      joining = false;
+      return;
+    }
   }
 
   state.voiceActive = true;
