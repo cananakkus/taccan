@@ -59,6 +59,9 @@ const SCHEMAS = {
   'voice:mute': {
     muted: { type: 'boolean', optional: false },
   },
+  'chat:send': {
+    text: { type: 'string', optional: false, maxLength: 200 },
+  },
 };
 
 function validatePayload(action, payload) {

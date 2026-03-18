@@ -79,6 +79,7 @@ const EVENT_RATE_LIMITS = {
   'voice:leave': { max: 10, windowMs: 30_000 },
   'voice:signal': { max: 200, windowMs: 10_000 },
   'voice:mute': { max: 30, windowMs: 10_000 },
+  'chat:send': { max: 10, windowMs: 10_000 },
   default: { max: 60, windowMs: 10_000 },
 };
 const metrics = {
@@ -183,6 +184,7 @@ io.on('connection', (socket) => {
       mode: 'casual',
       match: null,
       game: null,
+      chatMessages: [],
     };
 
     rooms.set(code, room);
@@ -870,6 +872,43 @@ io.on('connection', (socket) => {
     ackOk(callback, { sent: true });
   });
 
+  // --- Text Chat ---
+  const CHAT_MAX_MESSAGES = 200;
+
+  socket.on('chat:send', (payload = {}, callback) => {
+    const action = 'chat:send';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) {
+      ackError(callback, 'You are not in a room.');
+      return;
+    }
+
+    const text = String(validatedPayload.text).trim();
+    if (!text) {
+      ackError(callback, 'Message cannot be empty.');
+      return;
+    }
+
+    const message = {
+      sessionId: context.player.sessionId,
+      name: context.player.name,
+      team: context.player.team,
+      text,
+      ts: Date.now(),
+    };
+
+    context.room.chatMessages.push(message);
+    if (context.room.chatMessages.length > CHAT_MAX_MESSAGES) {
+      context.room.chatMessages.splice(0, context.room.chatMessages.length - CHAT_MAX_MESSAGES);
+    }
+
+    io.to(context.room.code).emit('chat:message', message);
+    ackOk(callback, { sent: true });
+  });
+
   // --- MVP Vote (Wave 6.2) ---
   socket.on('game:mvp_vote', (payload = {}, callback) => {
     const action = 'game:mvp_vote';
@@ -1481,6 +1520,7 @@ function buildStateForPlayer(room, viewer) {
             roundNumber: room.match.roundNumber,
           }
         : null,
+      chatMessages: room.chatMessages,
     },
     me: {
       sessionId: viewer.sessionId,

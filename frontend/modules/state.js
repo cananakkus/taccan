@@ -50,6 +50,7 @@ export const state = {
   voicePeers: new Set(),
   voiceSpeaking: new Map(),
   voiceMutedPeers: new Set(),
+  chatMessages: [],
   lastLogCount: 0,
   wasDisconnected: false,
   previousIsMyTurn: false,

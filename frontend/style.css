@@ -887,10 +887,10 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 /* ── Board Area (log + board grid container) ── */
 .board-area {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: 160px 1fr 160px;
   gap: 12px;
   width: 100%;
-  max-width: 860px;
+  max-width: 1040px;
   align-content: start;
   min-height: 0;
 }
@@ -898,7 +898,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 /* ── Control Strip ── */
 .controls-strip {
   width: 100%;
-  max-width: 860px;
+  max-width: 1040px;
   position: relative;
   z-index: 1;
   flex-shrink: 0;
@@ -1345,6 +1345,77 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 .log-guess .guess-wrong { color: var(--danger); }
 
 /* ══════════════════════════════
+   CHAT PANEL
+   ══════════════════════════════ */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(0deg, transparent 0px, transparent 19px, rgba(90,72,48,0.08) 19px, rgba(90,72,48,0.08) 20px),
+    var(--paper-light);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  box-shadow: inset 0 0 10px rgba(60,44,24,0.1);
+}
+.chat-panel h4 {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-ghost);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+}
+.chat-msg {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.chat-name {
+  font-weight: 600;
+  margin-right: 4px;
+  color: var(--ink-faded);
+}
+.chat-name.red { color: var(--red); }
+.chat-name.blue { color: var(--blue); }
+.chat-text {
+  color: var(--ink);
+}
+.chat-form {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  padding: 4px 6px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+.chat-form button {
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════
    SETTINGS SIDEBAR
    ══════════════════════════════ */
 .settings-block {
@@ -1687,6 +1758,31 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
     margin: 0 auto 14px;
   }
   .game-log.mobile-open { transform: translateY(0); }
+
+  /* ── Chat panel → fixed bottom sheet ── */
+  .chat-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 25;
+    transform: translateY(100%);
+    transition: transform 280ms ease;
+    max-height: 82vh;
+    overflow: hidden;
+    border-top: 2px solid var(--border-dark);
+    border-radius: 4px 4px 0 0;
+    padding: 16px;
+    box-shadow: 0 -4px 24px rgba(26,18,10,0.35);
+  }
+  .chat-panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-dark);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+  .chat-panel.mobile-open { transform: translateY(0); }
 
   /* ── Board area: single column ── */
   .board-area { grid-template-columns: 1fr; }

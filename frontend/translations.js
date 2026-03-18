@@ -237,7 +237,11 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       confirm_end_turn: 'End your turn?',
       confirm_leave: 'Leave this room?',
       confirm_yes: 'Confirm',
-      confirm_no: 'Cancel'
+      confirm_no: 'Cancel',
+      chat: 'Chat',
+      chat_placeholder: 'Type a message...',
+      send: 'Send',
+      mobile_chat: 'Chat'
     }),
     tr: Object.freeze({
       brand_eyebrow: 'Şifre Loncası Masası',
@@ -472,7 +476,11 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       confirm_end_turn: 'Turunuzu bitirmek istiyor musunuz?',
       confirm_leave: 'Odadan ayrılmak istiyor musunuz?',
       confirm_yes: 'Onayla',
-      confirm_no: 'İptal'
+      confirm_no: 'İptal',
+      chat: 'Sohbet',
+      chat_placeholder: 'Bir mesaj yazın...',
+      send: 'Gönder',
+      mobile_chat: 'Sohbet'
     })
   }),
   words: Object.freeze({

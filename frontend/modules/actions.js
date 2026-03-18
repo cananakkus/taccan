@@ -379,7 +379,25 @@ export function wireUiEvents() {
   // Scratchpad init
   initScratchpad();
 
+  // Chat form
+  if (ui.chatForm) {
+    ui.chatForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const text = ui.chatInput.value.trim();
+      if (!text) return;
+      try {
+        await emitWithAck('chat:send', { text });
+        ui.chatInput.value = '';
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+  }
+
   // Mobile bottom-sheet overlays
+  if (ui.mobileChatBtn) {
+    ui.mobileChatBtn.addEventListener('click', () => toggleMobileOverlay('chat'));
+  }
   if (ui.mobileTeamsBtn) {
     ui.mobileTeamsBtn.addEventListener('click', () => toggleMobileOverlay('teams'));
   }
@@ -495,6 +513,7 @@ function setSelectedGuess(index) {
 const MOBILE_OVERLAY_MAP = [
   { key: 'teams',    getEl: () => ui.sidebarTeams,    getBtn: () => ui.mobileTeamsBtn },
   { key: 'log',      getEl: () => ui.hintHistory,     getBtn: () => ui.mobileLogBtn },
+  { key: 'chat',     getEl: () => ui.chatPanel,       getBtn: () => ui.mobileChatBtn },
   { key: 'settings', getEl: () => ui.sidebarSettings, getBtn: () => ui.mobileSettingsBtn },
 ];
 

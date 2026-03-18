@@ -193,12 +193,21 @@
               <div class="board-wrap">
                 <div id="board" class="board" role="grid" aria-label="Game board"></div>
               </div>
+              <aside id="chat-panel" class="chat-panel hidden">
+                <h4 data-i18n="chat">Chat</h4>
+                <div id="chat-messages" class="chat-messages"></div>
+                <form id="chat-form" class="chat-form" autocomplete="off">
+                  <input id="chat-input" type="text" maxlength="200" placeholder="Type a message..." data-i18n-placeholder="chat_placeholder" />
+                  <button type="submit" class="btn btn-ghost btn-sm" data-i18n="send">Send</button>
+                </form>
+              </aside>
             </div>
 
             <!-- Mobile-only action bar -->
             <div class="mobile-action-bar" id="mobile-action-bar" aria-hidden="true">
               <button class="mobile-bar-btn" id="mobile-teams-btn" type="button" data-i18n="mobile_teams">Teams</button>
               <button class="mobile-bar-btn" id="mobile-log-btn" type="button" data-i18n="mobile_log">Log</button>
+              <button class="mobile-bar-btn" id="mobile-chat-btn" type="button" data-i18n="mobile_chat">Chat</button>
               <button class="mobile-bar-btn" id="mobile-settings-btn" type="button" data-i18n="mobile_settings">Settings</button>
               <button class="mobile-bar-btn mobile-bar-danger" id="mobile-leave-btn" type="button" data-i18n="mobile_leave">Leave</button>
             </div>

@@ -80,4 +80,9 @@ export const ui = {
   keyboardHelpBtn: document.getElementById('keyboard-help-btn'),
   keyboardHelpOverlay: document.getElementById('keyboard-help-overlay'),
   keyboardHelpCloseBtn: document.getElementById('keyboard-help-close-btn'),
+  chatPanel: document.getElementById('chat-panel'),
+  chatMessages: document.getElementById('chat-messages'),
+  chatForm: document.getElementById('chat-form'),
+  chatInput: document.getElementById('chat-input'),
+  mobileChatBtn: document.getElementById('mobile-chat-btn'),
 };

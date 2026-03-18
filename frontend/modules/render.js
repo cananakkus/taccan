@@ -192,6 +192,7 @@ export function render() {
     clearBoard();
     ui.joinNote.textContent = t('join_note_default');
     if (ui.hintHistory) ui.hintHistory.classList.add('hidden');
+    if (ui.chatPanel) ui.chatPanel.classList.add('hidden');
     if (ui.scratchpad) ui.scratchpad.classList.add('hidden');
     syncLiveTicker(false);
     return;
@@ -219,6 +220,7 @@ export function render() {
   renderGame(snapshot);
   setSceneClass(snapshot);
   renderHintHistory(snapshot);
+  if (ui.chatPanel) ui.chatPanel.classList.remove('hidden');
   syncLiveTicker(shouldRunLiveTicker(snapshot));
 }
 
