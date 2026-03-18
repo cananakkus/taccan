@@ -2024,6 +2024,17 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   color: var(--danger);
   font-weight: 700;
 }
+.voice-noise-btn {
+  color: var(--paper-light);
+  opacity: 0.85;
+}
+.voice-noise-btn:hover {
+  opacity: 1;
+}
+.voice-noise-btn.noise-active {
+  color: var(--success);
+  font-weight: 700;
+}
 .team-player-item.speaking {
   box-shadow: 0 0 0 2px var(--success), 0 0 8px rgba(61, 107, 46, 0.4);
 }

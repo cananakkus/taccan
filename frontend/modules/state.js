@@ -5,6 +5,7 @@ export const STATS_STORAGE_KEY = 'taccan.stats.v1';
 export const SCRATCHPAD_STORAGE_KEY = 'taccan.scratchpad.v1';
 export const SOUND_MUTE_KEY = 'taccan.sound.mute.v1';
 export const COLORBLIND_KEY = 'taccan.colorblind.v1';
+export const NOISE_SUPPRESSION_KEY = 'taccan.noise.v1';
 export const TRANSLATIONS = window.TACCAN_TRANSLATIONS || {};
 export const STRINGS_BY_LANG = TRANSLATIONS.strings || {};
 export const WORD_TRANSLATIONS_BY_LANG = TRANSLATIONS.words || {};
@@ -45,6 +46,7 @@ export const state = {
   colorblindMode: false,
   voiceActive: false,
   voiceMuted: false,
+  noiseSuppression: true,
   voicePeers: new Set(),
   voiceSpeaking: new Map(),
   voiceMutedPeers: new Set(),

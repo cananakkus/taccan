@@ -11,7 +11,7 @@ import { initScratchpad } from './scratchpad.js';
 import { renderQRCode } from './qrcode.js';
 import { renderRoomSeal } from './room-seal.js';
 import { generateDebriefNarrative } from './debrief.js';
-import { joinVoice, leaveVoice, toggleMute } from './voice.js';
+import { joinVoice, leaveVoice, toggleMute, toggleNoiseSuppression } from './voice.js';
 
 const SERVER_ERROR_MAP = {
   'Hint must be a single alphabetical word.': 'hint_invalid_word',
@@ -112,6 +112,9 @@ export function wireUiEvents() {
   }
   if (ui.voiceMuteBtn) {
     ui.voiceMuteBtn.addEventListener('click', () => toggleMute());
+  }
+  if (ui.voiceNoiseBtn) {
+    ui.voiceNoiseBtn.addEventListener('click', () => toggleNoiseSuppression());
   }
 
   ui.leaveRoomButton.addEventListener('click', async () => {

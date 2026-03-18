@@ -64,6 +64,7 @@ export const ui = {
   mvpSection: document.getElementById('mvp-section'),
   voiceJoinBtn: document.getElementById('voice-join-btn'),
   voiceMuteBtn: document.getElementById('voice-mute-btn'),
+  voiceNoiseBtn: document.getElementById('voice-noise-btn'),
   voiceAudioContainer: document.getElementById('voice-audio-container'),
   mobileTeamsBtn: document.getElementById('mobile-teams-btn'),
   mobileLogBtn: document.getElementById('mobile-log-btn'),

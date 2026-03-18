@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { state, NOISE_SUPPRESSION_KEY } from './state.js';
 import { ui } from './ui.js';
 import { socket, emitWithAck } from './socket.js';
 import { showToast } from './helpers.js';
@@ -7,7 +7,7 @@ import { render } from './render.js';
 // --- Private state ---
 let localStream = null;
 let joining = false;
-const peers = new Map(); // sessionId → { pc, stream, analyser }
+const peers = new Map(); // sessionId → { pc, stream, analyser, restarts, disconnectedTimer }
 const audioElements = new Map(); // sessionId → HTMLAudioElement
 let speakingInterval = null;
 let audioCtx = null;
@@ -25,6 +25,8 @@ const RTC_CONFIG = {
   ],
 };
 
+const MAX_ICE_RESTARTS = 2;
+const DISCONNECT_TIMEOUT_MS = 5000;
 const SPEAKING_THRESHOLD = 15;
 const SPEAKING_POLL_MS = 100;
 
@@ -35,6 +37,11 @@ export function initVoice() {
     if (ui.voiceJoinBtn) ui.voiceJoinBtn.classList.add('hidden');
     return;
   }
+
+  try {
+    const stored = localStorage.getItem(NOISE_SUPPRESSION_KEY);
+    if (stored !== null) state.noiseSuppression = stored !== 'false';
+  } catch (_e) {}
 
   socket.on('voice:peer_joined', ({ sessionId }) => {
     if (!state.voiceActive) return;
@@ -58,12 +65,14 @@ export function initVoice() {
 
       if (type === 'offer') {
         if (entry) {
-          // Glare handling: peer with lower sessionId is "polite" (rolls back)
-          const myId = state.snapshot?.me?.sessionId || '';
-          const polite = myId < fromSessionId;
-          if (!polite) return; // ignore incoming offer, we're impolite
-          // Polite: rollback and accept
-          await entry.pc.setLocalDescription({ type: 'rollback' });
+          if (entry.pc.signalingState === 'have-local-offer') {
+            // Glare: both sides sent offers simultaneously
+            const myId = state.snapshot?.me?.sessionId || '';
+            const polite = myId < fromSessionId;
+            if (!polite) return; // ignore incoming offer, we're impolite
+            await entry.pc.setLocalDescription({ type: 'rollback' });
+          }
+          // stable state: accept directly (e.g. ICE restart offer)
         } else {
           createPeerConnection(fromSessionId, false);
           entry = peers.get(fromSessionId);
@@ -124,7 +133,14 @@ export async function joinVoice() {
   joining = true;
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        noiseSuppression: state.noiseSuppression,
+        echoCancellation: true,
+        autoGainControl: true,
+      },
+      video: false,
+    });
   } catch (_err) {
     showToast('Microphone access denied');
     joining = false;
@@ -140,6 +156,7 @@ export async function joinVoice() {
     const existingPeers = response.peers || [];
     for (const peerId of existingPeers) {
       state.voicePeers.add(peerId);
+      createPeerConnection(peerId, true);
     }
   } catch (err) {
     console.error('[voice] join failed:', err);
@@ -190,6 +207,18 @@ export function toggleMute() {
   emitWithAck('voice:mute', { muted: state.voiceMuted }).catch(() => {});
 }
 
+export function toggleNoiseSuppression() {
+  if (!state.voiceActive || !localStream) return;
+
+  state.noiseSuppression = !state.noiseSuppression;
+  try { localStorage.setItem(NOISE_SUPPRESSION_KEY, String(state.noiseSuppression)); } catch (_e) {}
+
+  for (const track of localStream.getAudioTracks()) {
+    track.applyConstraints({ noiseSuppression: state.noiseSuppression }).catch(() => {});
+  }
+  updateVoiceButtons();
+}
+
 export function destroyAllPeers() {
   for (const [sessionId] of peers) {
     closePeer(sessionId);
@@ -214,7 +243,7 @@ function createPeerConnection(sessionId, isInitiator) {
   if (peers.has(sessionId)) return;
 
   const pc = new RTCPeerConnection(RTC_CONFIG);
-  const entry = { pc, stream: null, analyser: null };
+  const entry = { pc, stream: null, analyser: null, restarts: 0, disconnectedTimer: null };
   peers.set(sessionId, entry);
   state.voicePeers.add(sessionId);
 
@@ -255,13 +284,22 @@ function createPeerConnection(sessionId, isInitiator) {
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === 'failed') {
-      const playerName = getPlayerName(sessionId);
-      showToast(`Could not connect to ${playerName}`);
-      closePeer(sessionId);
-      state.voicePeers.delete(sessionId);
-      state.voiceSpeaking.delete(sessionId);
-      render();
+    const iceState = pc.iceConnectionState;
+
+    if (entry.disconnectedTimer) {
+      clearTimeout(entry.disconnectedTimer);
+      entry.disconnectedTimer = null;
+    }
+
+    if (iceState === 'disconnected') {
+      entry.disconnectedTimer = setTimeout(() => {
+        if (pc.iceConnectionState !== 'disconnected') return;
+        attemptIceRestart(sessionId, entry);
+      }, DISCONNECT_TIMEOUT_MS);
+    } else if (iceState === 'failed') {
+      attemptIceRestart(sessionId, entry);
+    } else if (iceState === 'connected') {
+      entry.restarts = 0;
     }
   };
 
@@ -281,9 +319,35 @@ function createPeerConnection(sessionId, isInitiator) {
   render();
 }
 
+function attemptIceRestart(sessionId, entry) {
+  if (entry.restarts >= MAX_ICE_RESTARTS) {
+    showToast(`Could not connect to ${getPlayerName(sessionId)}`);
+    closePeer(sessionId);
+    state.voicePeers.delete(sessionId);
+    state.voiceSpeaking.delete(sessionId);
+    render();
+    return;
+  }
+  entry.restarts++;
+  entry.pc.createOffer({ iceRestart: true })
+    .then((offer) => entry.pc.setLocalDescription(offer))
+    .then(() => {
+      emitWithAck('voice:signal', {
+        targetSessionId: sessionId,
+        type: 'offer',
+        sdp: entry.pc.localDescription.sdp,
+      }).catch(() => {});
+    })
+    .catch(() => {});
+}
+
 function closePeer(sessionId) {
   const entry = peers.get(sessionId);
   if (entry) {
+    if (entry.disconnectedTimer) {
+      clearTimeout(entry.disconnectedTimer);
+      entry.disconnectedTimer = null;
+    }
     entry.pc.onicecandidate = null;
     entry.pc.ontrack = null;
     entry.pc.oniceconnectionstatechange = null;
@@ -411,6 +475,11 @@ function updateVoiceButtons() {
     ui.voiceMuteBtn.classList.toggle('hidden', !state.voiceActive);
     ui.voiceMuteBtn.textContent = state.voiceMuted ? 'Unmute' : 'Mute';
     ui.voiceMuteBtn.classList.toggle('muted', state.voiceMuted);
+  }
+  if (ui.voiceNoiseBtn) {
+    ui.voiceNoiseBtn.classList.toggle('hidden', !state.voiceActive);
+    ui.voiceNoiseBtn.textContent = state.noiseSuppression ? 'Noise Off' : 'Noise On';
+    ui.voiceNoiseBtn.classList.toggle('noise-active', state.noiseSuppression);
   }
 }
 
