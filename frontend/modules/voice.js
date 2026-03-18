@@ -6,11 +6,17 @@ import { render } from './render.js';
 
 // --- Private state ---
 let localStream = null;
+let processedStream = null;
 let joining = false;
 const peers = new Map(); // sessionId → { pc, stream, analyser, restarts, disconnectedTimer }
 const audioElements = new Map(); // sessionId → HTMLAudioElement
 let speakingInterval = null;
 let audioCtx = null;
+
+// RNNoise pipeline
+let noiseNodes = null; // { source, worklet, dest }
+let rnnoiseWasmBinary = null;
+let rnnoiseWorkletReady = false;
 
 const RTC_CONFIG = {
   iceServers: [
@@ -29,6 +35,7 @@ const MAX_ICE_RESTARTS = 2;
 const DISCONNECT_TIMEOUT_MS = 5000;
 const SPEAKING_THRESHOLD = 15;
 const SPEAKING_POLL_MS = 100;
+const RNNOISE_WORKLET_ID = '@sapphi-red/web-noise-suppressor/rnnoise';
 
 // --- Exports ---
 
@@ -135,7 +142,7 @@ export async function joinVoice() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        noiseSuppression: state.noiseSuppression,
+        noiseSuppression: true,
         echoCancellation: true,
         autoGainControl: true,
       },
@@ -159,6 +166,8 @@ export async function joinVoice() {
     }
   }
 
+  await setupNoisePipeline();
+
   state.voiceActive = true;
   state.voiceMuted = false;
   updateVoiceButtons();
@@ -173,6 +182,7 @@ export async function joinVoice() {
   } catch (err) {
     console.error('[voice] join failed:', err);
     showToast(err.message || 'Failed to join voice');
+    cleanupNoisePipeline();
     stopLocalStream();
     state.voiceActive = false;
     updateVoiceButtons();
@@ -192,6 +202,7 @@ export function leaveVoice() {
   for (const [sessionId] of peers) {
     closePeer(sessionId);
   }
+  cleanupNoisePipeline();
   stopLocalStream();
   stopSpeakingDetection();
 
@@ -219,15 +230,33 @@ export function toggleMute() {
   emitWithAck('voice:mute', { muted: state.voiceMuted }).catch(() => {});
 }
 
-export function toggleNoiseSuppression() {
+export async function toggleNoiseSuppression() {
   if (!state.voiceActive || !localStream) return;
 
   state.noiseSuppression = !state.noiseSuppression;
   try { localStorage.setItem(NOISE_SUPPRESSION_KEY, String(state.noiseSuppression)); } catch (_e) {}
 
-  for (const track of localStream.getAudioTracks()) {
-    track.applyConstraints({ noiseSuppression: state.noiseSuppression }).catch(() => {});
+  if (noiseNodes) {
+    noiseNodes.source.disconnect();
+    if (noiseNodes.worklet) {
+      noiseNodes.worklet.disconnect();
+      noiseNodes.worklet.port.postMessage('destroy');
+      noiseNodes.worklet = null;
+    }
+
+    if (state.noiseSuppression) {
+      try {
+        const worklet = await createRnnoiseNode();
+        noiseNodes.source.connect(worklet).connect(noiseNodes.dest);
+        noiseNodes.worklet = worklet;
+      } catch (_e) {
+        noiseNodes.source.connect(noiseNodes.dest);
+      }
+    } else {
+      noiseNodes.source.connect(noiseNodes.dest);
+    }
   }
+
   updateVoiceButtons();
 }
 
@@ -240,6 +269,7 @@ export function destroyAllPeers() {
   state.voiceMutedPeers.clear();
 
   if (state.voiceActive) {
+    cleanupNoisePipeline();
     stopLocalStream();
     stopSpeakingDetection();
     state.voiceActive = false;
@@ -249,7 +279,65 @@ export function destroyAllPeers() {
   }
 }
 
+// --- Noise suppression pipeline ---
+
+async function setupNoisePipeline() {
+  if (!audioCtx) audioCtx = new AudioContext();
+
+  const source = audioCtx.createMediaStreamSource(localStream);
+  const dest = audioCtx.createMediaStreamDestination();
+  let worklet = null;
+
+  if (state.noiseSuppression) {
+    try {
+      worklet = await createRnnoiseNode();
+      source.connect(worklet).connect(dest);
+    } catch (_e) {
+      // RNNoise unavailable — passthrough
+      source.connect(dest);
+    }
+  } else {
+    source.connect(dest);
+  }
+
+  noiseNodes = { source, worklet, dest };
+  processedStream = dest.stream;
+}
+
+async function createRnnoiseNode() {
+  if (!audioCtx) throw new Error('No AudioContext');
+
+  if (!rnnoiseWorkletReady) {
+    await audioCtx.audioWorklet.addModule('rnnoise-worklet.js');
+    rnnoiseWorkletReady = true;
+  }
+  if (!rnnoiseWasmBinary) {
+    const resp = await fetch('rnnoise.wasm');
+    rnnoiseWasmBinary = await resp.arrayBuffer();
+  }
+
+  return new AudioWorkletNode(audioCtx, RNNOISE_WORKLET_ID, {
+    processorOptions: { wasmBinary: rnnoiseWasmBinary, maxChannels: 1 },
+  });
+}
+
+function cleanupNoisePipeline() {
+  if (noiseNodes) {
+    noiseNodes.source.disconnect();
+    if (noiseNodes.worklet) {
+      noiseNodes.worklet.disconnect();
+      noiseNodes.worklet.port.postMessage('destroy');
+    }
+    noiseNodes = null;
+  }
+  processedStream = null;
+}
+
 // --- Internal ---
+
+function getOutboundStream() {
+  return processedStream || localStream;
+}
 
 function createPeerConnection(sessionId, isInitiator) {
   if (peers.has(sessionId)) return;
@@ -259,10 +347,11 @@ function createPeerConnection(sessionId, isInitiator) {
   peers.set(sessionId, entry);
   state.voicePeers.add(sessionId);
 
-  // Add local tracks
-  if (localStream) {
-    for (const track of localStream.getTracks()) {
-      pc.addTrack(track, localStream);
+  // Add local tracks (processed through noise pipeline)
+  const outbound = getOutboundStream();
+  if (outbound) {
+    for (const track of outbound.getTracks()) {
+      pc.addTrack(track, outbound);
     }
   }
 
