@@ -1,62 +1,123 @@
 # Taccan
 
-Taccan is a realtime Codenames-style multiplayer web app with a server-authoritative game engine.
+Multiplayer Codenames on the web. Node.js backend, vanilla frontend, Socket.IO for realtime state sync.
+
+Live at [play.wleeaf.dev/taccan](https://play.wleeaf.dev/taccan).
+
+## Game modes
+
+| Mode | Description |
+|---|---|
+| Casual | Standard Codenames rules |
+| Blitz | Timed hints and guesses |
+| Cipher | Spymaster hints must be anagrams of a board word |
+| Blackout | Words disappear after 10 seconds |
 
 ## Features
-- Create/join rooms by 4-character code.
-- Team and role assignment (spymaster, operative, spectator).
-- Team and role switching at any moment, including mid-game.
-- Multiple players can share the same role on a team.
-- Solo-play friendly: one connected player can start and play by switching team/role as needed.
-- Automatic host failover to a connected player if the host disconnects.
-- Host control to prune disconnected players from a room immediately.
-- Host rematch controls (`same teams` or `swap sides`) after each finished round.
-- Full Codenames turn loop:
-  - spymaster hint (`word + number`)
-  - operative guesses (`number + 1`, or unlimited when `0`)
-  - turn switching on neutral/opponent card
-  - assassin instant loss
-- Reconnect support with local browser session restore.
-- Role-based information visibility (keycard only for spymasters until game end).
 
-## Requirements
-- Node.js 18+
+- 4-character room codes with shareable links
+- Team/role assignment: spymaster, operative, spectator
+- Switch teams or roles at any time, including mid-game
+- Multiple players per role, solo-play friendly
+- Host failover on disconnect, host prune controls
+- Rematch (same teams or swap sides), multi-round matches with MVP votes
+- Reconnect with browser session restore
+- Spymaster keycard hidden until game end
+- Voice chat (WebRTC peer-to-peer)
+- Game log, scratchpad, hint history
+- Postgame debrief narrative
+- PWA installable, keyboard navigation, sound effects, colorblind mode
+- i18n (English, Turkish)
+- Cold War dossier theme (Playfair Display SC, Special Elite, Crimson Pro)
 
 ## Run locally
+
 ```bash
 npm install
-npm run start
+npm start
 ```
 
-Open `http://127.0.0.1:3000` in one or more browser tabs.
+Open `http://127.0.0.1:3000`. For LAN/container access:
 
-To expose on all interfaces (for LAN/container setups), run:
 ```bash
-HOST=0.0.0.0 npm run start
+HOST=0.0.0.0 npm start
+```
+
+Dev mode with auto-restart:
+
+```bash
+npm run dev
 ```
 
 ## Test
+
 ```bash
 npm test
 ```
 
-## Project layout
-- `backend/server.js`: Socket.IO server, room/session lifecycle, game rules.
-- `backend/game-engine.js`: pure game state transitions and board generation.
-- `backend/payload-schema.js`: centralized event payload validation.
-- `backend/room-utils.js`: room host/failover, connected counts, and disconnected-player pruning helpers.
-- `backend/words.js`: word bank for board generation.
-- `frontend/index.html`: app shell.
-- `frontend/style.css`: responsive styles and UI theme.
-- `frontend/app.js`: realtime client logic and rendering.
+Uses Node.js native test runner (`node --test`).
 
-## Notes
-- `taccan.md` is the product/architecture plan and roadmap.
-- The current implementation is a single Node.js process with in-memory room state and a static frontend.
-- Planning docs:
-  - `problems.md`: creative product/design/architecture review
-  - `execution-backlog.md`: prioritized now/next/later execution plan
-  - `tickets-now.md`: implementation-ready ticket list for the current sprint window
-  - `dependency-milestones.md`: feature dependency graph and milestone sequencing
-  - `feature-spec-top3.md`: implementation specs for top 3 upcoming features
-  - `rfc-scaling-and-state.md`: scaling and protocol evolution RFC
+## Project layout
+
+```
+backend/
+  server.js          Express + Socket.IO server, room/session lifecycle
+  game-engine.js     Pure game state: board generation, turns, guesses
+  payload-schema.js  Socket event payload validation
+  room-utils.js      Host failover, player pruning, room helpers
+  words.js           Word bank
+
+frontend/
+  index.html         App shell
+  style.css          Theme and responsive layout
+  app.js             Entry point, bootstraps modules
+  translations.js    i18n strings (EN/TR)
+  sw.js              Service worker (PWA)
+  manifest.json      PWA manifest
+  modules/
+    state.js         Shared mutable state
+    ui.js            DOM element references
+    render.js        UI rendering from server snapshots
+    actions.js       User interaction handlers
+    socket.js        Socket.IO event wiring
+    sound.js         Sound effects engine
+    voice.js         WebRTC voice chat
+    debrief.js       Postgame narrative generator
+    i18n.js          Translation helpers
+    helpers.js       Shared utilities
+    identity.js      Player identity persistence
+    keyboard-nav.js  Keyboard navigation
+    haptics.js       Vibration feedback
+    qrcode.js        Room QR code generator
+    room-seal.js     Decorative room seal SVG
+    scratchpad.js    Operative notes
+    state-machine.js Client-side state machine
+    voice-hints.js   Voice chat UI hints
+```
+
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` | Server port |
+| `HOST` | `127.0.0.1` | Bind address |
+| `CORS_ORIGIN` | — | Allowed CORS origin |
+| `BLITZ_HINT_TIMER_MS` | — | Blitz mode hint timer |
+| `BLITZ_GUESS_TIMER_MS` | — | Blitz mode guess timer |
+| `BLITZ_HINT_MAX` | — | Max hints in blitz mode |
+
+## Docker
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+EXPOSE 3000
+CMD ["node", "backend/server.js"]
+```
+
+## License
+
+MIT
