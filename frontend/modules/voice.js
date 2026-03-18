@@ -142,16 +142,18 @@ export async function joinVoice() {
       video: false,
     });
   } catch (err) {
+    console.error('[voice] getUserMedia error:', err.name, err.message);
     if (err.name === 'OverconstrainedError' || err.name === 'TypeError') {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      } catch (_fallbackErr) {
-        showToast('Microphone access denied');
+      } catch (fallbackErr) {
+        console.error('[voice] fallback getUserMedia error:', fallbackErr.name, fallbackErr.message);
+        showToast(`Mic error: ${fallbackErr.name}`);
         joining = false;
         return;
       }
     } else {
-      showToast('Microphone access denied');
+      showToast(`Mic error: ${err.name}`);
       joining = false;
       return;
     }
