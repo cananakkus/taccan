@@ -180,8 +180,6 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       debrief: 'Debrief',
       debrief_title: 'Intelligence Debrief',
       debrief_close: 'Close',
-      analyst_review: 'Analyst Review',
-      analyst_unavailable: 'AI analyst is not available on this server.',
       theatrical_mode: 'Theatrical',
       // Intelligence Bureau Vocabulary (Wave 10.5)
       bureau_lobby: 'Briefing Room',
@@ -417,8 +415,6 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       debrief: 'Brifing',
       debrief_title: 'İstihbarat Brifingı',
       debrief_close: 'Kapat',
-      analyst_review: 'Analist İncelemesi',
-      analyst_unavailable: 'Yapay zekâ analisti bu sunucuda mevcut değil.',
       theatrical_mode: 'Tiyatro',
       // İstihbarat Bürosu Terimleri (Dalga 10.5)
       bureau_lobby: 'Brifing Odası',

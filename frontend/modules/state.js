@@ -43,7 +43,6 @@ export const state = {
   cardElements: [],
   soundMuted: false,
   colorblindMode: false,
-  aiAvailable: false,
   voiceActive: false,
   voiceMuted: false,
   voicePeers: new Set(),

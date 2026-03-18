@@ -27,11 +27,6 @@ if (new URLSearchParams(window.location.search).get('theater') === '1') {
   document.body.classList.add('theatrical-mode');
 }
 
-// Check AI availability once at init
-fetch('api/ai-available').then(r => r.json()).then(data => {
-  if (data.available) state.aiAvailable = true;
-}).catch(() => {});
-
 initBoard();
 initLanguage();
 wireSocketEvents();

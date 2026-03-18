@@ -1565,13 +1565,6 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   text-transform: uppercase;
 }
 
-.analyst-text {
-  white-space: pre-wrap;
-  font-family: var(--font-typewriter);
-  font-size: 0.9rem;
-  line-height: 1.7;
-}
-
 /* ══════════════════════════════
    RESPONSIVE
    ══════════════════════════════ */

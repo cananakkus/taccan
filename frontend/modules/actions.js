@@ -339,45 +339,6 @@ export function wireUiEvents() {
     });
   }
 
-  // Analyst Review (Wave 10.2) — AI-powered postgame analysis
-  if (ui.analystButton) {
-    ui.analystButton.addEventListener('click', async () => {
-      const snapshot = state.snapshot;
-      if (!snapshot?.game) return;
-      if (!state.aiAvailable) {
-        showToast(t('analyst_unavailable'));
-        return;
-      }
-      ui.analystButton.disabled = true;
-      ui.analystButton.textContent = '...';
-      try {
-        const resp = await fetch('api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            history: snapshot.game.history || [],
-            board: snapshot.game.board || [],
-            players: snapshot.players || [],
-          }),
-        });
-        const data = await resp.json();
-        if (data.ok && data.analysis) {
-          if (ui.debriefContent) {
-            ui.debriefContent.innerHTML = `<h2>${t('analyst_review')}</h2><div class="analyst-text">${escapeHtml(data.analysis).replace(/\n/g, '<br>')}</div>`;
-          }
-          if (ui.debriefOverlay) ui.debriefOverlay.classList.remove('hidden');
-        } else {
-          showToast(data.error || t('analyst_unavailable'));
-        }
-      } catch (_err) {
-        showToast(t('analyst_unavailable'));
-      } finally {
-        ui.analystButton.disabled = false;
-        ui.analystButton.textContent = t('analyst_review');
-      }
-    });
-  }
-
   // Sound toggle (Wave 4.4)
   if (ui.soundToggleButton) {
     ui.soundToggleButton.addEventListener('click', () => {

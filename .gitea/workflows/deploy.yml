@@ -16,14 +16,8 @@ jobs:
       - name: Run tests
         run: node --test test/*.test.js
 
-      - name: Build and deploy
+      - name: Deploy
         run: |
-          docker build -t taccan .
-          docker stop taccan || true
-          docker rm taccan || true
-          docker run -d \
-            --name taccan \
-            --network wleeaf_services \
-            --restart unless-stopped \
-            -e HOST=0.0.0.0 \
-            taccan
+          apt-get update -qq && apt-get install -y -qq rsync > /dev/null
+          rsync -a --delete --exclude node_modules --exclude .git ./ /opt/wleeaf/taccan/
+          docker compose -f /opt/wleeaf/docker-compose.yml up -d --build taccan

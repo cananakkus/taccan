@@ -16,7 +16,7 @@ const {
 
 const app = express();
 const httpServer = http.createServer(app);
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://play.wleeaf.dev';
 const io = new Server(httpServer, {
   cors: { origin: CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(','), methods: ['GET', 'POST'] },
 });
@@ -150,97 +150,7 @@ app.get('/api/rooms/:code', (req, res) => {
   });
 });
 
-// Wave 10.2: AI Hint Analysis (gated behind ANTHROPIC_API_KEY)
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || null;
-
-app.get('/api/ai-available', (_req, res) => {
-  res.json({ ok: true, available: Boolean(ANTHROPIC_API_KEY) });
-});
-
 app.use(express.json({ limit: '64kb' }));
-
-app.post('/api/analyze', async (req, res) => {
-  if (!ANTHROPIC_API_KEY) {
-    return res.status(503).json({ ok: false, error: 'AI analyst is not available on this server.' });
-  }
-
-  const { history, board, players } = req.body || {};
-  if (!Array.isArray(history) || !Array.isArray(board)) {
-    return res.status(400).json({ ok: false, error: 'Missing history or board data.' });
-  }
-
-  const prompt = buildAnalysisPrompt(history, board, players);
-
-  try {
-    const https = require('https');
-    const body = JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const result = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'api.anthropic.com',
-        path: '/v1/messages',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      };
-
-      const apiReq = https.request(options, (apiRes) => {
-        let data = '';
-        apiRes.on('data', (chunk) => { data += chunk; });
-        apiRes.on('end', () => {
-          if (apiRes.statusCode >= 200 && apiRes.statusCode < 300) {
-            resolve(JSON.parse(data));
-          } else {
-            reject(new Error(`Anthropic API ${apiRes.statusCode}: ${data}`));
-          }
-        });
-      });
-
-      apiReq.on('error', reject);
-      apiReq.setTimeout(15_000, () => { apiReq.destroy(); reject(new Error('API timeout')); });
-      apiReq.write(body);
-      apiReq.end();
-    });
-
-    const text = result.content?.[0]?.text || 'No analysis available.';
-    res.json({ ok: true, analysis: text });
-  } catch (err) {
-    logEvent('ai_analysis_error', { error: err.message });
-    res.status(500).json({ ok: false, error: 'Analysis request failed.' });
-  }
-});
-
-function buildAnalysisPrompt(history, board, players) {
-  const hints = history.filter((e) => e.type === 'hint');
-  const guesses = history.filter((e) => e.type === 'guess');
-
-  let prompt = 'You are a Codenames game analyst. Analyze this completed game and provide a brief, insightful review.\n\n';
-  prompt += 'Board:\n';
-  for (const card of board) {
-    prompt += `  ${card.word} (${card.color}${card.revealed ? ', revealed' : ''})\n`;
-  }
-
-  prompt += '\nHints given:\n';
-  for (const h of hints) {
-    prompt += `  ${h.team} spymaster: "${h.word}" for ${h.count}\n`;
-  }
-
-  prompt += '\nGuesses made:\n';
-  for (const g of guesses) {
-    prompt += `  ${g.team} guessed ${board[g.index]?.word || '?'} → ${g.color}\n`;
-  }
-
-  prompt += '\nProvide: 1) Best hint of the game, 2) Biggest mistake, 3) Key turning point, 4) Overall rating (1-5 stars). Keep it under 200 words.';
-  return prompt;
-}
 
 // Shareable room links (Wave 2.3) — catch-all route serving index.html
 app.get('/room/:code', (_req, res) => {
@@ -1697,10 +1607,32 @@ function clearMvpTimer(roomCode) {
   }
 }
 
+function isPrivateIP(ip) {
+  const parts = ip.split('.').map(Number);
+  if (parts.length === 4) {
+    if (parts[0] === 10) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 127) return true;
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    if (parts[0] === 0) return true;
+  }
+  if (ip === '::1' || ip.startsWith('fe80:') || ip.startsWith('fc') || ip.startsWith('fd')) return true;
+  return false;
+}
+
 async function fetchWordPack(url) {
   const https = require('https');
+  const dns = require('dns');
+  const safeLookup = (hostname, options, cb) => {
+    dns.lookup(hostname, options, (err, address, family) => {
+      if (err) return cb(err);
+      if (isPrivateIP(address)) return cb(new Error('URL resolves to a private/internal address.'));
+      cb(null, address, family);
+    });
+  };
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 10_000 }, (res) => {
+    const req = https.get(url, { timeout: 10_000, lookup: safeLookup }, (res) => {
       if (res.statusCode !== 200) {
         reject(new Error(`HTTP ${res.statusCode}`));
         res.resume();

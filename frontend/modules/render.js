@@ -453,7 +453,6 @@ function renderGame(snapshot) {
     }
     if (ui.ggButton) ui.ggButton.classList.add('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.add('hidden');
-    if (ui.analystButton) ui.analystButton.classList.add('hidden');
     if (ui.scratchpad) ui.scratchpad.classList.add('hidden');
     renderPhaseTimer(snapshot);
     return;
@@ -499,19 +498,16 @@ function renderGame(snapshot) {
     ui.resultText.textContent = `${formatResultReason(game)} ${matchLabel}`.trim();
     if (ui.ggButton) ui.ggButton.classList.remove('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.remove('hidden');
-    if (ui.analystButton) ui.analystButton.classList.toggle('hidden', !state.aiAvailable);
   } else if (game.phase === 'hint') {
     setTurnBannerText(t('turn_spymaster_choosing', { team: formatTeam(game.currentTeam) }));
     ui.resultSection.classList.add('hidden');
     if (ui.ggButton) ui.ggButton.classList.add('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.add('hidden');
-    if (ui.analystButton) ui.analystButton.classList.add('hidden');
   } else {
     setTurnBannerText(t('turn_operatives_guessing', { team: formatTeam(game.currentTeam) }));
     ui.resultSection.classList.add('hidden');
     if (ui.ggButton) ui.ggButton.classList.add('hidden');
     if (ui.debriefButton) ui.debriefButton.classList.add('hidden');
-    if (ui.analystButton) ui.analystButton.classList.add('hidden');
   }
 
   renderPhaseTimer(snapshot);

@@ -45,7 +45,6 @@ export const ui = {
   swapRematchButton: document.getElementById('swap-rematch-btn'),
   ggButton: document.getElementById('gg-btn'),
   debriefButton: document.getElementById('debrief-btn'),
-  analystButton: document.getElementById('analyst-btn'),
   board: document.getElementById('board'),
   toast: document.getElementById('toast'),
   srAnnouncements: document.getElementById('sr-announcements'),
