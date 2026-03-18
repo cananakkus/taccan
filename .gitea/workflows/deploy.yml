@@ -18,6 +18,5 @@ jobs:
 
       - name: Deploy
         run: |
-          apt-get update -qq && apt-get install -y -qq rsync > /dev/null
           rsync -a --delete --exclude node_modules --exclude .git ./ /opt/wleeaf/taccan/
           docker compose -f /opt/wleeaf/docker-compose.yml up -d --build taccan
