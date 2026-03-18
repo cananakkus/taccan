@@ -5,7 +5,7 @@ import { setConnection, showToast, announce } from './helpers.js';
 import { render } from './render.js';
 import { playSound } from './sound.js';
 import { canHint, canGuess } from './helpers.js';
-import { renderChatHistory, renderChatMessage } from './chat.js';
+import { renderFeed, appendChatMessage } from './feed.js';
 
 const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
 export const socket = io({ path: basePath + '/socket.io' });
@@ -46,7 +46,7 @@ export function wireSocketEvents() {
       name: snapshot.me.name,
     });
     render();
-    renderChatHistory();
+    renderFeed(snapshot);
   });
 
   socket.on('error:rule_violation', (payload = {}) => {
@@ -110,7 +110,7 @@ export function wireSocketEvents() {
 
   socket.on('chat:message', (message = {}) => {
     state.chatMessages.push(message);
-    renderChatMessage(message);
+    appendChatMessage(message);
   });
 
   socket.on('game:mvp_result', (payload = {}) => {

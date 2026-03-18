@@ -6,6 +6,7 @@ import { wireUiEvents } from './modules/actions.js';
 import { render, initBoard } from './modules/render.js';
 import { initKeyboardNav } from './modules/keyboard-nav.js';
 import { initVoice } from './modules/voice.js';
+import { initPanels } from './modules/panels.js';
 import './modules/sound.js';
 
 // Parse /room/XXXX URL and auto-fill code input (supports subpath deployment)
@@ -32,6 +33,7 @@ initLanguage();
 wireSocketEvents();
 initVoice();
 wireUiEvents();
+initPanels();
 initKeyboardNav();
 render();
 

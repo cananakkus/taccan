@@ -10,6 +10,8 @@ import {
 import { deriveScene, sceneToBodyClass } from './state-machine.js';
 import { getAvatarColor, getInitials } from './identity.js';
 import { playSound } from './sound.js';
+import { renderFeed } from './feed.js';
+import { showDebriefTab, hideDebriefTab } from './panels.js';
 
 // --- Turn Banner Swap Helper ---
 let _lastBannerText = '';
@@ -191,9 +193,8 @@ export function render() {
     ui.roomPanel.classList.remove('fade-in');
     clearBoard();
     ui.joinNote.textContent = t('join_note_default');
-    if (ui.hintHistory) ui.hintHistory.classList.add('hidden');
-    if (ui.chatPanel) ui.chatPanel.classList.add('hidden');
     if (ui.scratchpad) ui.scratchpad.classList.add('hidden');
+    hideDebriefTab();
     syncLiveTicker(false);
     return;
   }
@@ -219,8 +220,15 @@ export function render() {
   renderControls(snapshot);
   renderGame(snapshot);
   setSceneClass(snapshot);
-  renderHintHistory(snapshot);
-  if (ui.chatPanel) ui.chatPanel.classList.remove('hidden');
+  renderFeed(snapshot);
+
+  // Show/hide debrief tab based on game phase
+  if (snapshot.game && snapshot.game.phase === 'finished') {
+    showDebriefTab();
+  } else {
+    hideDebriefTab();
+  }
+
   syncLiveTicker(shouldRunLiveTicker(snapshot));
 }
 
@@ -681,92 +689,6 @@ function renderGame(snapshot) {
   }
 
   state.revealedCardIndexes = revealedNow;
-}
-
-// --- Game Log (grouped hints + guesses) ---
-function renderHintHistory(snapshot) {
-  if (!ui.hintHistory || !ui.hintHistoryList) return;
-  // Always show the log when in a room so the board layout stays stable
-  ui.hintHistory.classList.remove('hidden');
-
-  const game = snapshot?.game;
-
-  // Group history: collect guesses under each preceding hint
-  const groups = [];
-  let current = null;
-  for (const event of (game?.history || [])) {
-    if (event.type === 'hint') {
-      current = { hint: event, guesses: [] };
-      groups.push(current);
-    } else if (event.type === 'guess' && current) {
-      current.guesses.push(event);
-    }
-  }
-
-  if (groups.length === 0) {
-    ui.hintHistoryList.innerHTML = '';
-    state.lastLogCount = 0;
-    return;
-  }
-
-  const existing = ui.hintHistoryList.children;
-  const isNewEntry = groups.length > state.lastLogCount;
-
-  // Remove excess groups
-  while (existing.length > groups.length) {
-    ui.hintHistoryList.removeChild(ui.hintHistoryList.lastChild);
-  }
-
-  for (let gi = 0; gi < groups.length; gi++) {
-    const group = groups[gi];
-    let groupDiv = existing[gi];
-
-    if (!groupDiv) {
-      // Create new group
-      groupDiv = document.createElement('div');
-      groupDiv.className = `log-group ${group.hint.team}`;
-
-      const hintDiv = document.createElement('div');
-      hintDiv.className = `log-hint ${group.hint.team}`;
-      hintDiv.textContent = `${String(group.hint.word).toLocaleUpperCase(getLocaleTag())} ${group.hint.count}`;
-      groupDiv.appendChild(hintDiv);
-
-      ui.hintHistoryList.appendChild(groupDiv);
-
-      // Animate the newest group
-      if (isNewEntry && gi === groups.length - 1) {
-        groupDiv.classList.add('log-new');
-        groupDiv.addEventListener('animationend', function handler() {
-          groupDiv.classList.remove('log-new');
-          groupDiv.removeEventListener('animationend', handler);
-        }, { once: true });
-      }
-    }
-
-    // Count existing guess elements (skip the first child which is the hint div)
-    const existingGuesses = groupDiv.querySelectorAll('.log-guess').length;
-
-    // Only append new guesses
-    for (let gsi = existingGuesses; gsi < group.guesses.length; gsi++) {
-      const guess = group.guesses[gsi];
-      const guessDiv = document.createElement('div');
-      guessDiv.className = 'log-guess';
-      const card = game.board[guess.index];
-      const word = card ? formatCardWord(card.word) : '?';
-      const correct = guess.color === guess.team;
-      const icon = document.createElement('span');
-      icon.className = `guess-icon ${correct ? 'guess-correct' : 'guess-wrong'}`;
-      icon.textContent = correct ? '\u2713' : '\u2717';
-      guessDiv.appendChild(icon);
-      guessDiv.appendChild(document.createTextNode(` ${word}`));
-      groupDiv.appendChild(guessDiv);
-    }
-  }
-
-  state.lastLogCount = groups.length;
-
-  // Auto-scroll the log container to bottom
-  ui.hintHistory.scrollTop = ui.hintHistory.scrollHeight;
 }
 
 function renderPhaseTimer(snapshot) {

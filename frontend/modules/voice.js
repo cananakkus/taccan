@@ -567,6 +567,71 @@ function updateSpeakingClasses() {
   }
 }
 
+export function renderVoicePeerList() {
+  if (!ui.voicePeerList) return;
+  ui.voicePeerList.innerHTML = '';
+
+  if (!state.voiceActive) return;
+
+  const myId = state.snapshot?.me?.sessionId;
+  const players = state.snapshot?.players || [];
+
+  // Add self
+  if (myId) {
+    const me = players.find(p => p.sessionId === myId);
+    if (me) {
+      ui.voicePeerList.appendChild(buildPeerItem(me, true));
+    }
+  }
+
+  // Add remote peers
+  for (const [sessionId] of peers) {
+    const player = players.find(p => p.sessionId === sessionId);
+    if (player) {
+      ui.voicePeerList.appendChild(buildPeerItem(player, false));
+    }
+  }
+}
+
+function buildPeerItem(player, isSelf) {
+  const div = document.createElement('div');
+  div.className = 'voice-peer';
+  if (state.voiceSpeaking.has(player.sessionId)) div.classList.add('speaking');
+
+  const name = document.createElement('span');
+  name.className = 'voice-peer-name';
+  name.textContent = isSelf ? `${player.name} (you)` : player.name;
+  div.appendChild(name);
+
+  const isMuted = isSelf ? state.voiceMuted : state.voiceMutedPeers.has(player.sessionId);
+  if (isMuted) {
+    const badge = document.createElement('span');
+    badge.className = 'voice-peer-muted';
+    badge.textContent = 'MUTED';
+    div.appendChild(badge);
+  }
+
+  if (!isSelf) {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '100';
+    slider.value = '100';
+    slider.className = 'voice-volume-slider';
+    const audio = audioElements.get(player.sessionId);
+    if (audio) {
+      slider.value = String(Math.round(audio.volume * 100));
+    }
+    slider.addEventListener('input', () => {
+      const a = audioElements.get(player.sessionId);
+      if (a) a.volume = Number(slider.value) / 100;
+    });
+    div.appendChild(slider);
+  }
+
+  return div;
+}
+
 function updateVoiceButtons() {
   if (ui.voiceJoinBtn) {
     ui.voiceJoinBtn.textContent = state.voiceActive ? 'Leave Voice' : 'Voice';

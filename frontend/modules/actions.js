@@ -4,7 +4,7 @@ import { t } from './i18n.js';
 import { setLanguage } from './i18n.js';
 import { socket, emitWithAck } from './socket.js';
 import { render, renderSelectedGuess } from './render.js';
-import { canGuess, canMark, showToast, confirmAction, getCurrentMaxHintCount, escapeHtml } from './helpers.js';
+import { canGuess, canMark, showToast, confirmAction, getCurrentMaxHintCount } from './helpers.js';
 import { playSound } from './sound.js';
 import { triggerHaptic } from './haptics.js';
 import { initScratchpad } from './scratchpad.js';
@@ -12,6 +12,7 @@ import { renderQRCode } from './qrcode.js';
 import { renderRoomSeal } from './room-seal.js';
 import { generateDebriefNarrative } from './debrief.js';
 import { joinVoice, leaveVoice, toggleMute, toggleNoiseSuppression } from './voice.js';
+import { openPanel } from './panels.js';
 
 const SERVER_ERROR_MAP = {
   'Hint must be a single alphabetical word.': 'hint_invalid_word',
@@ -74,34 +75,16 @@ export function wireUiEvents() {
     }
   });
 
-  ui.copyRoomButton.addEventListener('click', async () => {
-    const snapshot = state.snapshot;
-    if (!snapshot) return;
-    try {
-      await navigator.clipboard.writeText(snapshot.room.code);
-      showToast(t('room_code_copied'), 'success');
-    } catch (_error) {
-      showToast(t('copy_failed'), 'error');
-    }
-  });
-
-  // Web Share API (Wave 3.5)
-  if (ui.shareRoomButton) {
-    ui.shareRoomButton.addEventListener('click', async () => {
+  // Room code click-to-copy
+  if (ui.roomCode) {
+    ui.roomCode.addEventListener('click', async () => {
       const snapshot = state.snapshot;
       if (!snapshot) return;
-      const roomUrl = getRoomUrl(snapshot.room.code);
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'Taccan', text: t('join_room_share', { code: snapshot.room.code }), url: roomUrl });
-        } catch (_error) {}
-      } else {
-        try {
-          await navigator.clipboard.writeText(roomUrl);
-          showToast(t('link_copied'), 'success');
-        } catch (_error) {
-          showToast(t('copy_failed'), 'error');
-        }
+      try {
+        await navigator.clipboard.writeText(snapshot.room.code);
+        showToast(t('room_code_copied'), 'success');
+      } catch (_error) {
+        showToast(t('copy_failed'), 'error');
       }
     });
   }
@@ -313,7 +296,7 @@ export function wireUiEvents() {
     await submitGuess(index);
   });
 
-  // GG Button (Wave 6.1)
+  // GG Button
   if (ui.ggButton) {
     ui.ggButton.addEventListener('click', async () => {
       try {
@@ -325,24 +308,18 @@ export function wireUiEvents() {
     });
   }
 
-  // Debrief Button (Wave 10.1)
+  // Debrief Button — opens debrief panel
   if (ui.debriefButton) {
     ui.debriefButton.addEventListener('click', () => {
       const snapshot = state.snapshot;
       if (!snapshot?.game) return;
       const narrative = generateDebriefNarrative(snapshot.game.history, snapshot.players, snapshot.game.board);
       if (ui.debriefContent) ui.debriefContent.innerHTML = narrative;
-      if (ui.debriefOverlay) ui.debriefOverlay.classList.remove('hidden');
+      openPanel('debrief');
     });
   }
 
-  if (ui.debriefCloseButton) {
-    ui.debriefCloseButton.addEventListener('click', () => {
-      if (ui.debriefOverlay) ui.debriefOverlay.classList.add('hidden');
-    });
-  }
-
-  // Sound toggle (Wave 4.4)
+  // Sound toggle
   if (ui.soundToggleButton) {
     ui.soundToggleButton.addEventListener('click', () => {
       const engine = window._taccanSoundEngine;
@@ -350,7 +327,7 @@ export function wireUiEvents() {
     });
   }
 
-  // Colorblind toggle (Wave 7.2)
+  // Colorblind toggle
   if (ui.colorblindToggleButton) {
     ui.colorblindToggleButton.addEventListener('click', () => {
       state.colorblindMode = !state.colorblindMode;
@@ -362,7 +339,7 @@ export function wireUiEvents() {
     });
   }
 
-  // Word Pack (Wave 8.4)
+  // Word Pack
   if (ui.wordPackButton && ui.wordPackInput) {
     ui.wordPackButton.addEventListener('click', async () => {
       const url = ui.wordPackInput.value.trim();
@@ -393,48 +370,6 @@ export function wireUiEvents() {
       }
     });
   }
-
-  // Mobile bottom-sheet overlays
-  if (ui.mobileChatBtn) {
-    ui.mobileChatBtn.addEventListener('click', () => toggleMobileOverlay('chat'));
-  }
-  if (ui.mobileTeamsBtn) {
-    ui.mobileTeamsBtn.addEventListener('click', () => toggleMobileOverlay('teams'));
-  }
-  if (ui.mobileLogBtn) {
-    ui.mobileLogBtn.addEventListener('click', () => toggleMobileOverlay('log'));
-  }
-  if (ui.mobileSettingsBtn) {
-    ui.mobileSettingsBtn.addEventListener('click', () => toggleMobileOverlay('settings'));
-  }
-  if (ui.mobileLeaveBtn) {
-    ui.mobileLeaveBtn.addEventListener('click', () => ui.leaveRoomButton.click());
-  }
-  if (ui.mobileBackdrop) {
-    ui.mobileBackdrop.addEventListener('click', closeMobileOverlays);
-  }
-
-  // Keyboard help overlay
-  if (ui.keyboardHelpBtn) {
-    ui.keyboardHelpBtn.addEventListener('click', () => {
-      ui.keyboardHelpOverlay?.classList.toggle('hidden');
-    });
-  }
-  if (ui.keyboardHelpCloseBtn) {
-    ui.keyboardHelpCloseBtn.addEventListener('click', () => {
-      ui.keyboardHelpOverlay?.classList.add('hidden');
-    });
-  }
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      ui.keyboardHelpOverlay?.classList.add('hidden');
-      const confirmOverlay = document.getElementById('confirm-overlay');
-      if (confirmOverlay && !confirmOverlay.classList.contains('hidden')) {
-        const noBtn = document.getElementById('confirm-no-btn');
-        if (noBtn) noBtn.click();
-      }
-    }
-  });
 }
 
 function handleSpymasterPlanning(snap, index) {
@@ -508,34 +443,6 @@ function setSelectedGuess(index) {
     return;
   }
   state.selectedGuessIndex = index;
-}
-
-const MOBILE_OVERLAY_MAP = [
-  { key: 'teams',    getEl: () => ui.sidebarTeams,    getBtn: () => ui.mobileTeamsBtn },
-  { key: 'log',      getEl: () => ui.hintHistory,     getBtn: () => ui.mobileLogBtn },
-  { key: 'chat',     getEl: () => ui.chatPanel,       getBtn: () => ui.mobileChatBtn },
-  { key: 'settings', getEl: () => ui.sidebarSettings, getBtn: () => ui.mobileSettingsBtn },
-];
-
-function toggleMobileOverlay(which) {
-  const entry = MOBILE_OVERLAY_MAP.find(e => e.key === which);
-  if (!entry) return;
-  const el = entry.getEl();
-  const alreadyOpen = el && el.classList.contains('mobile-open');
-  closeMobileOverlays();
-  if (!alreadyOpen && el) {
-    el.classList.add('mobile-open');
-    if (ui.mobileBackdrop) ui.mobileBackdrop.classList.add('visible');
-    entry.getBtn()?.classList.add('active');
-  }
-}
-
-function closeMobileOverlays() {
-  for (const { getEl, getBtn } of MOBILE_OVERLAY_MAP) {
-    getEl()?.classList.remove('mobile-open');
-    getBtn()?.classList.remove('active');
-  }
-  if (ui.mobileBackdrop) ui.mobileBackdrop.classList.remove('visible');
 }
 
 function getRoomUrl(code) {

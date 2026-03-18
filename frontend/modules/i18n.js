@@ -77,8 +77,8 @@ export function applyLanguageToDocument(persist = true) {
     ui.joinNote.textContent = t('join_note_default');
   }
 
-  if (ui.connectionLabel) {
-    ui.connectionLabel.textContent = socket.connected ? t('connected') : t('disconnected');
+  if (ui.connectionDot) {
+    ui.connectionDot.title = socket.connected ? t('connected') : t('disconnected');
   }
 
   if (persist) {

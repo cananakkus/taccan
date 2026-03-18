@@ -99,9 +99,9 @@ export function formatTimerRemaining(remainingMs) {
 }
 
 export function setConnection(isOnline, label) {
-  ui.connectionLabel.textContent = label;
   ui.connectionDot.classList.toggle('online', isOnline);
   ui.connectionDot.classList.toggle('offline', !isOnline);
+  ui.connectionDot.title = label;
 }
 
 export function showToast(message, type = '') {
