@@ -104,7 +104,7 @@ export function wireSocketEvents() {
 
   socket.on('game:gg_received', (payload = {}) => {
     const name = payload.name || t('anonymous');
-    showToast(`${name}: GG!`);
+    showToast(t('gg_received', { name }));
     playSound('gg');
   });
 

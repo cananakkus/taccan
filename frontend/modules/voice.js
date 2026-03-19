@@ -156,12 +156,12 @@ export async function joinVoice() {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       } catch (fallbackErr) {
         console.error('[voice] fallback getUserMedia error:', fallbackErr.name, fallbackErr.message);
-        showToast(`Mic error: ${fallbackErr.name}`);
+        showToast(t('voice_mic_error', { error: fallbackErr.name }));
         joining = false;
         return;
       }
     } else {
-      showToast(`Mic error: ${err.name}`);
+      showToast(t('voice_mic_error', { error: err.name }));
       joining = false;
       return;
     }
@@ -182,7 +182,7 @@ export async function joinVoice() {
     }
   } catch (err) {
     console.error('[voice] join failed:', err);
-    showToast(err.message || 'Failed to join voice');
+    showToast(err.message || t('voice_join_failed'));
     cleanupNoisePipeline();
     stopLocalStream();
     state.voiceActive = false;
@@ -423,7 +423,7 @@ function createPeerConnection(sessionId, isInitiator) {
 
 function attemptIceRestart(sessionId, entry) {
   if (entry.restarts >= MAX_ICE_RESTARTS) {
-    showToast(`Could not connect to ${getPlayerName(sessionId)}`);
+    showToast(t('voice_connect_failed', { name: getPlayerName(sessionId) }));
     closePeer(sessionId);
     state.voicePeers.delete(sessionId);
     state.voiceSpeaking.delete(sessionId);
