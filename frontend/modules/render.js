@@ -444,8 +444,8 @@ function renderGame(snapshot) {
 
   if (!game) {
     setTurnBannerText(t('lobby_open'));
-    ui.redCount.textContent = t('score_red_empty');
-    ui.blueCount.textContent = t('score_blue_empty');
+    ui.redCount.textContent = '-';
+    ui.blueCount.textContent = '-';
     ui.hintSection.classList.add('hidden');
     ui.guessSection.classList.add('hidden');
     ui.resultSection.classList.add('hidden');
@@ -487,8 +487,8 @@ function renderGame(snapshot) {
     }
   }
 
-  ui.redCount.textContent = t('score_red', { count: game.remaining.red });
-  ui.blueCount.textContent = t('score_blue', { count: game.remaining.blue });
+  ui.redCount.textContent = game.remaining.red;
+  ui.blueCount.textContent = game.remaining.blue;
 
   if (game.phase === 'finished') {
     const roundLabel = Number.isInteger(game.roundNumber) ? t('round_prefix', { round: game.roundNumber }) : '';

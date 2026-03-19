@@ -498,8 +498,9 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .score-pill {
@@ -829,7 +830,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 .game-stage {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   padding: 10px 16px;
   flex: 1;
   min-height: 0;
@@ -846,6 +847,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 .controls-strip {
   width: 100%;
   max-width: 680px;
+  margin: 0 auto;
   position: relative;
   z-index: 1;
   flex-shrink: 0;
@@ -980,6 +982,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   min-height: 0;
   width: 100%;
   max-width: 680px;
+  margin: 0 auto;
   position: relative;
   z-index: 1;
 }
@@ -988,6 +991,7 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 5px;
+  width: 100%;
   perspective: 900px;
 }
 
