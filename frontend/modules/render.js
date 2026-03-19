@@ -331,12 +331,12 @@ function buildTeamPlayerItem(player, me, snapshot) {
         (player.sessionId === me.sessionId && state.voiceMuted)) {
       const mutedTag = document.createElement('span');
       mutedTag.className = 'tag voice-muted';
-      mutedTag.textContent = 'MUTED';
+      mutedTag.textContent = t('voice_muted_badge');
       meta.appendChild(mutedTag);
     } else {
       const voiceTag = document.createElement('span');
       voiceTag.className = 'tag voice';
-      voiceTag.textContent = 'VOICE';
+      voiceTag.textContent = t('voice_tag');
       meta.appendChild(voiceTag);
     }
   }

@@ -1,5 +1,5 @@
 import { ui } from './ui.js';
-import { getLocaleTag, formatCardWord } from './i18n.js';
+import { t, getLocaleTag, formatCardWord } from './i18n.js';
 import { formatTeam } from './helpers.js';
 
 export function renderFeed(snapshot) {
@@ -84,10 +84,10 @@ function buildGameEventItem(event, board) {
     div.textContent = `${icon} ${word}`;
   } else if (event.type === 'turn_end') {
     div.classList.add('feed-turnend');
-    div.textContent = `Turn ended`;
+    div.textContent = t('feed_turn_ended');
   } else if (event.type === 'game_end') {
     div.classList.add('feed-gameend');
-    div.textContent = `Game over \u2014 ${formatTeam(event.winner)} wins`;
+    div.textContent = t('feed_game_over', { team: formatTeam(event.winner) });
   } else {
     div.classList.add('feed-event');
     div.textContent = event.type;

@@ -241,7 +241,26 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       chat: 'Chat',
       chat_placeholder: 'Type a message...',
       send: 'Send',
-      mobile_chat: 'Chat'
+      mobile_chat: 'Chat',
+      // Panel tabs
+      panel_teams: 'Teams',
+      panel_feed: 'Feed',
+      panel_voice: 'Voice',
+      panel_settings: 'Settings',
+      // Voice panel
+      voice_join: 'Voice',
+      voice_leave: 'Leave Voice',
+      voice_mute: 'Mute',
+      voice_unmute: 'Unmute',
+      voice_noise_off: 'Noise Off',
+      voice_noise_on: 'Noise On',
+      voice_muted_badge: 'MUTED',
+      voice_tag: 'VOICE',
+      // Feed events
+      feed_turn_ended: 'Turn ended',
+      feed_game_over: 'Game over \u2014 {team} wins',
+      // Scratchpad
+      scratchpad_notes_placeholder: 'Spymaster notes...',
     }),
     tr: Object.freeze({
       brand_eyebrow: 'Şifre Loncası Masası',
@@ -480,7 +499,26 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       chat: 'Sohbet',
       chat_placeholder: 'Bir mesaj yazın...',
       send: 'Gönder',
-      mobile_chat: 'Sohbet'
+      mobile_chat: 'Sohbet',
+      // Panel sekmeleri
+      panel_teams: 'Takımlar',
+      panel_feed: 'Akış',
+      panel_voice: 'Ses',
+      panel_settings: 'Ayarlar',
+      // Ses paneli
+      voice_join: 'Ses',
+      voice_leave: 'Sesten Ayrıl',
+      voice_mute: 'Sessize Al',
+      voice_unmute: 'Sesi Aç',
+      voice_noise_off: 'Gürültü Kapalı',
+      voice_noise_on: 'Gürültü Açık',
+      voice_muted_badge: 'SESSİZ',
+      voice_tag: 'SES',
+      // Akış olayları
+      feed_turn_ended: 'Tur sona erdi',
+      feed_game_over: 'Oyun bitti \u2014 {team} kazandı',
+      // Not defteri
+      scratchpad_notes_placeholder: 'Kod ustası notları...',
     })
   }),
   words: Object.freeze({

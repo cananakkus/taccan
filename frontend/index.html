@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700;900&family=Special+Elite&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=2" />
+    <link rel="stylesheet" href="style.css?v=3" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -97,7 +97,7 @@
               <div class="result-actions">
                 <button id="rematch-btn" class="btn btn-primary" type="button" data-i18n="rematch">Rematch</button>
                 <button id="swap-rematch-btn" class="btn btn-secondary" type="button" data-i18n="swap_rematch">Swap + Rematch</button>
-                <button id="gg-btn" class="btn btn-ghost hidden" type="button">GG</button>
+                <button id="gg-btn" class="btn btn-ghost hidden" type="button" data-i18n="gg">GG</button>
                 <button id="debrief-btn" class="btn btn-ghost hidden" type="button" data-i18n="debrief">Debrief</button>
               </div>
               <div id="mvp-section" class="mvp-section hidden"></div>
@@ -109,7 +109,7 @@
           </div>
 
           <div id="scratchpad" class="scratchpad hidden">
-            <textarea id="scratchpad-textarea" placeholder="Spymaster notes..." rows="2"></textarea>
+            <textarea id="scratchpad-textarea" placeholder="Spymaster notes..." data-i18n-placeholder="scratchpad_notes_placeholder" rows="2"></textarea>
           </div>
         </div>
 
@@ -127,23 +127,23 @@
           <nav class="bar-tabs" aria-label="Panels">
             <button class="bar-tab" data-panel="teams" type="button">
               <span class="bar-tab-icon" aria-hidden="true">&#9776;</span>
-              <span class="bar-tab-label">Teams</span>
+              <span class="bar-tab-label" data-i18n="panel_teams">Teams</span>
             </button>
             <button class="bar-tab" data-panel="feed" type="button">
               <span class="bar-tab-icon" aria-hidden="true">&#9993;</span>
-              <span class="bar-tab-label">Feed</span>
+              <span class="bar-tab-label" data-i18n="panel_feed">Feed</span>
             </button>
             <button class="bar-tab" data-panel="voice" type="button">
               <span class="bar-tab-icon" aria-hidden="true">&#9834;</span>
-              <span class="bar-tab-label">Voice</span>
+              <span class="bar-tab-label" data-i18n="panel_voice">Voice</span>
             </button>
             <button class="bar-tab" data-panel="settings" type="button">
               <span class="bar-tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="bar-tab-label">Settings</span>
+              <span class="bar-tab-label" data-i18n="panel_settings">Settings</span>
             </button>
             <button class="bar-tab hidden" id="debrief-tab" data-panel="debrief" type="button">
               <span class="bar-tab-icon" aria-hidden="true">&#9998;</span>
-              <span class="bar-tab-label">Debrief</span>
+              <span class="bar-tab-label" data-i18n="debrief">Debrief</span>
             </button>
           </nav>
 
@@ -298,7 +298,7 @@
     <div id="voice-audio-container" aria-hidden="true"></div>
 
     <script src="socket.io/socket.io.js"></script>
-    <script src="translations.js?v=2"></script>
-    <script type="module" src="app.js?v=2"></script>
+    <script src="translations.js?v=3"></script>
+    <script type="module" src="app.js?v=3"></script>
   </body>
 </html>

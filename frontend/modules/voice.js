@@ -2,6 +2,7 @@ import { state, NOISE_SUPPRESSION_KEY } from './state.js';
 import { ui } from './ui.js';
 import { socket, emitWithAck } from './socket.js';
 import { showToast } from './helpers.js';
+import { t } from './i18n.js';
 import { render } from './render.js';
 
 // --- Private state ---
@@ -600,14 +601,14 @@ function buildPeerItem(player, isSelf) {
 
   const name = document.createElement('span');
   name.className = 'voice-peer-name';
-  name.textContent = isSelf ? `${player.name} (you)` : player.name;
+  name.textContent = isSelf ? `${player.name} ${t('you_suffix')}` : player.name;
   div.appendChild(name);
 
   const isMuted = isSelf ? state.voiceMuted : state.voiceMutedPeers.has(player.sessionId);
   if (isMuted) {
     const badge = document.createElement('span');
     badge.className = 'voice-peer-muted';
-    badge.textContent = 'MUTED';
+    badge.textContent = t('voice_muted_badge');
     div.appendChild(badge);
   }
 
@@ -634,17 +635,17 @@ function buildPeerItem(player, isSelf) {
 
 function updateVoiceButtons() {
   if (ui.voiceJoinBtn) {
-    ui.voiceJoinBtn.textContent = state.voiceActive ? 'Leave Voice' : 'Voice';
+    ui.voiceJoinBtn.textContent = state.voiceActive ? t('voice_leave') : t('voice_join');
     ui.voiceJoinBtn.classList.toggle('in-voice', state.voiceActive);
   }
   if (ui.voiceMuteBtn) {
     ui.voiceMuteBtn.classList.toggle('hidden', !state.voiceActive);
-    ui.voiceMuteBtn.textContent = state.voiceMuted ? 'Unmute' : 'Mute';
+    ui.voiceMuteBtn.textContent = state.voiceMuted ? t('voice_unmute') : t('voice_mute');
     ui.voiceMuteBtn.classList.toggle('muted', state.voiceMuted);
   }
   if (ui.voiceNoiseBtn) {
     ui.voiceNoiseBtn.classList.toggle('hidden', !state.voiceActive);
-    ui.voiceNoiseBtn.textContent = state.noiseSuppression ? 'Noise Off' : 'Noise On';
+    ui.voiceNoiseBtn.textContent = state.noiseSuppression ? t('voice_noise_off') : t('voice_noise_on');
     ui.voiceNoiseBtn.classList.toggle('noise-active', state.noiseSuppression);
   }
 }
