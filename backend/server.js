@@ -608,7 +608,7 @@ io.on('connection', (socket) => {
     const maxHintCount = game.maxHintCount ?? modeConfig.maxHintCount;
 
     if (!hintWord) {
-      ackError(callback, 'Hint must be a single alphabetical word.');
+      ackError(callback, 'Hint word is required.');
       return;
     }
 

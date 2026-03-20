@@ -3,11 +3,12 @@ const assert = require('node:assert/strict');
 
 const { normalizeHint, createGameState, createDuetGameState, resolveGuess, mulberry32 } = require('../backend/game-engine');
 
-test('normalizeHint accepts single-word alpha hint and rejects invalid forms', () => {
+test('normalizeHint trims input and rejects empty strings', () => {
   assert.equal(normalizeHint('  Galaxy  '), 'Galaxy');
   assert.equal(normalizeHint(''), null);
-  assert.equal(normalizeHint('two words'), null);
-  assert.equal(normalizeHint('hint_1'), null);
+  assert.equal(normalizeHint('two words'), 'two words');
+  assert.equal(normalizeHint('hint_1'), 'hint_1');
+  assert.equal(normalizeHint('café!'), 'café!');
 });
 
 test('createGameState builds a 25-card board with valid color distribution', () => {

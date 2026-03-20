@@ -18,11 +18,6 @@ function normalizeHint(value) {
     return null;
   }
 
-  // Accept Unicode letters, combining marks (accents, etc.), and hyphens
-  if (!/^\p{L}[\p{L}\p{M}-]*$/u.test(trimmed)) {
-    return null;
-  }
-
   return trimmed;
 }
 
