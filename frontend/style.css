@@ -545,22 +545,23 @@ input[type="number"]::-webkit-outer-spin-button {
   z-index: 10;
 }
 
-.bottom-bar {
+.bottom-bar-status {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+  background:
+    linear-gradient(90deg, #6e5e42 0%, #5a4a32 50%, #6e5e42 100%);
+}
+.bottom-bar {
   background:
     linear-gradient(90deg, #8a7a5e 0%, #7a6a4e 50%, #6e5e42 100%);
   border-top: 2px solid #5a4a32;
   flex-shrink: 0;
   z-index: 10;
   padding: 4px 10px;
-}
-.bottom-bar-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 2px 0;
 }
 
 .score-bar {
@@ -646,19 +647,18 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* ── Bar Tabs ── */
 .bar-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
 }
 .bar-tabs-center {
   display: flex;
   gap: 4px;
-  flex: 1;
   justify-content: center;
 }
 .bar-tabs-right {
   display: flex;
-  flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .bar-tab {
@@ -923,17 +923,20 @@ input[type="number"]::-webkit-outer-spin-button {
 .stage-layout {
   display: flex;
   gap: 12px;
-  max-width: 1060px;
+  max-width: 1120px;
   margin: 0 auto;
   width: 100%;
 }
 
 /* ── Control Strip ── */
 .controls-strip {
-  width: 260px;
+  width: 340px;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
+}
+.controls-strip:not(:has(.ctrl-panel:not(.hidden), .scratchpad:not(.hidden))) {
+  display: none;
 }
 
 .ctrl-panel {
@@ -993,10 +996,11 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Hint form */
 .hint-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: flex-end;
 }
-.hint-form input[type="text"] { flex: 1; }
+.hint-form input[type="text"] { flex: 1 1 100%; }
 .hint-form input[type="number"] { width: 52px; }
 
 .scratchpad { margin-top: 10px; }
@@ -1028,11 +1032,12 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Guess controls */
 .guess-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 .selected-label {
-  flex: 1;
+  flex: 1 1 100%;
   font-family: var(--font-body);
   font-size: 0.9rem;
   color: var(--ink-faded);
@@ -1060,15 +1065,14 @@ input[type="number"]::-webkit-outer-spin-button {
 .board-area {
   flex: 1;
   min-width: 0;
+  display: flex;
+  justify-content: center;
   position: relative;
   z-index: 1;
 }
-
 .board-wrap {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  max-width: 740px;
+  width: 100%;
   min-height: 0;
   position: relative;
 }
