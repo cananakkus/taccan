@@ -537,9 +537,6 @@ input[type="number"]::-webkit-outer-spin-button {
    ══════════════════════════════ */
 /* ── Top Bar (score + status) ── */
 .top-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   padding: 4px 12px;
   background:
     linear-gradient(90deg, #8a7a5e 0%, #7a6a4e 50%, #6e5e42 100%);
@@ -547,20 +544,23 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-shrink: 0;
   z-index: 10;
 }
-.top-bar-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
 
 .bottom-bar {
+  display: flex;
+  flex-direction: column;
   background:
     linear-gradient(90deg, #8a7a5e 0%, #7a6a4e 50%, #6e5e42 100%);
   border-top: 2px solid #5a4a32;
   flex-shrink: 0;
   z-index: 10;
   padding: 4px 10px;
+}
+.bottom-bar-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 0;
 }
 
 .score-bar {
@@ -647,9 +647,18 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ── Bar Tabs ── */
 .bar-tabs {
   display: flex;
-  align-items: stretch;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+}
+.bar-tabs-center {
+  display: flex;
   gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+.bar-tabs-right {
+  display: flex;
+  flex-shrink: 0;
 }
 
 .bar-tab {
@@ -693,6 +702,8 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .bar-tab-leave {
+  width: auto;
+  padding: 5px 10px;
   border-color: rgba(122,40,40,0.25);
   color: rgba(200,140,140,0.7);
 }
@@ -908,14 +919,21 @@ input[type="number"]::-webkit-outer-spin-button {
   position: relative;
 }
 
+/* ── Stage Layout ── */
+.stage-layout {
+  display: flex;
+  gap: 12px;
+  max-width: 1060px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 /* ── Control Strip ── */
 .controls-strip {
-  width: 100%;
-  max-width: 680px;
-  margin: 0 auto;
+  width: 260px;
+  flex-shrink: 0;
   position: relative;
   z-index: 1;
-  flex-shrink: 0;
 }
 
 .ctrl-panel {
@@ -1040,13 +1058,8 @@ input[type="number"]::-webkit-outer-spin-button {
    GAME BOARD — Filing Cards
    ══════════════════════════════ */
 .board-area {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  max-width: 740px;
-  margin: 0 auto;
+  flex: 1;
+  min-width: 0;
   position: relative;
   z-index: 1;
 }
@@ -1060,45 +1073,6 @@ input[type="number"]::-webkit-outer-spin-button {
   position: relative;
 }
 
-.role-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex-shrink: 0;
-  padding-top: 2px;
-}
-.role-side-btn {
-  writing-mode: vertical-lr;
-  text-orientation: mixed;
-  padding: 12px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  font-family: var(--font-typewriter);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-.role-side-btn.red {
-  border-color: var(--red);
-  color: var(--red);
-}
-.role-side-btn.red:hover { background: var(--red-light); }
-.role-side-btn.red.active { background: var(--red); color: var(--paper-light); }
-.role-side-btn.blue {
-  border-color: var(--blue);
-  color: var(--blue);
-}
-.role-side-btn.blue:hover { background: var(--blue-light); }
-.role-side-btn.blue.active { background: var(--blue); color: var(--paper-light); }
-.role-side-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 2px 0;
-}
 
 .board {
   display: grid;
@@ -1703,7 +1677,11 @@ input[type="number"]::-webkit-outer-spin-button {
   .bar-util { gap: 4px; }
   .room-code-val { padding: 2px 5px; font-size: 0.7rem; }
   .mode-tag { display: none; }
-  .role-sidebar { display: none; }
+
+  /* Stage layout: stack vertically, controls above board */
+  .stage-layout { flex-direction: column; }
+  .controls-strip { order: -1; width: 100%; }
+  .bottom-bar-status { padding: 1px 0; }
 
   /* Teams sheet: tighter */
   .team-panel { padding: 6px; }
