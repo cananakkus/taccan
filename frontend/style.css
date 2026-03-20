@@ -233,8 +233,12 @@ button:focus-visible, .card:focus-visible {
   padding: 4px 10px;
   color: var(--ink-faded);
 }
-.btn-role:hover { border-color: var(--border-dark); color: var(--ink); background: var(--accent-dim); }
-.btn-role.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+.btn-role.red { border-color: var(--red); color: var(--red); }
+.btn-role.red:hover { background: var(--red-light); }
+.btn-role.red.active { background: var(--red); color: var(--paper-light); }
+.btn-role.blue { border-color: var(--blue); color: var(--blue); }
+.btn-role.blue:hover { background: var(--blue-light); }
+.btn-role.blue.active { background: var(--blue); color: var(--paper-light); }
 
 /* Icon buttons */
 .icon-btn {
