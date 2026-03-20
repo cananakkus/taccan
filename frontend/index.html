@@ -119,7 +119,7 @@
         </div>
 
         <div class="bottom-bar">
-          <div class="bar-info">
+          <div class="bar-status">
             <span id="red-count" class="score-pill red">-</span>
             <span id="blue-count" class="score-pill blue">-</span>
             <div id="turn-banner" class="turn-banner" aria-live="polite">Lobby open</div>
@@ -129,34 +129,39 @@
             </div>
           </div>
 
-          <nav class="bar-tabs" aria-label="Panels">
-            <button class="bar-tab" data-panel="teams" type="button">
-              <span class="bar-tab-icon" aria-hidden="true">&#9776;</span>
-              <span class="bar-tab-label" data-i18n="panel_teams">Teams</span>
-            </button>
-            <button class="bar-tab" data-panel="feed" type="button">
-              <span class="bar-tab-icon" aria-hidden="true">&#9993;</span>
-              <span class="bar-tab-label" data-i18n="panel_feed">Feed</span>
-            </button>
-            <button class="bar-tab" data-panel="voice" type="button">
-              <span class="bar-tab-icon" aria-hidden="true">&#9834;</span>
-              <span class="bar-tab-label" data-i18n="panel_voice">Voice</span>
-            </button>
-            <button class="bar-tab" data-panel="settings" type="button">
-              <span class="bar-tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="bar-tab-label" data-i18n="panel_settings">Settings</span>
-            </button>
-            <button class="bar-tab hidden" id="debrief-tab" data-panel="debrief" type="button">
-              <span class="bar-tab-icon" aria-hidden="true">&#9998;</span>
-              <span class="bar-tab-label" data-i18n="debrief">Debrief</span>
-            </button>
-          </nav>
+          <div class="bar-main">
+            <div class="bar-util">
+              <span id="room-code" class="room-code-val" title="Click to copy">----</span>
+              <span id="mode-badge" class="mode-tag">Casual</span>
+              <span id="connection-dot" class="conn-dot offline"></span>
+            </div>
 
-          <div class="bar-util">
-            <span id="room-code" class="room-code-val" title="Click to copy">----</span>
-            <span id="mode-badge" class="mode-tag">Casual</span>
-            <span id="connection-dot" class="conn-dot offline"></span>
-            <button id="leave-room-btn" class="bar-icon-btn" type="button" aria-label="Leave room">&times;</button>
+            <nav class="bar-tabs" aria-label="Panels">
+              <button class="bar-tab" data-panel="teams" type="button">
+                <span class="bar-tab-icon" aria-hidden="true">&#128101;</span>
+                <span class="bar-tab-label" data-i18n="panel_teams">Teams</span>
+              </button>
+              <button class="bar-tab" data-panel="feed" type="button">
+                <span class="bar-tab-icon" aria-hidden="true">&#128172;</span>
+                <span class="bar-tab-label" data-i18n="panel_feed">Feed</span>
+              </button>
+              <button class="bar-tab" data-panel="voice" type="button">
+                <span class="bar-tab-icon" aria-hidden="true">&#127908;</span>
+                <span class="bar-tab-label" data-i18n="panel_voice">Voice</span>
+              </button>
+              <button class="bar-tab" data-panel="settings" type="button">
+                <span class="bar-tab-icon" aria-hidden="true">&#9881;</span>
+                <span class="bar-tab-label" data-i18n="panel_settings">Settings</span>
+              </button>
+              <button class="bar-tab hidden" id="debrief-tab" data-panel="debrief" type="button">
+                <span class="bar-tab-icon" aria-hidden="true">&#128203;</span>
+                <span class="bar-tab-label" data-i18n="debrief">Debrief</span>
+              </button>
+            </nav>
+
+            <div class="bar-util bar-util-end">
+              <button id="leave-room-btn" class="bar-icon-btn" type="button" aria-label="Leave room">&times;</button>
+            </div>
           </div>
         </div>
 
