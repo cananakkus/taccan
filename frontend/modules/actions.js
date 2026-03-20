@@ -16,7 +16,9 @@ import { openPanel } from './panels.js';
 
 const SERVER_ERROR_MAP = {
   'Hint must be a single alphabetical word.': 'hint_invalid_word',
+  'Hint word is required.': 'hint_word_required',
   'Your hint cannot be a word on the board.': 'hint_on_board',
+  'Room not found.': 'room_not_found',
 };
 
 function translateServerError(message) {
@@ -69,7 +71,7 @@ export function wireUiEvents() {
       ui.joinNote.textContent = t('joined_room', { code: response.roomCode });
       onRoomJoined(response.roomCode);
     } catch (error) {
-      showToast(error.message);
+      showToast(translateServerError(error.message));
     } finally {
       ui.joinButton.classList.remove('btn-loading');
     }
