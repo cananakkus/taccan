@@ -1816,12 +1816,23 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 }
 
 .sheet-handle {
+  width: 100%;
+  padding: 12px 0 8px;
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet-handle::after {
+  content: '';
+  display: block;
   width: 36px;
   height: 4px;
   background: var(--border-dark);
   border-radius: 2px;
-  margin: 10px auto 6px;
-  flex-shrink: 0;
+  margin: 0 auto;
+}
+.sheet-handle:active {
+  cursor: grabbing;
 }
 
 .sheet-body {
