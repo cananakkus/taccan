@@ -39,7 +39,7 @@ const SCHEMAS = {
   },
   'turn:hint_submit': {
     word: { type: 'string', optional: false, maxLength: 64 },
-    count: { type: 'integer', optional: false, min: 0, max: 25 },
+    count: { type: 'integer', optional: false, min: 0, max: 50 },
   },
   'turn:mark_toggle': {
     index: { type: 'integer', optional: false, min: 0, max: 24 },
