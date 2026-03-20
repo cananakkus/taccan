@@ -169,6 +169,19 @@ export function wireUiEvents() {
     });
   }
 
+  // Blitz timer config
+  const blitzHintInput = document.getElementById('blitz-hint-sec');
+  const blitzGuessInput = document.getElementById('blitz-guess-sec');
+  function sendBlitzConfig() {
+    const snapshot = state.snapshot;
+    if (!snapshot || !snapshot.me.isHost) return;
+    const hintTimerSec = Math.max(5, Math.min(300, Number(blitzHintInput?.value) || 25));
+    const guessTimerSec = Math.max(5, Math.min(300, Number(blitzGuessInput?.value) || 35));
+    emitWithAck('room:blitz_config', { hintTimerSec, guessTimerSec }).catch(() => {});
+  }
+  if (blitzHintInput) blitzHintInput.addEventListener('change', sendBlitzConfig);
+  if (blitzGuessInput) blitzGuessInput.addEventListener('change', sendBlitzConfig);
+
   ui.startGameButton.addEventListener('click', async () => {
     const snapshot = state.snapshot;
     if (!snapshot || !snapshot.me.isHost) return;
@@ -224,8 +237,8 @@ export function wireUiEvents() {
       showToast(t('hint_word_required'));
       return;
     }
-    if (!Number.isInteger(count) || count < 0 || count > maxHintCount) {
-      showToast(t('hint_count_range', { max: maxHintCount }));
+    if (!Number.isInteger(count) || count < 0 || (maxHintCount !== null && count > maxHintCount)) {
+      showToast(t('hint_count_range', { max: maxHintCount ?? 25 }));
       return;
     }
     if (ui.hintSubmitButton) ui.hintSubmitButton.classList.add('btn-loading');

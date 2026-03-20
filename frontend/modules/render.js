@@ -412,27 +412,41 @@ function renderModeControls(snapshot, gameActive) {
   }
 
   if (ui.modeBadge) {
-    const modeLabels = { casual: t('mode_casual'), blitz: t('mode_blitz'), cipher: t('mode_cipher'), blackout: t('mode_blackout') };
+    const modeLabels = { casual: t('mode_casual'), blitz: t('mode_blitz') };
     ui.modeBadge.textContent = modeLabels[roomMode] || t('mode_casual');
     ui.modeBadge.classList.toggle('blitz', roomMode === 'blitz');
   }
 
+  const blitzConfig = document.getElementById('blitz-config');
+  if (blitzConfig) {
+    blitzConfig.classList.toggle('hidden', roomMode !== 'blitz' || gameActive);
+    if (roomMode === 'blitz') {
+      const hintSec = Math.round(Number(snapshot.room?.modeConfig?.hintTimerMs || 25_000) / 1000);
+      const guessSec = Math.round(Number(snapshot.room?.modeConfig?.guessTimerMs || 35_000) / 1000);
+      const hintInput = document.getElementById('blitz-hint-sec');
+      const guessInput = document.getElementById('blitz-guess-sec');
+      if (hintInput && document.activeElement !== hintInput) hintInput.value = String(hintSec);
+      if (guessInput && document.activeElement !== guessInput) guessInput.value = String(guessSec);
+      if (!isHost) {
+        if (hintInput) hintInput.disabled = true;
+        if (guessInput) guessInput.disabled = true;
+      } else {
+        if (hintInput) hintInput.disabled = false;
+        if (guessInput) guessInput.disabled = false;
+      }
+    }
+  }
+
   if (ui.modeNote) {
-    const hintMax = getCurrentMaxHintCount(snapshot);
     if (roomMode === 'blitz') {
       const hintTimerMs = Number(snapshot.room?.modeConfig?.hintTimerMs || 25_000);
       const guessTimerMs = Number(snapshot.room?.modeConfig?.guessTimerMs || 35_000);
       ui.modeNote.textContent = t('mode_note_blitz', {
         hint: Math.round(hintTimerMs / 1000),
         guess: Math.round(guessTimerMs / 1000),
-        max: hintMax,
       });
-    } else if (roomMode === 'cipher') {
-      ui.modeNote.textContent = t('mode_note_cipher', { max: hintMax });
-    } else if (roomMode === 'blackout') {
-      ui.modeNote.textContent = t('mode_note_blackout', { max: hintMax });
     } else {
-      ui.modeNote.textContent = t('mode_note_casual', { max: hintMax });
+      ui.modeNote.textContent = t('mode_note_casual');
     }
   }
 }
@@ -553,8 +567,8 @@ function renderGame(snapshot) {
   const hintMax = getCurrentMaxHintCount(snapshot);
   ui.hintWordInput.disabled = !hintInteractive;
   ui.hintCountInput.disabled = !hintInteractive;
-  ui.hintCountInput.max = String(hintMax);
-  if (Number(ui.hintCountInput.value) > hintMax) {
+  ui.hintCountInput.max = String(hintMax ?? 25);
+  if (hintMax !== null && Number(ui.hintCountInput.value) > hintMax) {
     ui.hintCountInput.value = String(hintMax);
   }
   if (ui.hintSubmitButton) ui.hintSubmitButton.disabled = !hintInteractive;

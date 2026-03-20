@@ -14,7 +14,11 @@ const SCHEMAS = {
   'room:leave': {},
   'room:prune_disconnected': {},
   'room:mode_set': {
-    mode: { type: 'string', optional: false, enum: ['casual', 'blitz', 'cipher', 'blackout'] },
+    mode: { type: 'string', optional: false, enum: ['casual', 'blitz'] },
+  },
+  'room:blitz_config': {
+    hintTimerSec: { type: 'integer', optional: false, min: 5, max: 300 },
+    guessTimerSec: { type: 'integer', optional: false, min: 5, max: 300 },
   },
   'room:word_pack_set': {
     url: { type: 'string', optional: false, maxLength: 2048 },
@@ -35,7 +39,7 @@ const SCHEMAS = {
   },
   'turn:hint_submit': {
     word: { type: 'string', optional: false, maxLength: 64 },
-    count: { type: 'integer', optional: false, min: 0, max: 9 },
+    count: { type: 'integer', optional: false, min: 0, max: 25 },
   },
   'turn:mark_toggle': {
     index: { type: 'integer', optional: false, min: 0, max: 24 },

@@ -46,8 +46,7 @@ export function getReadinessIssue(snapshot) {
 
 export function getRoomMode(snapshot) {
   const mode = snapshot?.room?.mode;
-  if (mode === 'blitz' || mode === 'cipher' || mode === 'blackout') return mode;
-  return 'casual';
+  return mode === 'blitz' ? 'blitz' : 'casual';
 }
 
 export function getCurrentMaxHintCount(snapshot) {
@@ -55,7 +54,7 @@ export function getCurrentMaxHintCount(snapshot) {
   if (Number.isInteger(fromGame) && fromGame > 0) return fromGame;
   const fromRoomConfig = snapshot?.room?.modeConfig?.maxHintCount;
   if (Number.isInteger(fromRoomConfig) && fromRoomConfig > 0) return fromRoomConfig;
-  return getRoomMode(snapshot) === 'blitz' ? 5 : 9;
+  return null;
 }
 
 export function getPhaseTimerRemainingMs(snapshot) {

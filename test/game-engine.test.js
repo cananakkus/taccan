@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { normalizeHint, createGameState, createDuetGameState, resolveGuess, validateCipherHint, mulberry32 } = require('../backend/game-engine');
+const { normalizeHint, createGameState, createDuetGameState, resolveGuess, mulberry32 } = require('../backend/game-engine');
 
 test('normalizeHint accepts single-word alpha hint and rejects invalid forms', () => {
   assert.equal(normalizeHint('  Galaxy  '), 'Galaxy');
@@ -33,7 +33,7 @@ test('createGameState preserves optional match metadata', () => {
   assert.equal(game.matchId, 'match-123');
   assert.equal(game.roundNumber, 4);
   assert.equal(game.mode, 'casual');
-  assert.equal(game.maxHintCount, 9);
+  assert.equal(game.maxHintCount, null);
   assert.equal(game.phaseTimer, null);
 });
 
@@ -132,25 +132,6 @@ test('different seeds produce different boards', () => {
   // At least some words should differ (overwhelmingly likely)
   const sameWords = game1.board.filter((c, i) => c.word === game2.board[i].word).length;
   assert.ok(sameWords < 25, 'Different seeds should produce different boards');
-});
-
-// --- Wave 9.1: Cipher mode validation ---
-test('validateCipherHint accepts valid anagram of board word', () => {
-  const board = [
-    { index: 0, word: 'CASTLE', revealed: false },
-    { index: 1, word: 'BRIDGE', revealed: false },
-  ];
-  assert.equal(validateCipherHint('cleats', board), true);
-  assert.equal(validateCipherHint('xyz', board), false);
-});
-
-test('validateCipherHint rejects anagram of revealed card', () => {
-  const board = [
-    { index: 0, word: 'CASTLE', revealed: true },
-    { index: 1, word: 'BRIDGE', revealed: false },
-  ];
-  assert.equal(validateCipherHint('cleats', board), false);
-  assert.equal(validateCipherHint('gilder', board), false); // not an anagram anyway
 });
 
 // --- Wave 9.3: Duet mode ---

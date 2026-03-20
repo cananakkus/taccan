@@ -4,7 +4,7 @@ const http = require('http');
 const { randomUUID } = require('crypto');
 const { Server } = require('socket.io');
 const { validatePayload } = require('./payload-schema');
-const { normalizeHint, createGameState, resolveGuess, advanceTurn, validateCipherHint } = require('./game-engine');
+const { normalizeHint, createGameState, resolveGuess, advanceTurn } = require('./game-engine');
 const {
   getSortedPlayers,
   getConnectedPlayerCount,
@@ -30,29 +30,18 @@ const PLAYER_NAME_MAX = 24;
 const ROOM_CONNECTED_LIMIT = 20;
 const DISCONNECTED_PLAYER_TTL_MS = 45 * 60 * 1000;
 const STALE_ROOM_TTL_MS = 8 * 60 * 60 * 1000;
-const ROOM_MODE_VALUES = new Set(['casual', 'blitz', 'cipher', 'blackout']);
-const BLITZ_HINT_TIMER_MS = Number(process.env.BLITZ_HINT_TIMER_MS) || 25_000;
-const BLITZ_GUESS_TIMER_MS = Number(process.env.BLITZ_GUESS_TIMER_MS) || 35_000;
-const BLITZ_HINT_MAX = Number(process.env.BLITZ_HINT_MAX) || 5;
+const ROOM_MODE_VALUES = new Set(['casual', 'blitz']);
+const BLITZ_HINT_TIMER_MS_DEFAULT = Number(process.env.BLITZ_HINT_TIMER_MS) || 25_000;
+const BLITZ_GUESS_TIMER_MS_DEFAULT = Number(process.env.BLITZ_GUESS_TIMER_MS) || 35_000;
 const MODE_CONFIG = {
   casual: {
     hintTimerMs: null,
     guessTimerMs: null,
-    maxHintCount: 9,
+    maxHintCount: null,
   },
   blitz: {
-    hintTimerMs: BLITZ_HINT_TIMER_MS,
-    guessTimerMs: BLITZ_GUESS_TIMER_MS,
-    maxHintCount: BLITZ_HINT_MAX,
-  },
-  cipher: {
-    hintTimerMs: null,
-    guessTimerMs: null,
-    maxHintCount: 9,
-  },
-  blackout: {
-    hintTimerMs: null,
-    guessTimerMs: null,
+    hintTimerMs: BLITZ_HINT_TIMER_MS_DEFAULT,
+    guessTimerMs: BLITZ_GUESS_TIMER_MS_DEFAULT,
     maxHintCount: 9,
   },
 };
@@ -382,7 +371,7 @@ io.on('connection', (socket) => {
     }
 
     if (getRoomMode(context.room) === nextMode) {
-      ackOk(callback, { mode: nextMode, modeConfig: getModeConfig(nextMode) });
+      ackOk(callback, { mode: nextMode, modeConfig: getModeConfig(nextMode, context.room) });
       return;
     }
 
@@ -397,7 +386,34 @@ io.on('connection', (socket) => {
       by: context.player.sessionId,
     });
 
-    ackOk(callback, { mode: nextMode, modeConfig: getModeConfig(nextMode) });
+    ackOk(callback, { mode: nextMode, modeConfig: getModeConfig(nextMode, context.room) });
+  });
+
+  socket.on('room:blitz_config', (payload = {}, callback) => {
+    const action = 'room:blitz_config';
+    const validatedPayload = preflightAction(socket, action, payload, callback);
+    if (!validatedPayload) return;
+
+    const context = getContext(socket, action);
+    if (!context) { ackError(callback, 'You are not in a room.'); return; }
+    if (context.room.hostSessionId !== context.player.sessionId) {
+      ackError(callback, 'Only the host can change blitz settings.');
+      return;
+    }
+    if (isGameActive(context.room)) {
+      ackError(callback, 'Cannot change settings during an active game.');
+      return;
+    }
+
+    const hintSec = validatedPayload.hintTimerSec;
+    const guessSec = validatedPayload.guessTimerSec;
+    context.room.blitzConfig = {
+      hintTimerMs: hintSec * 1000,
+      guessTimerMs: guessSec * 1000,
+    };
+    context.room.lastActiveAt = Date.now();
+    emitStateToRoom(context.room);
+    ackOk(callback, { blitzConfig: context.room.blitzConfig });
   });
 
   socket.on('team:set', (payload = {}, callback) => {
@@ -588,11 +604,8 @@ io.on('connection', (socket) => {
 
     const hintWord = normalizeHint(validatedPayload.word);
     const count = Number(validatedPayload.count);
-    const modeConfig = getModeConfig(game.mode || getRoomMode(context.room));
-    const maxHintCount =
-      Number.isInteger(game.maxHintCount) && game.maxHintCount > 0
-        ? game.maxHintCount
-        : modeConfig.maxHintCount;
+    const modeConfig = getModeConfig(game.mode || getRoomMode(context.room), context.room);
+    const maxHintCount = game.maxHintCount ?? modeConfig.maxHintCount;
 
     if (!hintWord) {
       ackError(callback, 'Hint must be a single alphabetical word.');
@@ -605,16 +618,8 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Cipher mode validation (Wave 9.1)
-    if (game.mode === 'cipher') {
-      if (!validateCipherHint(hintWord, game.board)) {
-        ackError(callback, 'In Cipher mode, your hint must be an anagram of an unrevealed board word.');
-        return;
-      }
-    }
-
-    if (!Number.isInteger(count) || count < 0 || count > maxHintCount) {
-      ackError(callback, `Hint count must be an integer from 0 to ${maxHintCount}.`);
+    if (!Number.isInteger(count) || count < 0 || (maxHintCount !== null && count > maxHintCount)) {
+      ackError(callback, `Hint count must be an integer from 0${maxHintCount !== null ? ` to ${maxHintCount}` : ''}.`);
       return;
     }
 
@@ -1227,7 +1232,7 @@ function startNewRound(room, trigger = 'manual') {
   clearMvpTimer(room.code);
   const match = getNextMatch(room);
   const roomMode = getRoomMode(room);
-  const modeConfig = getModeConfig(roomMode);
+  const modeConfig = getModeConfig(roomMode, room);
   room.match = match;
   room.game = createGameState({
     matchId: match.id,
@@ -1298,10 +1303,18 @@ function getRoomMode(room) {
   return normalized;
 }
 
-function getModeConfig(mode) {
+function getModeConfig(mode, room) {
   const normalizedMode = getNormalizedMode(mode);
-  const config = MODE_CONFIG[normalizedMode] || MODE_CONFIG.casual;
-  return { ...config };
+  const config = { ...(MODE_CONFIG[normalizedMode] || MODE_CONFIG.casual) };
+  if (normalizedMode === 'blitz' && room && room.blitzConfig) {
+    if (Number.isInteger(room.blitzConfig.hintTimerMs) && room.blitzConfig.hintTimerMs > 0) {
+      config.hintTimerMs = room.blitzConfig.hintTimerMs;
+    }
+    if (Number.isInteger(room.blitzConfig.guessTimerMs) && room.blitzConfig.guessTimerMs > 0) {
+      config.guessTimerMs = room.blitzConfig.guessTimerMs;
+    }
+  }
+  return config;
 }
 
 function clearPhaseTimer(roomCode) {
@@ -1338,7 +1351,7 @@ function syncPhaseTimerForCurrentPhase(room, phase, reason = 'phase_changed') {
 
   clearPhaseTimer(room.code);
 
-  const modeConfig = getModeConfig(game.mode || getRoomMode(room));
+  const modeConfig = getModeConfig(game.mode || getRoomMode(room), room);
   const durationMs = currentPhase === 'hint' ? modeConfig.hintTimerMs : modeConfig.guessTimerMs;
   if (!Number.isInteger(durationMs) || durationMs <= 0) {
     game.phaseTimer = null;
@@ -1513,7 +1526,7 @@ function buildStateForPlayer(room, viewer) {
       hostSessionId: room.hostSessionId,
       createdAt: room.createdAt,
       mode: getRoomMode(room),
-      modeConfig: getModeConfig(getRoomMode(room)),
+      modeConfig: getModeConfig(getRoomMode(room), room),
       match: room.match
         ? {
             id: room.match.id,
@@ -1545,8 +1558,6 @@ function buildStateForPlayer(room, viewer) {
 
 function buildGameView(room, game, viewer) {
   const showKeycard = viewer.role === 'spymaster' || game.phase === 'finished';
-  const isBlackout = game.mode === 'blackout' && game.blackoutAt;
-  const blackedOut = isBlackout && Date.now() > game.blackoutAt && viewer.role !== 'spymaster' && game.phase !== 'finished';
 
   // Include hint history for sidebar (Wave 3.2)
   const history = game.history
@@ -1562,10 +1573,7 @@ function buildGameView(room, game, viewer) {
     turnNumber: game.turnNumber,
     mode: game.mode || getRoomMode(room),
     seed: game.seed || null,
-    maxHintCount:
-      Number.isInteger(game.maxHintCount) && game.maxHintCount > 0
-        ? game.maxHintCount
-        : getModeConfig(game.mode || getRoomMode(room)).maxHintCount,
+    maxHintCount: game.maxHintCount ?? getModeConfig(game.mode || getRoomMode(room), room).maxHintCount,
     phaseTimer: game.phaseTimer
       ? {
           phase: game.phaseTimer.phase,
@@ -1581,14 +1589,13 @@ function buildGameView(room, game, viewer) {
     loser: game.loser,
     reason: game.reason,
     showKeycard,
-    blackoutAt: game.blackoutAt || null,
     history,
     board: game.board.map((card) => {
       const marksForCard = game.marksByCard?.[card.index] || new Set();
       const confidenceForCard = game.confidenceByCard?.[card.index] || {};
       return {
         index: card.index,
-        word: blackedOut && !card.revealed ? '???' : card.word,
+        word: card.word,
         revealed: card.revealed,
         revealedBy: card.revealed ? card.revealedBy : null,
         color: card.revealed || showKeycard ? card.color : null,

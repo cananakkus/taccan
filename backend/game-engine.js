@@ -50,27 +50,13 @@ function sampleWords(count, rng, wordList) {
   return shuffled.slice(0, count).map((word) => word.toUpperCase());
 }
 
-// --- Cipher Mode Validation (Wave 9.1) ---
-function validateCipherHint(hint, board) {
-  const sortedHint = hint.toLowerCase().split('').sort().join('');
-  for (const card of board) {
-    if (card.revealed) continue;
-    const sortedWord = card.word.toLowerCase().split('').sort().join('');
-    if (sortedHint === sortedWord) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function createGameState(options = {}) {
   const matchId =
     typeof options.matchId === 'string' && options.matchId.trim() ? options.matchId.trim() : null;
   const roundNumber =
     Number.isInteger(options.roundNumber) && options.roundNumber > 0 ? options.roundNumber : null;
-  const mode = ['blitz', 'cipher', 'blackout'].includes(options.mode) ? options.mode : 'casual';
-  const maxHintCount =
-    Number.isInteger(options.maxHintCount) && options.maxHintCount > 0 ? options.maxHintCount : 9;
+  const mode = options.mode === 'blitz' ? 'blitz' : 'casual';
+  const maxHintCount = options.maxHintCount ?? null;
 
   // Seeded PRNG (Wave 8.1)
   const seed = options.seed || (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
@@ -125,11 +111,6 @@ function createGameState(options = {}) {
     history: [],
     mvpVotes: {},
   };
-
-  // Blackout mode (Wave 9.2): words hidden after 10 seconds
-  if (mode === 'blackout') {
-    gameState.blackoutAt = Date.now() + 10_000;
-  }
 
   return gameState;
 }
@@ -322,5 +303,4 @@ module.exports = {
   finishGame,
   sampleWords,
   shuffle,
-  validateCipherHint,
 };
