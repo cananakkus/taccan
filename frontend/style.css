@@ -547,13 +547,19 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .bar-status {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 5px 12px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px 12px 4px;
   border-bottom: 1px solid rgba(0,0,0,0.12);
   min-height: 0;
   overflow: hidden;
+}
+
+.bar-status-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .bar-main {
@@ -563,25 +569,29 @@ input[type="number"]::-webkit-outer-spin-button {
   gap: 6px;
 }
 
-.score-pill {
-  font-family: var(--font-typewriter);
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 10px;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
+.score-bar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(0,0,0,0.15);
 }
-.score-pill.red {
-  background: var(--red-medium);
-  color: #e8a0a0;
-  border: 1px solid rgba(122,40,40,0.4);
+.score-bar-red {
+  background: linear-gradient(90deg, #a03030, #c04040);
+  width: 0%;
+  transition: width 400ms ease;
+  border-radius: 3px 0 0 3px;
 }
-.score-pill.blue {
-  background: var(--blue-medium);
-  color: #a0c0e0;
-  border: 1px solid rgba(36,64,92,0.4);
+.score-bar-gap {
+  flex: 1;
+}
+.score-bar-blue {
+  background: linear-gradient(270deg, #2850a0, #3868b0);
+  width: 0%;
+  transition: width 400ms ease;
+  border-radius: 0 3px 3px 0;
 }
 
 .turn-banner {
@@ -1656,7 +1666,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .bar-main { padding: 3px 6px; }
   .bar-tab-label { display: none; }
   .bar-tab { padding: 8px 12px; min-height: 36px; min-width: 36px; }
-  .score-pill { font-size: 0.7rem; padding: 2px 7px; }
+  .score-bar { height: 5px; }
   .turn-banner { font-size: 0.72rem; padding: 2px 6px; }
   .bar-util { gap: 4px; }
   .room-code-val { padding: 2px 5px; font-size: 0.7rem; }
@@ -2012,18 +2022,6 @@ input[type="number"]::-webkit-outer-spin-button {
   gap: 12px;
 }
 
-/* ── Score pill team dots ── */
-.score-pill::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-.score-pill.red::before { background: #e08080; }
-.score-pill.blue::before { background: #80b0d8; }
 
 /* ── Sheet panel titles ── */
 .sheet-title {

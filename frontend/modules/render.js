@@ -458,8 +458,8 @@ function renderGame(snapshot) {
 
   if (!game) {
     setTurnBannerText(t('lobby_open'));
-    ui.redCount.textContent = '-';
-    ui.blueCount.textContent = '-';
+    ui.scoreBarRed.style.width = '0%';
+    ui.scoreBarBlue.style.width = '0%';
     ui.hintSection.classList.add('hidden');
     ui.guessSection.classList.add('hidden');
     ui.resultSection.classList.add('hidden');
@@ -501,8 +501,14 @@ function renderGame(snapshot) {
     }
   }
 
-  ui.redCount.textContent = game.remaining.red;
-  ui.blueCount.textContent = game.remaining.blue;
+  // Competition bar: found cards fill from each side
+  const redTotal = game.startingTeam === 'red' ? 9 : 8;
+  const blueTotal = game.startingTeam === 'blue' ? 9 : 8;
+  const totalCards = redTotal + blueTotal;
+  const redFound = redTotal - game.remaining.red;
+  const blueFound = blueTotal - game.remaining.blue;
+  ui.scoreBarRed.style.width = `${(redFound / totalCards) * 100}%`;
+  ui.scoreBarBlue.style.width = `${(blueFound / totalCards) * 100}%`;
 
   if (game.phase === 'finished') {
     const roundLabel = Number.isInteger(game.roundNumber) ? t('round_prefix', { round: game.roundNumber }) : '';
@@ -567,7 +573,7 @@ function renderGame(snapshot) {
   const hintMax = getCurrentMaxHintCount(snapshot);
   ui.hintWordInput.disabled = !hintInteractive;
   ui.hintCountInput.disabled = !hintInteractive;
-  ui.hintCountInput.max = String(hintMax ?? 25);
+  ui.hintCountInput.max = String(hintMax ?? 50);
   if (hintMax !== null && Number(ui.hintCountInput.value) > hintMax) {
     ui.hintCountInput.value = String(hintMax);
   }

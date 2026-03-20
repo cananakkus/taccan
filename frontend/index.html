@@ -120,12 +120,17 @@
 
         <div class="bottom-bar">
           <div class="bar-status">
-            <span id="red-count" class="score-pill red">-</span>
-            <span id="blue-count" class="score-pill blue">-</span>
-            <div id="turn-banner" class="turn-banner" aria-live="polite">Lobby open</div>
-            <div id="phase-timer" class="phase-timer hidden" aria-live="polite">
-              <span id="phase-timer-label" class="timer-label"></span>
-              <span id="phase-timer-value" class="timer-value">00:00</span>
+            <div class="score-bar" id="score-bar">
+              <div class="score-bar-red" id="score-bar-red"></div>
+              <div class="score-bar-gap"></div>
+              <div class="score-bar-blue" id="score-bar-blue"></div>
+            </div>
+            <div class="bar-status-text">
+              <div id="turn-banner" class="turn-banner" aria-live="polite">Lobby open</div>
+              <div id="phase-timer" class="phase-timer hidden" aria-live="polite">
+                <span id="phase-timer-label" class="timer-label"></span>
+                <span id="phase-timer-value" class="timer-value">00:00</span>
+              </div>
             </div>
           </div>
 
@@ -138,23 +143,23 @@
 
             <nav class="bar-tabs" aria-label="Panels">
               <button class="bar-tab" data-panel="teams" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#128101;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9638;</span>
                 <span class="bar-tab-label" data-i18n="panel_teams">Teams</span>
               </button>
               <button class="bar-tab" data-panel="feed" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#128172;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9776;</span>
                 <span class="bar-tab-label" data-i18n="panel_feed">Feed</span>
               </button>
               <button class="bar-tab" data-panel="voice" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#127908;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9678;</span>
                 <span class="bar-tab-label" data-i18n="panel_voice">Voice</span>
               </button>
               <button class="bar-tab" data-panel="settings" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#9881;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9662;</span>
                 <span class="bar-tab-label" data-i18n="panel_settings">Settings</span>
               </button>
               <button class="bar-tab hidden" id="debrief-tab" data-panel="debrief" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#128203;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9744;</span>
                 <span class="bar-tab-label" data-i18n="debrief">Debrief</span>
               </button>
             </nav>
