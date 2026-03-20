@@ -265,6 +265,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       voice_mic_error: 'Mic error: {error}',
       voice_join_failed: 'Failed to join voice',
       voice_connect_failed: 'Could not connect to {name}',
+      voice_input_hint: 'Voice input',
     }),
     tr: Object.freeze({
       brand_eyebrow: 'Şifre Loncası Masası',
@@ -527,6 +528,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       voice_mic_error: 'Mikrofon hatası: {error}',
       voice_join_failed: 'Sese katılma başarısız',
       voice_connect_failed: '{name} ile bağlantı kurulamadı',
+      voice_input_hint: 'Sesli giriş',
     })
   }),
   words: Object.freeze({

@@ -3,6 +3,7 @@
 // Feature-detected; hidden if SpeechRecognition is unavailable.
 
 import { ui } from './ui.js';
+import { t } from './i18n.js';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -17,8 +18,8 @@ export function initVoiceHints() {
   micButton.type = 'button';
   micButton.className = 'btn subtle small voice-btn';
   micButton.textContent = '\u{1F3A4}';
-  micButton.title = 'Voice input';
-  micButton.setAttribute('aria-label', 'Voice input for hint word');
+  micButton.title = t('voice_input_hint');
+  micButton.setAttribute('aria-label', t('voice_input_hint'));
 
   ui.hintWordInput.parentElement.insertBefore(micButton, ui.hintWordInput.nextSibling);
 
