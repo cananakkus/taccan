@@ -136,10 +136,12 @@ export function wireUiEvents() {
       const roleTeam = button.dataset.roleTeam;
       if (!role) return;
       try {
+        const promises = [];
         if (roleTeam && state.snapshot.me.team !== roleTeam) {
-          await emitWithAck('team:set', { team: roleTeam });
+          promises.push(emitWithAck('team:set', { team: roleTeam }));
         }
-        await emitWithAck('role:set', { role });
+        promises.push(emitWithAck('role:set', { role }));
+        await Promise.all(promises);
       } catch (error) {
         showToast(error.message);
       }
@@ -238,7 +240,7 @@ export function wireUiEvents() {
       return;
     }
     if (!Number.isInteger(count) || count < 0 || (maxHintCount !== null && count > maxHintCount)) {
-      showToast(t('hint_count_range', { max: maxHintCount ?? 25 }));
+      showToast(t('hint_count_range', { max: maxHintCount ?? 50 }));
       return;
     }
     if (ui.hintSubmitButton) ui.hintSubmitButton.classList.add('btn-loading');
