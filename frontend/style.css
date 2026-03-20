@@ -535,38 +535,32 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ══════════════════════════════
    BOTTOM BAR
    ══════════════════════════════ */
-.bottom-bar {
+/* ── Top Bar (score + status) ── */
+.top-bar {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: 4px 12px;
   background:
-    linear-gradient(180deg, #8a7a5e 0%, #7a6a4e 50%, #6e5e42 100%);
-  border-top: 2px solid #5a4a32;
+    linear-gradient(90deg, #8a7a5e 0%, #7a6a4e 50%, #6e5e42 100%);
+  border-bottom: 2px solid #5a4a32;
   flex-shrink: 0;
   z-index: 10;
 }
-
-.bar-status {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 5px 12px 4px;
-  border-bottom: 1px solid rgba(0,0,0,0.12);
-  min-height: 0;
-  overflow: hidden;
-}
-
-.bar-status-text {
+.top-bar-text {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.bar-main {
-  display: flex;
-  align-items: center;
+.bottom-bar {
+  background:
+    linear-gradient(90deg, #8a7a5e 0%, #7a6a4e 50%, #6e5e42 100%);
+  border-top: 2px solid #5a4a32;
+  flex-shrink: 0;
+  z-index: 10;
   padding: 4px 10px;
-  gap: 6px;
 }
 
 .score-bar {
@@ -653,18 +647,19 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ── Bar Tabs ── */
 .bar-tabs {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
+  align-items: stretch;
   justify-content: center;
+  gap: 4px;
 }
 
 .bar-tab {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
-  padding: 5px 12px;
+  padding: 5px 0;
+  width: 56px;
   border: 1px solid rgba(255,240,200,0.12);
   border-radius: 5px;
   background: rgba(0,0,0,0.12);
@@ -693,8 +688,18 @@ input[type="number"]::-webkit-outer-spin-button {
   line-height: 1;
 }
 .bar-tab-label {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   letter-spacing: 0.06em;
+}
+
+.bar-tab-leave {
+  border-color: rgba(122,40,40,0.25);
+  color: rgba(200,140,140,0.7);
+}
+.bar-tab-leave:hover {
+  background: rgba(122,40,40,0.2);
+  border-color: rgba(122,40,40,0.4);
+  color: #e08080;
 }
 
 /* ── Bar Utility ── */
@@ -702,9 +707,6 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
-}
-.bar-util-end {
   flex-shrink: 0;
 }
 
@@ -750,24 +752,6 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .conn-dot.offline { background: var(--danger); }
 
-.bar-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px; height: 28px;
-  border: 1px solid rgba(255,240,200,0.12);
-  border-radius: 4px;
-  background: transparent;
-  color: rgba(212,197,160,0.6);
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-.bar-icon-btn:hover {
-  background: rgba(122,40,40,0.2);
-  color: #e08080;
-  border-color: rgba(122,40,40,0.4);
-}
 
 /* ── Team Panels ── */
 .team-panel {
@@ -1055,17 +1039,65 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ══════════════════════════════
    GAME BOARD — Filing Cards
    ══════════════════════════════ */
+.board-area {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
 .board-wrap {
-  flex: 0 1 auto;
+  flex: 1;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   min-height: 0;
-  width: 100%;
-  max-width: 680px;
-  margin: 0 auto;
   position: relative;
-  z-index: 1;
+}
+
+.role-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.role-side-btn {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  padding: 12px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: var(--font-typewriter);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.role-side-btn.red {
+  border-color: var(--red);
+  color: var(--red);
+}
+.role-side-btn.red:hover { background: var(--red-light); }
+.role-side-btn.red.active { background: var(--red); color: var(--paper-light); }
+.role-side-btn.blue {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.role-side-btn.blue:hover { background: var(--blue-light); }
+.role-side-btn.blue.active { background: var(--blue); color: var(--paper-light); }
+.role-side-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
 }
 
 .board {
@@ -1661,16 +1693,17 @@ input[type="number"]::-webkit-outer-spin-button {
 @media (max-width: 600px) {
   :root { font-size: 15px; }
 
-  /* Bottom bar: compact */
-  .bar-status { padding: 3px 8px; gap: 4px; }
-  .bar-main { padding: 3px 6px; }
+  /* Top/bottom bar: compact */
+  .top-bar { padding: 3px 8px; }
+  .bottom-bar { padding: 3px 6px; }
   .bar-tab-label { display: none; }
-  .bar-tab { padding: 8px 12px; min-height: 36px; min-width: 36px; }
+  .bar-tab { width: 40px; padding: 8px 0; min-height: 36px; }
   .score-bar { height: 5px; }
   .turn-banner { font-size: 0.72rem; padding: 2px 6px; }
   .bar-util { gap: 4px; }
   .room-code-val { padding: 2px 5px; font-size: 0.7rem; }
   .mode-tag { display: none; }
+  .role-sidebar { display: none; }
 
   /* Teams sheet: tighter */
   .team-panel { padding: 6px; }
@@ -1715,6 +1748,7 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ══════════════════════════════
    THEATRICAL MODE
    ══════════════════════════════ */
+.theatrical-mode .top-bar { display: none !important; }
 .theatrical-mode .bottom-bar { display: none !important; }
 .theatrical-mode .sheet-container { display: none !important; }
 .theatrical-mode .turn-banner { font-size: 1.3rem; }
