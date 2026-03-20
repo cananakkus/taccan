@@ -78,7 +78,11 @@
               <form id="hint-form" class="hint-form">
                 <input id="hint-word-input" type="text" maxlength="30" placeholder="One word"
                        data-i18n-placeholder="one_word" required autocomplete="off" />
-                <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
+                <div class="number-stepper">
+                  <button type="button" class="stepper-btn stepper-btn-down" aria-label="Decrease">&minus;</button>
+                  <input id="hint-count-input" type="number" min="0" max="9" value="1" required />
+                  <button type="button" class="stepper-btn stepper-btn-up" aria-label="Increase">+</button>
+                </div>
                 <button type="submit" class="btn btn-primary" data-i18n="transmit">Transmit</button>
               </form>
             </section>

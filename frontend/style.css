@@ -282,7 +282,57 @@ input[type="number"] {
   text-align: center;
   -moz-appearance: textfield;
 }
-input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Custom stepper wrapper for number inputs */
+.number-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-dark);
+  background: transparent;
+}
+.number-stepper input[type="number"] {
+  border: none;
+  width: 36px;
+  padding: 4px 0;
+  font-size: 0.95rem;
+}
+.number-stepper input[type="number"]:focus {
+  border: none;
+}
+.stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  border: none;
+  background: var(--paper-dark);
+  color: var(--ink-faded);
+  font-size: 1rem;
+  font-family: var(--font-typewriter);
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+  padding: 0;
+  line-height: 1;
+}
+.stepper-btn:hover {
+  background: var(--paper-warm);
+  color: var(--ink);
+}
+.stepper-btn:active {
+  transform: scale(0.92);
+}
+.stepper-btn-down {
+  border-right: 1px solid var(--border);
+}
+.stepper-btn-up {
+  border-left: 1px solid var(--border);
+}
 
 .input-sm { padding: 5px 2px; font-size: 0.78rem; }
 .code-field {

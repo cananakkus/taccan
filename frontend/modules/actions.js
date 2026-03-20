@@ -241,6 +241,24 @@ export function wireUiEvents() {
     }
   });
 
+  // Number stepper buttons
+  const stepperDown = document.querySelector('.stepper-btn-down');
+  const stepperUp = document.querySelector('.stepper-btn-up');
+  if (stepperDown && ui.hintCountInput) {
+    stepperDown.addEventListener('click', () => {
+      const val = Number(ui.hintCountInput.value) || 0;
+      const min = Number(ui.hintCountInput.min) || 0;
+      if (val > min) ui.hintCountInput.value = String(val - 1);
+    });
+  }
+  if (stepperUp && ui.hintCountInput) {
+    stepperUp.addEventListener('click', () => {
+      const val = Number(ui.hintCountInput.value) || 0;
+      const max = Number(ui.hintCountInput.max) || 9;
+      if (val < max) ui.hintCountInput.value = String(val + 1);
+    });
+  }
+
   ui.endTurnButton.addEventListener('click', async () => {
     const confirmed = await confirmAction(t('confirm_end_turn'));
     if (!confirmed) return;
