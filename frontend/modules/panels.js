@@ -83,7 +83,7 @@ function onDragMove(e) {
   if (!dragging || !dragSheet) return;
   dragCurrentY = e.clientY;
   const dy = Math.max(0, dragCurrentY - dragStartY); // only allow downward drag
-  dragSheet.style.transform = `translateY(${dy}px)`;
+  dragSheet.style.transform = `translate(-50%, ${dy}px)`;
 
   // Fade backdrop proportionally
   if (ui.sheetBackdrop) {
@@ -110,7 +110,7 @@ function onDragEnd(e) {
     closePanel();
   } else {
     // Spring back
-    dragSheet.style.transform = 'translateY(0)';
+    dragSheet.style.transform = 'translate(-50%, 0)';
   }
 
   // Cleanup listeners

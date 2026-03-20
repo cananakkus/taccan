@@ -7,6 +7,13 @@ export function renderFeed(snapshot) {
   ui.feedEntries.innerHTML = '';
 
   const items = buildFeedItems(snapshot);
+  if (items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'feed-empty';
+    empty.textContent = t('feed_empty');
+    ui.feedEntries.appendChild(empty);
+    return;
+  }
   for (const item of items) {
     ui.feedEntries.appendChild(item);
   }

@@ -259,6 +259,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       // Feed events
       feed_turn_ended: 'Turn ended',
       feed_game_over: 'Game over \u2014 {team} wins',
+      feed_empty: 'No activity yet.',
       // Scratchpad
       scratchpad_notes_placeholder: 'Spymaster notes...',
       // Voice notifications
@@ -522,6 +523,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       // Akış olayları
       feed_turn_ended: 'Tur sona erdi',
       feed_game_over: 'Oyun bitti \u2014 {team} kazandı',
+      feed_empty: 'Henüz etkinlik yok.',
       // Not defteri
       scratchpad_notes_placeholder: 'Kod ustası notları...',
       // Ses bildirimleri

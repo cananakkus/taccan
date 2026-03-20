@@ -678,7 +678,8 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .room-code-val {
@@ -886,7 +887,7 @@ input[type="number"]::-webkit-outer-spin-button {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  gap: 6px;
+  gap: 10px;
   background:
     radial-gradient(ellipse at 50% 50%, transparent 55%, var(--page-edge-dark) 100%),
     linear-gradient(175deg, var(--paper-light) 0%, var(--paper-warm) 50%, var(--paper-dark) 100%);
@@ -968,10 +969,10 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .scratchpad { margin-top: 10px; }
 .scratchpad textarea {
-  background: transparent;
+  background: rgba(200, 180, 140, 0.08);
   border: 1px dashed var(--border);
   border-radius: 0;
-  resize: vertical;
+  resize: none;
   font-family: var(--font-typewriter);
   font-size: 0.85rem;
   color: var(--ink-faded);
@@ -1025,9 +1026,9 @@ input[type="number"]::-webkit-outer-spin-button {
    GAME BOARD — Filing Cards
    ══════════════════════════════ */
 .board-wrap {
-  flex: 1;
+  flex: 0 1 auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 0;
   width: 100%;
@@ -1405,8 +1406,8 @@ input[type="number"]::-webkit-outer-spin-button {
   gap: 8px;
   justify-content: center;
 }
-.qr-wrap svg { border-radius: var(--radius-sm); }
-.seal-wrap svg { opacity: 0.5; }
+.qr-wrap svg { border-radius: var(--radius-sm); width: 120px; height: 120px; }
+.seal-wrap svg { opacity: 0.5; width: 64px; height: 64px; }
 
 .mode-grid {
   display: grid;
@@ -1604,6 +1605,10 @@ input[type="number"]::-webkit-outer-spin-button {
    RESPONSIVE
    ══════════════════════════════ */
 
+@media (max-width: 720px) {
+  .mode-tag { display: none; }
+}
+
 /* ── Phone (≤600px) ── */
 @media (max-width: 600px) {
   :root { font-size: 15px; }
@@ -1611,7 +1616,7 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Bottom bar: compact */
   .bottom-bar { padding: 0 6px; gap: 4px; }
   .bar-tab-label { display: none; }
-  .bar-tab { padding: 6px 10px; }
+  .bar-tab { padding: 8px 14px; min-height: 36px; min-width: 36px; }
   .bar-info { gap: 4px; }
   .score-pill { font-size: 0.7rem; padding: 2px 7px; }
   .turn-banner { font-size: 0.72rem; padding: 2px 6px; }
@@ -1623,7 +1628,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .team-panel { padding: 6px; }
 
   /* Game stage */
-  .game-stage { padding: 4px 5px 3px; gap: 3px; }
+  .game-stage { padding: 4px 5px 3px; gap: 4px; }
   .board { gap: 3px; }
   .card-word { font-size: clamp(0.58rem, 3vw, 0.88rem); }
 
@@ -1641,6 +1646,9 @@ input[type="number"]::-webkit-outer-spin-button {
   .join-screen { padding: 16px; }
   .join-card { padding: 28px 20px 20px; }
   .logo-title { font-size: 1.8rem; }
+
+  /* Sheets: full-width on mobile */
+  .sheet-panel { min-width: 0; width: 100%; max-width: 100%; }
 }
 
 /* Very small phones */
@@ -1824,7 +1832,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .sheet-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(26,18,10,0.55);
+  background: rgba(26,18,10,0.65);
   opacity: 0;
   pointer-events: none;
   transition: opacity 280ms ease;
@@ -1837,10 +1845,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .sheet-panel {
   position: absolute;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  width: fit-content;
+  min-width: 320px;
+  max-width: 90vw;
   max-height: 85vh;
-  transform: translateY(100%);
+  transform: translate(-50%, 100%);
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -1854,13 +1864,13 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .sheet-panel.sheet-open {
-  transform: translateY(0);
+  transform: translate(-50%, 0);
   pointer-events: auto;
   transition: transform var(--spring-duration) var(--spring-ease);
 }
 
 .sheet-panel.sheet-closing {
-  transform: translateY(100%);
+  transform: translate(-50%, 100%);
   pointer-events: none;
   transition: transform 250ms ease-in;
 }
@@ -1962,4 +1972,46 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ── Settings sheet ── */
 #sheet-settings .sheet-body {
   gap: 12px;
+}
+
+/* ── Score pill team dots ── */
+.score-pill::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.score-pill.red::before { background: #e08080; }
+.score-pill.blue::before { background: #80b0d8; }
+
+/* ── Sheet panel titles ── */
+.sheet-title {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faded);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+#sheet-teams .sheet-title {
+  grid-column: 1 / -1;
+}
+
+/* ── Feed empty state ── */
+.feed-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-style: italic;
+  color: var(--ink-ghost);
+  padding: 24px 12px;
+  text-align: center;
 }
