@@ -6,7 +6,7 @@ const { normalizeHint, createGameState, createDuetGameState, resolveGuess, mulbe
 test('normalizeHint trims input and rejects empty strings', () => {
   assert.equal(normalizeHint('  Galaxy  '), 'Galaxy');
   assert.equal(normalizeHint(''), null);
-  assert.equal(normalizeHint('two words'), 'two words');
+  assert.equal(normalizeHint('two words'), null);
   assert.equal(normalizeHint('hint_1'), 'hint_1');
   assert.equal(normalizeHint('café!'), 'café!');
 });

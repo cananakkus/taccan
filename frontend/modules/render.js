@@ -13,6 +13,49 @@ import { playSound } from './sound.js';
 import { renderFeed } from './feed.js';
 import { showDebriefTab, hideDebriefTab } from './panels.js';
 
+// --- Card Diff State ---
+let _prevBoard = null;
+let _prevGameId = null;
+
+function cardNeedsUpdate(prev, curr) {
+  if (prev.revealed !== curr.revealed) return true;
+  if (prev.color !== curr.color) return true;
+  if (prev.word !== curr.word) return true;
+  const prevMarks = prev.marks || [];
+  const currMarks = curr.marks || [];
+  if (prevMarks.length !== currMarks.length) return true;
+  for (let i = 0; i < currMarks.length; i++) {
+    if (prevMarks[i]?.sessionId !== currMarks[i]?.sessionId) return true;
+    if (prevMarks[i]?.confidence !== currMarks[i]?.confidence) return true;
+  }
+  return false;
+}
+
+// --- Targeted Card Marks Render ---
+export function renderCardMarks(index, marks) {
+  const cardButton = state.cardElements[index];
+  if (!cardButton) return;
+  const markersEl = cardButton.querySelector('.card-markers');
+  if (!markersEl) return;
+  markersEl.innerHTML = '';
+  if (Array.isArray(marks) && marks.length > 0) {
+    cardButton.classList.add('marked');
+    const markerNames = marks.map((m) => m.name);
+    cardButton.title = t('marked_by', { names: markerNames.join(', ') });
+    for (const mark of marks) {
+      const chip = document.createElement('span');
+      const confidenceClass = mark.confidence === 'tentative' ? ' tentative' : '';
+      chip.className = `card-marker ${mark.team === 'red' ? 'red' : mark.team === 'blue' ? 'blue' : 'neutral'}${confidenceClass}`;
+      chip.textContent = truncateMarkerName(mark.name);
+      chip.title = `${mark.name} (${formatTeam(mark.team)})`;
+      markersEl.appendChild(chip);
+    }
+  } else {
+    cardButton.classList.remove('marked');
+    cardButton.title = '';
+  }
+}
+
 // --- Turn Banner Swap Helper ---
 let _lastBannerText = '';
 function setTurnBannerText(text) {
@@ -618,10 +661,25 @@ function renderGame(snapshot) {
 
   // --- Render board cards ---
   const revealedNow = new Set();
+  const boardChanged = !_prevBoard || game.id !== _prevGameId;
 
   for (const card of game.board) {
     const cardButton = state.cardElements[card.index];
     if (!cardButton) continue;
+
+    // Skip unchanged cards (but always re-render on new game or phase transitions that affect interactivity)
+    const prev = boardChanged ? null : _prevBoard?.[card.index];
+    const interactivityChanged = prev && (
+      prev._guessInteractive !== guessInteractive ||
+      prev._spymasterPlanning !== (isSpymaster && game.phase === 'hint' && snapshot.me.team === game.currentTeam) ||
+      prev._selectedGuessIndex !== state.selectedGuessIndex ||
+      prev._spymasterSelected !== state.spymasterSelections.has(card.index) ||
+      prev._gameFinished !== (game.phase === 'finished')
+    );
+    if (prev && !cardNeedsUpdate(prev, card) && !interactivityChanged) {
+      if (card.revealed) revealedNow.add(card.index);
+      continue;
+    }
 
     cardButton.className = 'card';
     cardButton.disabled = false;
@@ -709,6 +767,18 @@ function renderGame(snapshot) {
   }
 
   state.revealedCardIndexes = revealedNow;
+
+  // Save board snapshot for diffing
+  _prevGameId = game.id;
+  _prevBoard = game.board.map((card) => ({
+    ...card,
+    marks: card.marks ? [...card.marks] : [],
+    _guessInteractive: guessInteractive,
+    _spymasterPlanning: isSpymaster && game.phase === 'hint' && snapshot.me.team === game.currentTeam,
+    _selectedGuessIndex: state.selectedGuessIndex,
+    _spymasterSelected: state.spymasterSelections.has(card.index),
+    _gameFinished: game.phase === 'finished',
+  }));
 }
 
 function renderPhaseTimer(snapshot) {

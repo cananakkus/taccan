@@ -2,7 +2,7 @@ import { state, readSession, writeSession, clearSession } from './state.js';
 import { ui } from './ui.js';
 import { t } from './i18n.js';
 import { setConnection, showToast, announce } from './helpers.js';
-import { render } from './render.js';
+import { render, renderCardMarks } from './render.js';
 import { playSound } from './sound.js';
 import { canHint, canGuess } from './helpers.js';
 import { renderFeed, appendChatMessage } from './feed.js';
@@ -111,6 +111,15 @@ export function wireSocketEvents() {
   socket.on('chat:message', (message = {}) => {
     state.chatMessages.push(message);
     appendChatMessage(message);
+  });
+
+  socket.on('turn:mark_update', (payload = {}) => {
+    if (!state.snapshot?.game?.board) return;
+    const card = state.snapshot.game.board[payload.index];
+    if (card) {
+      card.marks = payload.marks;
+      renderCardMarks(payload.index, payload.marks);
+    }
   });
 
   socket.on('game:mvp_result', (payload = {}) => {

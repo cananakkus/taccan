@@ -2,3 +2,6 @@ node_modules
 npm-debug.log*
 .DS_Store
 CLAUDE.md
+.taccan-state.json
+frontend/app.bundle.js
+frontend/app.bundle.js.map

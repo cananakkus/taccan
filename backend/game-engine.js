@@ -14,7 +14,7 @@ function mulberry32(seed) {
 
 function normalizeHint(value) {
   const trimmed = String(value || '').trim().normalize('NFC');
-  if (!trimmed) {
+  if (!trimmed || /\s/.test(trimmed)) {
     return null;
   }
 
@@ -110,7 +110,7 @@ function createGameState(options = {}) {
   return gameState;
 }
 
-// --- Duet Mode (Wave 9.3) ---
+// --- Duet Mode (NOT YET WIRED — engine only, no server handlers or UI) ---
 function createDuetGameState(options = {}) {
   const seed = options.seed || (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const rng = mulberry32(seed);
