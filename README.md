@@ -1,121 +1,135 @@
 # Taccan
 
-Multiplayer Codenames on the web. Node.js backend, vanilla frontend, Socket.IO for realtime state sync.
+A multiplayer word deduction game that runs entirely in the browser. Built on the mechanics of Codenames, Taccan brings the full experience online with real-time gameplay, built-in voice chat, and Turkish language support out of the box.
+
+Two teams, a grid of words, one spymaster per side giving cryptic clues, and operatives trying to find their agents before the other team does. One wrong guess could reveal the assassin and end it all.
 
 Live at [play.wleeaf.dev/taccan](https://play.wleeaf.dev/taccan).
 
+## How it works
+
+Open a room, share the four-letter code, and players join through their browser. No downloads, no accounts, no installation. Works on desktop and mobile.
+
+Each round, the spymaster sees which words belong to which team and gives a one-word (or multi-word) hint along with a number. The operatives discuss and guess. Correct guesses reveal agents, wrong ones end the turn or worse. The team that finds all their agents first wins.
+
+## Voice chat
+
+Taccan includes peer-to-peer voice chat built on WebRTC. Since Discord is blocked in Turkey, this was not optional. Players can join voice directly from the game interface without any external application.
+
+Background noise is handled by RNNoise, a recurrent neural network for noise suppression, running as a WebAudio worklet inside the browser. No server-side processing, no latency penalty.
+
 ## Game modes
 
-| Mode | Description |
-|---|---|
-| Casual | Standard Codenames rules |
-| Blitz | Timed hints and guesses |
-| Cipher | Spymaster hints must be anagrams of a board word |
-| Blackout | Words disappear after 10 seconds |
+**Casual** is the standard format with no time pressure. **Blitz** adds configurable timers to both the hint and guess phases, forcing faster decisions.
 
 ## Features
 
-- 4-character room codes with shareable links
-- Team/role assignment: spymaster, operative, spectator
-- Switch teams or roles at any time, including mid-game
-- Multiple players per role, solo-play friendly
-- Host failover on disconnect, host prune controls
-- Rematch (same teams or swap sides), multi-round matches with MVP votes
-- Reconnect with browser session restore
-- Spymaster keycard hidden until game end
-- Voice chat (WebRTC peer-to-peer)
-- Game log, scratchpad, hint history
-- Postgame debrief narrative
-- PWA installable, keyboard navigation, sound effects, colorblind mode
-- i18n (English, Turkish)
-- Cold War dossier theme (Playfair Display SC, Special Elite, Crimson Pro)
+- Room codes with shareable links and QR codes
+- Team and role assignment: spymaster, operative, or spectator
+- Roles and teams can be changed at any time, even mid-game
+- Multiple players per role
+- Host failover when the room creator disconnects
+- Rematch with same teams or swapped sides, multi-round matches
+- MVP voting after each game
+- Session-based reconnect across browser refreshes
+- Postgame debrief with a turn-by-turn narrative
+- In-game chat and activity feed
+- Card pattern overlays for accessibility
+- Keyboard navigation and sound effects
+- PWA installable
+- Full Turkish and English localization, including all board words
 
-## Run locally
+## Running locally
 
-```bash
+```
 npm install
 npm start
 ```
 
-Open `http://127.0.0.1:3000`. For LAN/container access:
+The server starts at `http://127.0.0.1:3000`. To bind to all interfaces:
 
-```bash
+```
 HOST=0.0.0.0 npm start
 ```
 
-Dev mode with auto-restart:
+For development with auto-restart on file changes:
 
-```bash
+```
 npm run dev
 ```
 
-## Test
+## Tests
 
-```bash
+```
 npm test
 ```
 
-Uses Node.js native test runner (`node --test`).
+41 tests covering the game engine, payload validation, room utilities, socket handlers, state persistence, full game flows, and the room lock mechanism. Uses the Node.js native test runner.
 
-## Project layout
+## Architecture
+
+The backend is Node.js with Express and Socket.IO. The frontend is vanilla JavaScript with ES modules, no framework, no build-time dependencies beyond esbuild for production bundling. Two production dependencies total.
+
+All game state lives in memory on the server. Clients receive per-player state snapshots on every change. Spymasters see the keycard, operatives do not. The game engine uses a seeded Mulberry32 PRNG for deterministic, reproducible boards.
 
 ```
 backend/
-  server.js          Express + Socket.IO server, room/session lifecycle
-  game-engine.js     Pure game state: board generation, turns, guesses
-  payload-schema.js  Socket event payload validation
-  room-utils.js      Host failover, player pruning, room helpers
-  words.js           Word bank
+  server.js            Express app, Socket.IO wiring, cleanup
+  server-helpers.js    Connection lifecycle, rate limiting, validation
+  state-view.js        Per-player state snapshot construction
+  timers.js            Phase timers and MVP timeout management
+  room-lifecycle.js    Room creation, mode config, game rounds
+  room-lock.js         Per-room action serialization
+  game-engine.js       Pure game logic: boards, turns, guesses
+  payload-schema.js    Event payload validation
+  room-utils.js        Host failover, player pruning
+  state-persistence.js State save and restore on shutdown
+  words.js             Default word pool
+  handlers/            Socket.IO event handler modules
 
 frontend/
-  index.html         App shell
-  style.css          Theme and responsive layout
-  app.js             Entry point, bootstraps modules
-  translations.js    i18n strings (EN/TR)
-  sw.js              Service worker (PWA)
-  manifest.json      PWA manifest
+  index.html           Application shell
+  style.css            Cold War dossier theme
+  app.js               Entry point
+  translations.js      All UI strings and word translations (EN/TR)
   modules/
-    state.js         Shared mutable state
-    ui.js            DOM element references
-    render.js        UI rendering from server snapshots
-    actions.js       User interaction handlers
-    socket.js        Socket.IO event wiring
-    sound.js         Sound effects engine
-    voice.js         WebRTC voice chat
-    debrief.js       Postgame narrative generator
-    i18n.js          Translation helpers
-    helpers.js       Shared utilities
-    identity.js      Player identity persistence
-    keyboard-nav.js  Keyboard navigation
-    haptics.js       Vibration feedback
-    qrcode.js        Room QR code generator
-    room-seal.js     Decorative room seal SVG
-    scratchpad.js    Operative notes
-    state-machine.js Client-side state machine
-    voice-hints.js   Voice chat UI hints
+    render.js           Render orchestrator
+    render-board.js     Board and card rendering with diff optimization
+    render-teams.js     Team roster rendering
+    render-controls.js  Game controls and mode selection
+    render-timer.js     Phase timer and guess selection
+    actions.js          User interaction handlers
+    socket.js           Socket.IO client and reconnect logic
+    voice.js            WebRTC voice chat with RNNoise noise suppression
+    feed.js             Game log and chat feed
+    sound.js            Synthesized sound effects
+    i18n.js             Language switching and word translation
+    panels.js           Bottom sheet panel system
+    state.js            Shared client state
+    helpers.js          UI utilities
 ```
 
 ## Environment variables
 
-| Variable | Default | Description |
+| Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `3000` | Server port |
-| `HOST` | `127.0.0.1` | Bind address |
-| `CORS_ORIGIN` | — | Allowed CORS origin |
-| `BLITZ_HINT_TIMER_MS` | — | Blitz mode hint timer |
-| `BLITZ_GUESS_TIMER_MS` | — | Blitz mode guess timer |
-| `BLITZ_HINT_MAX` | — | Max hints in blitz mode |
+| PORT | 3000 | Server listen port |
+| HOST | 127.0.0.1 | Bind address |
+| CORS_ORIGIN | https://play.wleeaf.dev | Allowed origins (comma-separated, or * for any) |
+| BLITZ_HINT_TIMER_MS | 25000 | Blitz hint phase duration |
+| BLITZ_GUESS_TIMER_MS | 35000 | Blitz guess phase duration |
+| TURN_HOST | | TURN server hostname for voice relay |
+| TURN_USERNAME | | TURN server username |
+| TURN_CREDENTIAL | | TURN server credential |
+| ANTHROPIC_API_KEY | | Optional, for AI hint analysis |
 
-## Docker
+## Deployment
 
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --production
-COPY . .
-EXPOSE 3000
-CMD ["node", "backend/server.js"]
+The included Dockerfile builds a production image with Node 20 Alpine. The frontend is bundled and minified with esbuild during the build stage, and dev dependencies are pruned from the final image.
+
+```
+docker build -t taccan .
+docker run -p 3000:3000 -e HOST=0.0.0.0 taccan
 ```
 
 ## License
