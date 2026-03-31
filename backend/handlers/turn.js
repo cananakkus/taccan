@@ -1,4 +1,4 @@
-const { normalizeHint, resolveGuess, advanceTurn } = require('../game-engine');
+const { normalizeHint, resolveGuess, advanceTurn, toggleCardMark, setCardConfidence } = require('../game-engine');
 
 module.exports = function register(socket, deps) {
   const { io, helpers } = deps;
@@ -6,7 +6,7 @@ module.exports = function register(socket, deps) {
     preflightAction, getContext, ackOk, ackError, sendViolation,
     emitStateToRoom, getRoomMode, getModeConfig,
     syncPhaseTimerForCurrentPhase, clearPhaseTimerState, scheduleMvpTimeout,
-    buildMarksForCard,
+    buildMarksForCard, withRoomLock,
   } = helpers;
 
   socket.on('turn:hint_submit', (payload = {}, callback) => {
@@ -20,81 +20,77 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    const game = context.room.game;
-    if (!game || game.phase === 'finished') {
-      ackError(callback, 'No active game.');
-      return;
-    }
+    withRoomLock(context.room.code, () => {
+      const game = context.room.game;
+      if (!game || game.phase === 'finished') {
+        ackError(callback, 'No active game.');
+        return;
+      }
 
-    if (game.phase !== 'hint') {
-      sendViolation(socket, 'turn:hint_submit', 'Hints are closed. Wait for the next hint phase.');
-      ackError(callback, 'Hints are closed. Wait for the next hint phase.');
-      return;
-    }
+      if (game.phase !== 'hint') {
+        sendViolation(socket, 'turn:hint_submit', 'Hints are closed. Wait for the next hint phase.');
+        ackError(callback, 'Hints are closed. Wait for the next hint phase.');
+        return;
+      }
 
-    if (context.player.team !== game.currentTeam || context.player.role !== 'spymaster') {
-      sendViolation(socket, 'turn:hint_submit', 'Only the active team spymaster can submit a hint.');
-      ackError(callback, 'Only the active team spymaster can submit a hint.');
-      return;
-    }
+      if (context.player.team !== game.currentTeam || context.player.role !== 'spymaster') {
+        sendViolation(socket, 'turn:hint_submit', 'Only the active team spymaster can submit a hint.');
+        ackError(callback, 'Only the active team spymaster can submit a hint.');
+        return;
+      }
 
-    const rawWord = String(validatedPayload.word || '').trim();
-    if (/\s/.test(rawWord)) {
-      ackError(callback, 'Hint must be a single word.');
-      return;
-    }
+      const hintWord = normalizeHint(validatedPayload.word);
+      const count = Number(validatedPayload.count);
+      const modeConfig = getModeConfig(game.mode || getRoomMode(context.room), context.room);
+      const maxHintCount = game.maxHintCount ?? modeConfig.maxHintCount;
 
-    const hintWord = normalizeHint(validatedPayload.word);
-    const count = Number(validatedPayload.count);
-    const modeConfig = getModeConfig(game.mode || getRoomMode(context.room), context.room);
-    const maxHintCount = game.maxHintCount ?? modeConfig.maxHintCount;
+      if (!hintWord) {
+        ackError(callback, 'Hint word is required.');
+        return;
+      }
 
-    if (!hintWord) {
-      ackError(callback, 'Hint word is required.');
-      return;
-    }
+      const hintUpper = hintWord.toUpperCase();
+      if (game.board.some((c) => c.word === hintUpper)) {
+        ackError(callback, 'Your hint cannot be a word on the board.');
+        return;
+      }
 
-    const hintUpper = hintWord.toUpperCase();
-    if (game.board.some((c) => c.word === hintUpper)) {
-      ackError(callback, 'Your hint cannot be a word on the board.');
-      return;
-    }
+      if (!Number.isInteger(count) || count < 0 || (maxHintCount !== null && count > maxHintCount)) {
+        ackError(
+          callback,
+          `Hint count must be an integer from 0${maxHintCount !== null ? ` to ${maxHintCount}` : ''}.`
+        );
+        return;
+      }
 
-    if (!Number.isInteger(count) || count < 0 || (maxHintCount !== null && count > maxHintCount)) {
-      ackError(
-        callback,
-        `Hint count must be an integer from 0${maxHintCount !== null ? ` to ${maxHintCount}` : ''}.`
-      );
-      return;
-    }
+      game.hint = {
+        word: hintWord,
+        count,
+        team: context.player.team,
+        by: context.player.sessionId,
+        at: Date.now(),
+      };
+      game.phase = 'guess';
+      game.guessesRemaining = count === 0 ? null : count + 1;
+      game.history.push({
+        type: 'hint',
+        by: context.player.sessionId,
+        team: context.player.team,
+        word: hintWord,
+        count,
+        at: Date.now(),
+      });
+      game.lastActionAt = Date.now();
 
-    game.hint = {
-      word: hintWord,
-      count,
-      team: context.player.team,
-      by: context.player.sessionId,
-      at: Date.now(),
-    };
-    game.phase = 'guess';
-    game.guessesRemaining = count === 0 ? null : count + 1;
-    game.history.push({
-      type: 'hint',
-      by: context.player.sessionId,
-      team: context.player.team,
-      word: hintWord,
-      count,
-      at: Date.now(),
+      io.to(context.room.code).emit('turn:hint_accepted', {
+        team: game.currentTeam,
+        hint: game.hint,
+      });
+
+      syncPhaseTimerForCurrentPhase(context.room, game.phase, 'hint_submitted');
+      emitStateToRoom(context.room);
+      ackOk(callback, { accepted: true });
     });
-    game.lastActionAt = Date.now();
-
-    io.to(context.room.code).emit('turn:hint_accepted', {
-      team: game.currentTeam,
-      hint: game.hint,
-    });
-
-    syncPhaseTimerForCurrentPhase(context.room, game.phase, 'hint_submitted');
-    emitStateToRoom(context.room);
-    ackOk(callback, { accepted: true });
   });
 
   socket.on('turn:mark_toggle', (payload = {}, callback) => {
@@ -137,19 +133,10 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    const marks = game.marksByCard[index];
-    if (!marks) {
+    const marked = toggleCardMark(game, context.player.sessionId, index);
+    if (marked === null) {
       ackError(callback, 'Card mark state unavailable.');
       return;
-    }
-
-    let marked;
-    if (marks.has(context.player.sessionId)) {
-      marks.delete(context.player.sessionId);
-      marked = false;
-    } else {
-      marks.add(context.player.sessionId);
-      marked = true;
     }
 
     game.lastActionAt = Date.now();
@@ -188,70 +175,72 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    const game = context.room.game;
-    if (!game || game.phase === 'finished') {
-      ackError(callback, 'No active game.');
-      return;
-    }
+    withRoomLock(context.room.code, () => {
+      const game = context.room.game;
+      if (!game || game.phase === 'finished') {
+        ackError(callback, 'No active game.');
+        return;
+      }
 
-    if (game.phase !== 'guess') {
-      sendViolation(socket, 'turn:guess', 'Guessing is not open right now.');
-      ackError(callback, 'Guessing is not open right now.');
-      return;
-    }
+      if (game.phase !== 'guess') {
+        sendViolation(socket, 'turn:guess', 'Guessing is not open right now.');
+        ackError(callback, 'Guessing is not open right now.');
+        return;
+      }
 
-    if (context.player.team !== game.currentTeam || context.player.role !== 'operative') {
-      sendViolation(socket, 'turn:guess', 'Only operatives on the active team may guess.');
-      ackError(callback, 'Only operatives on the active team may guess.');
-      return;
-    }
+      if (context.player.team !== game.currentTeam || context.player.role !== 'operative') {
+        sendViolation(socket, 'turn:guess', 'Only operatives on the active team may guess.');
+        ackError(callback, 'Only operatives on the active team may guess.');
+        return;
+      }
 
-    const index = Number(validatedPayload.index);
-    if (!Number.isInteger(index) || index < 0 || index > 24) {
-      ackError(callback, 'Card index must be between 0 and 24.');
-      return;
-    }
+      const index = Number(validatedPayload.index);
+      if (!Number.isInteger(index) || index < 0 || index > 24) {
+        ackError(callback, 'Card index must be between 0 and 24.');
+        return;
+      }
 
-    const card = game.board[index];
-    if (card.revealed) {
-      ackError(callback, 'This card has already been revealed.');
-      return;
-    }
+      const card = game.board[index];
+      if (card.revealed) {
+        ackError(callback, 'This card has already been revealed.');
+        return;
+      }
 
-    const phaseBeforeGuess = game.phase;
-    const result = resolveGuess(game, context.player, card);
-    context.room.lastActiveAt = Date.now();
+      const phaseBeforeGuess = game.phase;
+      const result = resolveGuess(game, context.player, card);
+      context.room.lastActiveAt = Date.now();
 
-    io.to(context.room.code).emit('turn:guess_resolved', {
-      index: card.index,
-      color: card.color,
-      team: context.player.team,
-      outcome: result.outcome,
-      finished: game.phase === 'finished',
+      io.to(context.room.code).emit('turn:guess_resolved', {
+        index: card.index,
+        color: card.color,
+        team: context.player.team,
+        outcome: result.outcome,
+        finished: game.phase === 'finished',
+      });
+
+      if (game.phase === 'finished') {
+        io.to(context.room.code).emit('game:finished', {
+          winner: game.winner,
+          loser: game.loser,
+          reason: game.reason,
+        });
+      } else if (result.endedTurn) {
+        io.to(context.room.code).emit('turn:ended', {
+          reason: result.turnEndReason || result.outcome,
+          nextTeam: game.currentTeam,
+        });
+      }
+
+      if (game.phase === 'finished') {
+        clearPhaseTimerState(context.room);
+        scheduleMvpTimeout(context.room);
+      } else if (phaseBeforeGuess !== game.phase) {
+        syncPhaseTimerForCurrentPhase(context.room, game.phase, 'phase_changed_after_guess');
+      }
+
+      emitStateToRoom(context.room);
+      ackOk(callback, result);
     });
-
-    if (game.phase === 'finished') {
-      io.to(context.room.code).emit('game:finished', {
-        winner: game.winner,
-        loser: game.loser,
-        reason: game.reason,
-      });
-    } else if (result.endedTurn) {
-      io.to(context.room.code).emit('turn:ended', {
-        reason: result.turnEndReason || result.outcome,
-        nextTeam: game.currentTeam,
-      });
-    }
-
-    if (game.phase === 'finished') {
-      clearPhaseTimerState(context.room);
-      scheduleMvpTimeout(context.room);
-    } else if (phaseBeforeGuess !== game.phase) {
-      syncPhaseTimerForCurrentPhase(context.room, game.phase, 'phase_changed_after_guess');
-    }
-
-    emitStateToRoom(context.room);
-    ackOk(callback, result);
   });
 
   socket.on('turn:end', (payload = {}, callback) => {
@@ -265,34 +254,36 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    const game = context.room.game;
-    if (!game || game.phase === 'finished') {
-      ackError(callback, 'No active game.');
-      return;
-    }
+    withRoomLock(context.room.code, () => {
+      const game = context.room.game;
+      if (!game || game.phase === 'finished') {
+        ackError(callback, 'No active game.');
+        return;
+      }
 
-    if (game.phase !== 'guess') {
-      ackError(callback, 'You can only end turn during guess phase.');
-      return;
-    }
+      if (game.phase !== 'guess') {
+        ackError(callback, 'You can only end turn during guess phase.');
+        return;
+      }
 
-    if (context.player.team !== game.currentTeam || context.player.role !== 'operative') {
-      sendViolation(socket, 'turn:end', 'Only active team operatives can end the turn.');
-      ackError(callback, 'Only active team operatives can end the turn.');
-      return;
-    }
+      if (context.player.team !== game.currentTeam || context.player.role !== 'operative') {
+        sendViolation(socket, 'turn:end', 'Only active team operatives can end the turn.');
+        ackError(callback, 'Only active team operatives can end the turn.');
+        return;
+      }
 
-    advanceTurn(game, 'player_ended');
-    context.room.lastActiveAt = Date.now();
+      advanceTurn(game, 'player_ended');
+      context.room.lastActiveAt = Date.now();
 
-    io.to(context.room.code).emit('turn:ended', {
-      reason: 'player_ended',
-      nextTeam: game.currentTeam,
+      io.to(context.room.code).emit('turn:ended', {
+        reason: 'player_ended',
+        nextTeam: game.currentTeam,
+      });
+
+      syncPhaseTimerForCurrentPhase(context.room, game.phase, 'player_ended');
+      emitStateToRoom(context.room);
+      ackOk(callback, { ended: true });
     });
-
-    syncPhaseTimerForCurrentPhase(context.room, game.phase, 'player_ended');
-    emitStateToRoom(context.room);
-    ackOk(callback, { ended: true });
   });
 
   socket.on('game:gg', (payload = {}, callback) => {
@@ -347,8 +338,7 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    game.confidenceByCard = game.confidenceByCard || Array.from({ length: 25 }, () => ({}));
-    game.confidenceByCard[index][context.player.sessionId] = validatedPayload.confidence;
+    setCardConfidence(game, context.player.sessionId, index, validatedPayload.confidence);
 
     io.to(context.room.code).emit('turn:mark_update', {
       index,

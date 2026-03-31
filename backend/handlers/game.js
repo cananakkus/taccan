@@ -3,6 +3,7 @@ module.exports = function register(socket, deps) {
   const {
     preflightAction, getContext, ackOk, ackError, sendViolation, logEvent,
     isGameActive, validateRoomReadiness, startNewRound, swapRoomTeams,
+    withRoomLock,
   } = helpers;
 
   socket.on('game:start', (payload = {}, callback) => {
@@ -22,20 +23,22 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    if (isGameActive(context.room)) {
-      ackError(callback, 'A game is already running.');
-      return;
-    }
+    withRoomLock(context.room.code, () => {
+      if (isGameActive(context.room)) {
+        ackError(callback, 'A game is already running.');
+        return;
+      }
 
-    const readinessError = validateRoomReadiness(context.room);
-    if (readinessError) {
-      sendViolation(socket, 'game:start', readinessError);
-      ackError(callback, readinessError);
-      return;
-    }
+      const readinessError = validateRoomReadiness(context.room);
+      if (readinessError) {
+        sendViolation(socket, 'game:start', readinessError);
+        ackError(callback, readinessError);
+        return;
+      }
 
-    startNewRound(context.room, 'host');
-    ackOk(callback, { started: true });
+      startNewRound(context.room, 'host');
+      ackOk(callback, { started: true });
+    });
   });
 
   socket.on('game:rematch', (payload = {}, callback) => {
@@ -55,34 +58,36 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    if (!context.room.game || context.room.game.phase !== 'finished') {
-      ackError(callback, 'Rematch is only available after a game finishes.');
-      return;
-    }
+    withRoomLock(context.room.code, () => {
+      if (!context.room.game || context.room.game.phase !== 'finished') {
+        ackError(callback, 'Rematch is only available after a game finishes.');
+        return;
+      }
 
-    const mode = String(validatedPayload.mode || '').trim();
-    if (mode === 'swap_teams') {
-      swapRoomTeams(context.room);
-    }
+      const mode = String(validatedPayload.mode || '').trim();
+      if (mode === 'swap_teams') {
+        swapRoomTeams(context.room);
+      }
 
-    const startedGame = startNewRound(
-      context.room,
-      mode === 'swap_teams' ? 'rematch_swap' : 'rematch'
-    );
-    metrics.rematchStarted += 1;
-    logEvent('rematch_started', {
-      roomCode: context.room.code,
-      mode,
-      by: context.player.sessionId,
-      roundNumber: startedGame.roundNumber,
-      matchId: startedGame.matchId,
-    });
+      const startedGame = startNewRound(
+        context.room,
+        mode === 'swap_teams' ? 'rematch_swap' : 'rematch'
+      );
+      metrics.rematchStarted += 1;
+      logEvent('rematch_started', {
+        roomCode: context.room.code,
+        mode,
+        by: context.player.sessionId,
+        roundNumber: startedGame.roundNumber,
+        matchId: startedGame.matchId,
+      });
 
-    ackOk(callback, {
-      started: true,
-      mode,
-      matchId: startedGame.matchId,
-      roundNumber: startedGame.roundNumber,
+      ackOk(callback, {
+        started: true,
+        mode,
+        matchId: startedGame.matchId,
+        roundNumber: startedGame.roundNumber,
+      });
     });
   });
 };

@@ -1,12 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { normalizeHint, createGameState, createDuetGameState, resolveGuess, mulberry32 } = require('../backend/game-engine');
+const { normalizeHint, createGameState, createDuetGameState, resolveGuess, mulberry32, toggleCardMark, setCardConfidence, BOARD_SIZE } = require('../backend/game-engine');
 
 test('normalizeHint trims input and rejects empty strings', () => {
   assert.equal(normalizeHint('  Galaxy  '), 'Galaxy');
   assert.equal(normalizeHint(''), null);
-  assert.equal(normalizeHint('two words'), null);
+  assert.equal(normalizeHint('two words'), 'two words');
   assert.equal(normalizeHint('hint_1'), 'hint_1');
   assert.equal(normalizeHint('café!'), 'café!');
 });
@@ -173,4 +173,37 @@ test('mulberry32 produces deterministic sequence', () => {
   for (let i = 0; i < 100; i++) {
     assert.equal(rng1(), rng2());
   }
+});
+
+// --- toggleCardMark ---
+test('toggleCardMark adds and removes marks', () => {
+  const game = createGameState();
+  const result1 = toggleCardMark(game, 'player-1', 0);
+  assert.equal(result1, true, 'first toggle should mark');
+  assert.ok(game.marksByCard[0].has('player-1'));
+
+  const result2 = toggleCardMark(game, 'player-1', 0);
+  assert.equal(result2, false, 'second toggle should unmark');
+  assert.ok(!game.marksByCard[0].has('player-1'));
+});
+
+test('toggleCardMark returns null for invalid index', () => {
+  const game = createGameState();
+  game.marksByCard[5] = null;
+  const result = toggleCardMark(game, 'player-1', 5);
+  assert.equal(result, null);
+});
+
+// --- setCardConfidence ---
+test('setCardConfidence initializes and sets confidence', () => {
+  const game = createGameState();
+  assert.equal(game.confidenceByCard, undefined);
+
+  setCardConfidence(game, 'player-1', 3, 'tentative');
+  assert.ok(Array.isArray(game.confidenceByCard));
+  assert.equal(game.confidenceByCard.length, BOARD_SIZE);
+  assert.equal(game.confidenceByCard[3]['player-1'], 'tentative');
+
+  setCardConfidence(game, 'player-1', 3, 'firm');
+  assert.equal(game.confidenceByCard[3]['player-1'], 'firm');
 });

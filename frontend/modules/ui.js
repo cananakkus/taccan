@@ -44,8 +44,6 @@ export const ui = {
   board: document.getElementById('board'),
   toast: document.getElementById('toast'),
   srAnnouncements: document.getElementById('sr-announcements'),
-  scratchpad: document.getElementById('scratchpad'),
-  scratchpadTextarea: document.getElementById('scratchpad-textarea'),
   soundToggleButton: document.getElementById('sound-toggle-btn'),
   colorblindToggleButton: document.getElementById('colorblind-toggle-btn'),
   qrCodeContainer: document.getElementById('qr-code-container'),

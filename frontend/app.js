@@ -15,13 +15,15 @@ if (pathMatch && ui.codeInput) {
   ui.codeInput.value = pathMatch[1].toUpperCase();
 }
 
-// Restore colorblind preference
+// Restore pattern preference (default: on)
 try {
-  if (localStorage.getItem(COLORBLIND_KEY) === '1') {
-    state.colorblindMode = true;
-    document.body.classList.add('colorblind-mode');
+  if (localStorage.getItem(COLORBLIND_KEY) === '0') {
+    state.colorblindMode = false;
   }
 } catch (_e) {}
+if (state.colorblindMode) {
+  document.body.classList.add('colorblind-mode');
+}
 
 // Theatrical mode via URL param
 if (new URLSearchParams(window.location.search).get('theater') === '1') {

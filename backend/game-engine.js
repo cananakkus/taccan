@@ -1,6 +1,8 @@
 const { randomUUID } = require('crypto');
 const words = require('./words');
 
+const BOARD_SIZE = 25;
+
 // --- Seeded PRNG (Wave 8.1) ---
 function mulberry32(seed) {
   let s = seed | 0;
@@ -14,7 +16,7 @@ function mulberry32(seed) {
 
 function normalizeHint(value) {
   const trimmed = String(value || '').trim().normalize('NFC');
-  if (!trimmed || /\s/.test(trimmed)) {
+  if (!trimmed) {
     return null;
   }
 
@@ -66,11 +68,11 @@ function createGameState(options = {}) {
     'assassin',
   ], rng);
 
-  const wordList = options.customWords && options.customWords.length >= 25
+  const wordList = options.customWords && options.customWords.length >= BOARD_SIZE
     ? options.customWords
     : words;
 
-  const board = sampleWords(25, rng, wordList).map((word, index) => ({
+  const board = sampleWords(BOARD_SIZE, rng, wordList).map((word, index) => ({
     index,
     word,
     color: colors[index],
@@ -102,7 +104,7 @@ function createGameState(options = {}) {
     loser: null,
     reason: null,
     board,
-    marksByCard: Array.from({ length: 25 }, () => new Set()),
+    marksByCard: Array.from({ length: BOARD_SIZE }, () => new Set()),
     history: [],
     mvpVotes: {},
   };
@@ -115,10 +117,10 @@ function createDuetGameState(options = {}) {
   const seed = options.seed || (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const rng = mulberry32(seed);
 
-  const wordList = options.customWords && options.customWords.length >= 25
+  const wordList = options.customWords && options.customWords.length >= BOARD_SIZE
     ? options.customWords
     : words;
-  const boardWords = sampleWords(25, rng, wordList);
+  const boardWords = sampleWords(BOARD_SIZE, rng, wordList);
 
   // Duet keycards: 9 agents, 3 assassins, 13 bystanders per player's perspective
   // Some overlap: shared agents, shared assassins
@@ -146,7 +148,7 @@ function createDuetGameState(options = {}) {
     currentPlayer: 'A',
     turnsRemaining: 9,
     board,
-    marksByCard: Array.from({ length: 25 }, () => new Set()),
+    marksByCard: Array.from({ length: BOARD_SIZE }, () => new Set()),
     history: [],
     agentsFound: 0,
     totalAgents: 15,
@@ -286,7 +288,24 @@ function finishGame(game, winner, loser, reason) {
   clearAllCardMarks(game);
 }
 
+function toggleCardMark(game, sessionId, index) {
+  const marks = game.marksByCard[index];
+  if (!marks) return null;
+  if (marks.has(sessionId)) {
+    marks.delete(sessionId);
+    return false;
+  }
+  marks.add(sessionId);
+  return true;
+}
+
+function setCardConfidence(game, sessionId, index, confidence) {
+  game.confidenceByCard = game.confidenceByCard || Array.from({ length: BOARD_SIZE }, () => ({}));
+  game.confidenceByCard[index][sessionId] = confidence;
+}
+
 module.exports = {
+  BOARD_SIZE,
   mulberry32,
   normalizeHint,
   getOtherTeam,
@@ -298,4 +317,6 @@ module.exports = {
   finishGame,
   sampleWords,
   shuffle,
+  toggleCardMark,
+  setCardConfidence,
 };

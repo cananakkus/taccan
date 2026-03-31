@@ -1,8 +1,8 @@
 import { state } from './state.js';
 import { ui } from './ui.js';
 
-const PANEL_KEYS = ['teams', 'feed', 'voice', 'settings', 'debrief'];
-const PANEL_KEYBOARD_MAP = { '1': 'teams', '2': 'feed', '3': 'voice', '4': 'settings', '5': 'debrief' };
+const PANEL_KEYS = ['teams', 'settings', 'debrief'];
+const PANEL_KEYBOARD_MAP = { '1': 'teams', '2': 'settings', '3': 'debrief' };
 const DISMISS_THRESHOLD = 0.3; // fraction of sheet height to trigger close
 
 // --- Drag state ---

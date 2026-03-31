@@ -249,13 +249,12 @@ test('assassin card ends game', async () => {
   }
 });
 
-test('multi-word hint rejected', async () => {
+test('multi-word hint accepted', async () => {
   const ctx = await boot();
   const { spy, op } = await setupGame(ctx);
   try {
     const res = await emit(spy, 'turn:hint_submit', { word: 'two words', count: 1 });
-    assert.equal(res.ok, false);
-    assert.match(res.error, /single word/i);
+    assert.ok(res.ok !== false, 'multi-word hints should be accepted');
   } finally {
     await shutdown(ctx, spy, op);
   }

@@ -19,18 +19,27 @@ let noiseNodes = null; // { source, worklet, dest }
 let rnnoiseWasmBinary = null;
 let rnnoiseWorkletReady = false;
 
-const RTC_CONFIG = {
+const STUN_ONLY_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:46.225.102.80:3478' },
-    {
-      urls: ['turn:46.225.102.80:3478', 'turn:46.225.102.80:3478?transport=tcp'],
-      username: 'taccan',
-      credential: 'taccanturn2026',
-    },
   ],
 };
+let rtcConfig = null;
+
+async function fetchRtcConfig() {
+  if (rtcConfig) return rtcConfig;
+  try {
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+    const res = await fetch(basePath + '/api/turn-credentials');
+    if (res.ok) {
+      rtcConfig = await res.json();
+      return rtcConfig;
+    }
+  } catch (_e) { /* STUN-only fallback */ }
+  rtcConfig = STUN_ONLY_CONFIG;
+  return rtcConfig;
+}
 
 const MAX_ICE_RESTARTS = 2;
 const DISCONNECT_TIMEOUT_MS = 5000;
@@ -167,7 +176,7 @@ export async function joinVoice() {
     }
   }
 
-  await setupNoisePipeline();
+  await Promise.all([setupNoisePipeline(), fetchRtcConfig()]);
 
   state.voiceActive = true;
   state.voiceMuted = false;
@@ -343,7 +352,7 @@ function getOutboundStream() {
 function createPeerConnection(sessionId, isInitiator) {
   if (peers.has(sessionId)) return;
 
-  const pc = new RTCPeerConnection(RTC_CONFIG);
+  const pc = new RTCPeerConnection(rtcConfig || STUN_ONLY_CONFIG);
   const entry = { pc, stream: null, analyser: null, restarts: 0, disconnectedTimer: null };
   peers.set(sessionId, entry);
   state.voicePeers.add(sessionId);
@@ -635,8 +644,15 @@ function buildPeerItem(player, isSelf) {
 
 function updateVoiceButtons() {
   if (ui.voiceJoinBtn) {
-    ui.voiceJoinBtn.textContent = state.voiceActive ? t('voice_leave') : t('voice_join');
+    const label = ui.voiceJoinBtn.querySelector('.bar-tab-label');
+    if (label) {
+      label.textContent = state.voiceActive ? t('voice_leave') : t('voice_join');
+    } else {
+      ui.voiceJoinBtn.textContent = state.voiceActive ? t('voice_leave') : t('voice_join');
+    }
     ui.voiceJoinBtn.classList.toggle('in-voice', state.voiceActive);
+    const dropdown = ui.voiceJoinBtn.closest('.voice-dropdown');
+    if (dropdown) dropdown.classList.toggle('voice-active', state.voiceActive);
   }
   if (ui.voiceMuteBtn) {
     ui.voiceMuteBtn.classList.toggle('hidden', !state.voiceActive);

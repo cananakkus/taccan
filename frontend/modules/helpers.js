@@ -100,6 +100,8 @@ export function formatTimerRemaining(remainingMs) {
 export function setConnection(isOnline, label) {
   ui.connectionDot.classList.toggle('online', isOnline);
   ui.connectionDot.classList.toggle('offline', !isOnline);
+  const textEl = ui.connectionDot.querySelector('.conn-text');
+  if (textEl) textEl.textContent = label;
   ui.connectionDot.title = label;
 }
 

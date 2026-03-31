@@ -7,7 +7,6 @@ import { render, renderSelectedGuess } from './render.js';
 import { canGuess, canMark, showToast, confirmAction, getCurrentMaxHintCount } from './helpers.js';
 import { playSound } from './sound.js';
 import { triggerHaptic } from './haptics.js';
-import { initScratchpad } from './scratchpad.js';
 import { renderQRCode } from './qrcode.js';
 import { renderRoomSeal } from './room-seal.js';
 import { generateDebriefNarrative } from './debrief.js';
@@ -250,7 +249,6 @@ export function wireUiEvents() {
       await emitWithAck('turn:hint_submit', { word, count });
       ui.hintWordInput.value = '';
       ui.hintCountInput.value = '1';
-      state.spymasterSelections.clear();
     } catch (error) {
       showToast(translateServerError(error.message), 'error');
     } finally {
@@ -315,7 +313,6 @@ export function wireUiEvents() {
     if (!Number.isInteger(index)) return;
 
     const snap = state.snapshot;
-    if (handleSpymasterPlanning(snap, index)) return;
     handleOperativeSelect(snap, index);
     await handleMarkToggle(snap, index);
   });
@@ -388,9 +385,6 @@ export function wireUiEvents() {
     });
   }
 
-  // Scratchpad init
-  initScratchpad();
-
   // Chat form
   if (ui.chatForm) {
     ui.chatForm.addEventListener('submit', async (event) => {
@@ -405,27 +399,6 @@ export function wireUiEvents() {
       }
     });
   }
-}
-
-function handleSpymasterPlanning(snap, index) {
-  const game = snap.game;
-  if (!game || game.phase !== 'hint' || snap.me.role !== 'spymaster' || snap.me.team !== game.currentTeam) {
-    return false;
-  }
-  const card = game.board?.[index];
-  if (!card || card.revealed) return false;
-  if (state.spymasterSelections.has(index)) {
-    state.spymasterSelections.delete(index);
-  } else {
-    state.spymasterSelections.add(index);
-  }
-  if (ui.hintCountInput && state.spymasterSelections.size > 0) {
-    ui.hintCountInput.value = String(state.spymasterSelections.size);
-  }
-  render();
-  triggerHaptic('cardSelect');
-  playSound('mark');
-  return true;
 }
 
 function handleOperativeSelect(snap, index) {

@@ -2,6 +2,7 @@ import { state, STRINGS_BY_LANG, WORD_TRANSLATIONS_BY_LANG, SUPPORTED_LANGUAGES,
 import { ui } from './ui.js';
 import { socket } from './socket.js';
 import { render } from './render.js';
+import { invalidateBoardCache } from './render-board.js';
 import { setConnection } from './helpers.js';
 
 export function t(key, vars = {}) {
@@ -34,6 +35,7 @@ export function setLanguage(nextLanguage, persist) {
 
   applyLanguageToDocument(persist);
   setConnection(socket.connected, socket.connected ? t('connected') : t('disconnected'));
+  invalidateBoardCache();
   if (state.snapshot) {
     render();
   }

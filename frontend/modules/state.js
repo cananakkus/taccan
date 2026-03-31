@@ -2,7 +2,6 @@
 export const STORAGE_KEY = 'taccan.session.v1';
 export const LANGUAGE_STORAGE_KEY = 'taccan.language.v1';
 export const STATS_STORAGE_KEY = 'taccan.stats.v1';
-export const SCRATCHPAD_STORAGE_KEY = 'taccan.scratchpad.v1';
 export const SOUND_MUTE_KEY = 'taccan.sound.mute.v1';
 export const COLORBLIND_KEY = 'taccan.colorblind.v1';
 export const NOISE_SUPPRESSION_KEY = 'taccan.noise.v1';
@@ -39,11 +38,10 @@ export const state = {
   revealedCardIndexes: new Set(),
   activeGameId: null,
   selectedGuessIndex: null,
-  spymasterSelections: new Set(),
   language: DEFAULT_LANGUAGE,
   cardElements: [],
   soundMuted: false,
-  colorblindMode: false,
+  colorblindMode: true,
   voiceActive: false,
   voiceMuted: false,
   noiseSuppression: true,

@@ -1,4 +1,5 @@
 import { t } from './i18n.js';
+import { escapeHtml } from './helpers.js';
 
 export function generateDebriefNarrative(history, players, board) {
   if (!history || !Array.isArray(history)) return `<p>${t('debrief_no_data')}</p>`;
@@ -6,7 +7,7 @@ export function generateDebriefNarrative(history, players, board) {
   const playerMap = {};
   if (Array.isArray(players)) {
     for (const p of players) {
-      playerMap[p.sessionId] = p.name || 'Unknown Agent';
+      playerMap[p.sessionId] = escapeHtml(p.name || 'Unknown Agent');
     }
   }
 
@@ -33,13 +34,13 @@ export function generateDebriefNarrative(history, players, board) {
         const teamLabel = entry.team === 'red' ? t('team_red').toUpperCase() : t('team_blue').toUpperCase();
         html += `<div class="debrief-entry hint ${entry.team}">`;
         html += `<p class="debrief-turn">${t('debrief_transmission', { n: turnNumber })}</p>`;
-        html += `<p>${t('debrief_hint_entry', { agent: agentName, team: teamLabel, word: String(entry.word).toUpperCase(), count: entry.count })}</p>`;
+        html += `<p>${t('debrief_hint_entry', { agent: agentName, team: teamLabel, word: escapeHtml(String(entry.word).toUpperCase()), count: entry.count })}</p>`;
         html += '</div>';
         break;
       }
       case 'guess': {
         const card = boardMap[entry.index];
-        const wordName = card ? card.word : `Card #${entry.index}`;
+        const wordName = escapeHtml(card ? card.word : `Card #${entry.index}`);
         const colorLabel = entry.color || 'unknown';
         let outcome = '';
         if (entry.color === entry.team) {

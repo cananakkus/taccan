@@ -39,7 +39,7 @@ function buildFeedItems(snapshot) {
   }
   for (const event of history) {
     if (event.type === 'mark_toggle') continue;
-    merged.push({ kind: 'game', ts: event.at || 0, data: event });
+    merged.push({ kind: 'game', ts: event.at || event.endedAt || 0, data: event });
   }
 
   merged.sort((a, b) => a.ts - b.ts);

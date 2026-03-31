@@ -84,6 +84,7 @@
             </div>
 
             <div class="controls-strip">
+              <div id="ctrl-placeholder" class="ctrl-panel ctrl-placeholder" data-i18n="ctrl_placeholder">Waiting for game to start...</div>
               <section id="hint-section" class="ctrl-panel hint-ctrl hidden">
                 <div class="ctrl-head">
                   <h3 data-i18n="spymaster_hint">Spymaster Hint</h3>
@@ -122,9 +123,16 @@
                 <div id="mvp-section" class="mvp-section hidden"></div>
               </section>
 
-              <div id="scratchpad" class="scratchpad hidden">
-                <textarea id="scratchpad-textarea" placeholder="Spymaster notes..." data-i18n-placeholder="scratchpad_notes_placeholder" rows="2"></textarea>
-              </div>
+              <section class="ctrl-panel feed-ctrl">
+                <div class="ctrl-head">
+                  <h3 data-i18n="panel_feed">Feed</h3>
+                </div>
+                <div id="feed-entries" class="feed-entries"></div>
+                <form id="chat-form" class="chat-form" autocomplete="off">
+                  <input id="chat-input" type="text" maxlength="200" placeholder="Type a message..." data-i18n-placeholder="chat_placeholder" />
+                  <button type="submit" class="btn btn-ghost btn-sm" data-i18n="send">Send</button>
+                </form>
+              </section>
             </div>
           </div>
         </div>
@@ -142,28 +150,31 @@
             <div class="bar-util">
               <span id="room-code" class="room-code-val" title="Click to copy">----</span>
               <span id="mode-badge" class="mode-tag">Casual</span>
-              <span id="connection-dot" class="conn-dot offline"></span>
+              <span id="connection-dot" class="conn-status offline"><span class="conn-dot"></span><span class="conn-text">Offline</span></span>
             </div>
 
             <div class="bar-tabs-center">
               <button class="bar-tab" data-panel="teams" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#9638;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9872;</span>
                 <span class="bar-tab-label" data-i18n="panel_teams">Teams</span>
               </button>
-              <button class="bar-tab" data-panel="feed" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#9776;</span>
-                <span class="bar-tab-label" data-i18n="panel_feed">Feed</span>
-              </button>
-              <button class="bar-tab" data-panel="voice" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#9678;</span>
-                <span class="bar-tab-label" data-i18n="panel_voice">Voice</span>
-              </button>
               <button class="bar-tab" data-panel="settings" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#9662;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9881;</span>
                 <span class="bar-tab-label" data-i18n="panel_settings">Settings</span>
               </button>
+              <div class="voice-dropdown">
+                <button id="voice-join-btn" class="bar-tab bar-tab-voice" type="button">
+                  <span class="bar-tab-icon" aria-hidden="true">&#9835;</span>
+                  <span class="bar-tab-label" data-i18n="voice_join">Voice</span>
+                </button>
+                <div class="voice-dropdown-menu">
+                  <button id="voice-mute-btn" class="btn btn-ghost btn-sm hidden" type="button" data-i18n="voice_mute">Mute</button>
+                  <button id="voice-noise-btn" class="btn btn-ghost btn-sm hidden" type="button" data-i18n="voice_noise_off">Noise Off</button>
+                  <div id="voice-peer-list" class="voice-peer-list"></div>
+                </div>
+              </div>
               <button class="bar-tab hidden" id="debrief-tab" data-panel="debrief" type="button">
-                <span class="bar-tab-icon" aria-hidden="true">&#9744;</span>
+                <span class="bar-tab-icon" aria-hidden="true">&#9776;</span>
                 <span class="bar-tab-label" data-i18n="debrief">Debrief</span>
               </button>
             </div>
@@ -220,33 +231,6 @@
             </div>
           </div>
 
-          <div class="sheet-panel" id="sheet-feed" data-sheet="feed">
-            <div class="sheet-handle"></div>
-            <div class="sheet-body">
-              <h3 class="sheet-title" data-i18n="panel_feed">Feed</h3>
-              <div id="feed-entries" class="feed-entries"></div>
-              <form id="chat-form" class="chat-form" autocomplete="off">
-                <input id="chat-input" type="text" maxlength="200" placeholder="Type a message..." data-i18n-placeholder="chat_placeholder" />
-                <button type="submit" class="btn btn-ghost btn-sm" data-i18n="send">Send</button>
-              </form>
-            </div>
-          </div>
-
-          <div class="sheet-panel" id="sheet-voice" data-sheet="voice">
-            <div class="sheet-handle"></div>
-            <div class="sheet-body">
-              <h3 class="sheet-title" data-i18n="panel_voice">Voice</h3>
-              <div class="voice-controls">
-                <button id="voice-join-btn" class="btn btn-primary voice-chat-btn" type="button" data-i18n="voice_join">Voice</button>
-                <div class="voice-toggles">
-                  <button id="voice-mute-btn" class="btn btn-ghost voice-mute-btn hidden" type="button" data-i18n="voice_mute">Mute</button>
-                  <button id="voice-noise-btn" class="btn btn-ghost voice-noise-btn hidden" type="button" data-i18n="voice_noise_off">Noise Off</button>
-                </div>
-              </div>
-              <div id="voice-peer-list" class="voice-peer-list"></div>
-            </div>
-          </div>
-
           <div class="sheet-panel" id="sheet-settings" data-sheet="settings">
             <div class="sheet-handle"></div>
             <div class="sheet-body">
@@ -284,8 +268,8 @@
                   <button id="sound-toggle-btn" class="toggle-btn" type="button" data-i18n="sound_on">
                     <span>Sound</span>
                   </button>
-                  <button id="colorblind-toggle-btn" class="toggle-btn" type="button" data-i18n="colorblind_off">
-                    <span>A11y</span>
+                  <button id="colorblind-toggle-btn" class="toggle-btn" type="button" data-i18n="colorblind_on">
+                    <span>Patterns</span>
                   </button>
                 </div>
               </div>
