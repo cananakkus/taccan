@@ -744,19 +744,6 @@ input[type="number"]::-webkit-outer-spin-button {
   margin-top: 4px;
 }
 
-/* ── Feed in Controls Strip ── */
-.feed-ctrl {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.feed-ctrl .feed-entries {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
 
 /* ── Bar Utility ── */
 .bar-util {
@@ -985,7 +972,6 @@ input[type="number"]::-webkit-outer-spin-button {
   max-width: 1120px;
   margin: 0 auto;
   width: 100%;
-  align-items: start;
 }
 
 /* ── Control Strip ── */
@@ -997,7 +983,6 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow: hidden;
 }
 /* Placeholder for controls strip before game starts */
 .ctrl-placeholder {
@@ -1721,41 +1706,65 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* ── Phone (≤600px) ── */
 @media (max-width: 600px) {
-  :root { font-size: 15px; }
 
   /* Top/bottom bar: compact */
   .top-bar { padding: 3px 8px; }
-  .bottom-bar { padding: 3px 6px; }
+  .bottom-bar { padding: 4px 6px; }
   .bar-tab-label { display: none; }
-  .bar-tab { width: 40px; padding: 8px 0; min-height: 36px; }
+  .bar-tab { width: 44px; padding: 6px 0; min-height: 40px; }
+  .bar-tabs-center { gap: 3px; }
   .score-bar { height: 5px; }
-  .turn-banner { font-size: 0.72rem; padding: 2px 6px; }
+  .turn-banner { font-size: 0.78rem; padding: 2px 8px; }
   .bar-util { gap: 4px; }
   .room-code-val { padding: 2px 5px; font-size: 0.7rem; }
   .mode-tag { display: none; }
+  .conn-text { display: none; }
+  .bottom-bar-status { padding: 2px 0; }
 
-  /* Stage layout: stack vertically, controls above board */
+  /* Hide controls-strip — hint/guess become fixed overlays */
+  .controls-strip { display: none; }
+
+  /* Board fills available space */
+  .game-stage { padding: 4px 6px; gap: 4px; justify-content: start; }
   .stage-layout { flex-direction: column; }
-  .controls-strip { order: -1; width: 100%; }
-  .bottom-bar-status { padding: 1px 0; }
+  .board-wrap { max-width: 100%; }
+  .board { gap: 4px; }
+  .card { aspect-ratio: 1.3; }
+  .card-word { font-size: clamp(0.65rem, 3.2vw, 0.95rem); }
 
-  /* Teams sheet: tighter */
-  .team-panel { padding: 6px; }
+  /* Hint/guess/result panels: fixed overlay at bottom */
+  #hint-section,
+  #guess-section,
+  #result-section {
+    display: none;
+    position: fixed;
+    bottom: calc(var(--bar-h) + 32px);
+    left: 6px;
+    right: 6px;
+    z-index: 15;
+    border-radius: 6px;
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.35);
+    padding: 10px 12px;
+    background: var(--paper);
+  }
+  #hint-section:not(.hidden),
+  #guess-section:not(.hidden),
+  #result-section:not(.hidden) {
+    display: block;
+  }
+  #hint-section .ctrl-head,
+  #guess-section .ctrl-head { display: none; }
 
-  /* Game stage */
-  .game-stage { padding: 4px 5px 3px; gap: 4px; }
-  .board { gap: 3px; }
-  .card-word { font-size: clamp(0.58rem, 3vw, 0.88rem); }
-
-  /* Controls: compact but not truncated */
-  .ctrl-panel { padding: 7px 8px; }
-  .ctrl-head h3 { font-size: 0.75rem; }
   .hint-form { flex-wrap: wrap; gap: 5px; }
   .hint-form input[type="text"] { flex: 1 1 100%; }
   .guess-row { flex-wrap: wrap; gap: 5px; }
   .selected-label { width: 100%; }
   .result-actions { flex-direction: column; gap: 5px; }
   .result-actions .btn { width: 100%; }
+
+  /* Teams sheet: single column on mobile */
+  #sheet-teams .sheet-body { grid-template-columns: 1fr; }
+  .team-panel { padding: 6px; }
 
   /* Join */
   .join-screen { padding: 16px; }
@@ -1764,14 +1773,17 @@ input[type="number"]::-webkit-outer-spin-button {
 
   /* Sheets: full-width on mobile */
   .sheet-panel { min-width: 0; width: 100%; max-width: 100%; }
+
+  /* Voice dropdown: no hover on touch, use click */
+  .voice-dropdown-menu { bottom: 100%; }
 }
 
 /* Very small phones */
 @media (max-width: 400px) {
-  :root { font-size: 14px; }
   .join-screen { padding: 10px; }
   .join-card { padding: 22px 14px 18px; }
   .logo-title { font-size: 1.5rem; }
+  .card-word { font-size: clamp(0.6rem, 3.5vw, 0.9rem); }
 }
 
 /* ══════════════════════════════

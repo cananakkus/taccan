@@ -123,16 +123,6 @@
                 <div id="mvp-section" class="mvp-section hidden"></div>
               </section>
 
-              <section class="ctrl-panel feed-ctrl">
-                <div class="ctrl-head">
-                  <h3 data-i18n="panel_feed">Feed</h3>
-                </div>
-                <div id="feed-entries" class="feed-entries"></div>
-                <form id="chat-form" class="chat-form" autocomplete="off">
-                  <input id="chat-input" type="text" maxlength="200" placeholder="Type a message..." data-i18n-placeholder="chat_placeholder" />
-                  <button type="submit" class="btn btn-ghost btn-sm" data-i18n="send">Send</button>
-                </form>
-              </section>
             </div>
           </div>
         </div>
@@ -157,6 +147,10 @@
               <button class="bar-tab" data-panel="teams" type="button">
                 <span class="bar-tab-icon" aria-hidden="true">&#9872;</span>
                 <span class="bar-tab-label" data-i18n="panel_teams">Teams</span>
+              </button>
+              <button class="bar-tab" data-panel="feed" type="button">
+                <span class="bar-tab-icon" aria-hidden="true">&#9776;</span>
+                <span class="bar-tab-label" data-i18n="panel_feed">Feed</span>
               </button>
               <button class="bar-tab" data-panel="settings" type="button">
                 <span class="bar-tab-icon" aria-hidden="true">&#9881;</span>
@@ -228,6 +222,18 @@
                 <button class="btn btn-ghost spectator-btn" type="button" data-role="spectator" data-i18n="spectator">Spectator</button>
                 <button id="prune-btn" class="btn btn-ghost btn-sm hidden" type="button" data-i18n="prune_offline">Prune Offline</button>
               </div>
+            </div>
+          </div>
+
+          <div class="sheet-panel" id="sheet-feed" data-sheet="feed">
+            <div class="sheet-handle"></div>
+            <div class="sheet-body">
+              <h3 class="sheet-title" data-i18n="panel_feed">Feed</h3>
+              <div id="feed-entries" class="feed-entries"></div>
+              <form id="chat-form" class="chat-form" autocomplete="off">
+                <input id="chat-input" type="text" maxlength="200" placeholder="Type a message..." data-i18n-placeholder="chat_placeholder" />
+                <button type="submit" class="btn btn-ghost btn-sm" data-i18n="send">Send</button>
+              </form>
             </div>
           </div>
 

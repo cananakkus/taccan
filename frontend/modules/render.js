@@ -10,22 +10,6 @@ import { renderControls } from './render-controls.js';
 import { renderGame, clearBoard } from './render-board.js';
 import { shouldRunLiveTicker, syncLiveTicker as _syncLiveTicker } from './render-timer.js';
 
-// Pin controls-strip height to board height
-function syncControlsHeight() {
-  const boardArea = document.querySelector('.board-area');
-  const strip = document.querySelector('.controls-strip');
-  if (!boardArea || !strip) return;
-  strip.style.maxHeight = boardArea.offsetHeight + 'px';
-}
-let _resizeObserverSet = false;
-function ensureBoardResizeObserver() {
-  if (_resizeObserverSet) return;
-  const boardArea = document.querySelector('.board-area');
-  if (!boardArea) return;
-  _resizeObserverSet = true;
-  new ResizeObserver(() => syncControlsHeight()).observe(boardArea);
-}
-
 // Re-exports for callers that import from render.js
 export { renderSelectedGuess, syncLiveTicker } from './render-timer.js';
 
@@ -212,6 +196,4 @@ export function render() {
   }
 
   _syncLiveTicker(shouldRunLiveTicker(snapshot));
-  ensureBoardResizeObserver();
-  syncControlsHeight();
 }
