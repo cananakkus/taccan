@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -84,7 +85,11 @@ function createApp(options = {}) {
   // ── Express Setup ──
 
   app.use(express.json({ limit: '64kb' }));
-  const frontendDir = path.join(__dirname, '..', 'frontend');
+  const frontendSourceDir = path.join(__dirname, '..', 'frontend');
+  const frontendDistDir = path.join(frontendSourceDir, 'dist');
+  const frontendDir = fs.existsSync(path.join(frontendDistDir, 'index.html'))
+    ? frontendDistDir
+    : frontendSourceDir;
   const staticOpts = { setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); } };
   app.use(express.static(frontendDir, staticOpts));
   app.use('/taccan', express.static(frontendDir, staticOpts));
@@ -165,8 +170,8 @@ function createApp(options = {}) {
     });
   });
 
-  app.get('/room/:code', (_req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+  app.get(['/room/:code', '/taccan/room/:code'], (_req, res) => {
+    res.sendFile(path.join(frontendDir, 'index.html'));
   });
 
   // ── Deps Object ──
