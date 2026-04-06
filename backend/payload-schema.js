@@ -1,3 +1,5 @@
+const { BOARD_SIZE } = require('./game-engine');
+
 const SCHEMAS = {
   'room:create': {
     name: { type: 'string', optional: true, maxLength: 200 },
@@ -39,17 +41,17 @@ const SCHEMAS = {
   },
   'turn:hint_submit': {
     word: { type: 'string', optional: false, maxLength: 64 },
-    count: { type: 'integer', optional: false, min: 0, max: 50 },
+    count: { type: 'integer', optional: false, min: 1, max: 50 },
   },
   'turn:mark_toggle': {
-    index: { type: 'integer', optional: false, min: 0, max: 24 },
+    index: { type: 'integer', optional: false, min: 0, max: BOARD_SIZE - 1 },
   },
   'turn:mark_confidence': {
-    index: { type: 'integer', optional: false, min: 0, max: 24 },
+    index: { type: 'integer', optional: false, min: 0, max: BOARD_SIZE - 1 },
     confidence: { type: 'string', optional: false, enum: ['firm', 'tentative'] },
   },
   'turn:guess': {
-    index: { type: 'integer', optional: false, min: 0, max: 24 },
+    index: { type: 'integer', optional: false, min: 0, max: BOARD_SIZE - 1 },
   },
   'turn:end': {},
   'voice:join': {},

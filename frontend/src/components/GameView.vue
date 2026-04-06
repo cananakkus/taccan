@@ -76,6 +76,7 @@ const blitzGuessSec = ref(35);
 const nowTick = ref(Date.now());
 const boardRefs = ref<(HTMLButtonElement | null)[]>([]);
 const audioContainer = ref<HTMLElement | null>(null);
+const wordPackInput = ref<HTMLInputElement | null>(null);
 const spymasterSelectedIndexes = ref<number[]>([]);
 let liveTimer: number | null = null;
 
@@ -648,7 +649,7 @@ async function submitHint() {
     return;
   }
   const count = Number(hintCountInput.value);
-  if (!Number.isInteger(count) || count < 0 || (currentMaxHintCount.value !== null && count > currentMaxHintCount.value)) {
+  if (!Number.isInteger(count) || count < 1 || (currentMaxHintCount.value !== null && count > currentMaxHintCount.value)) {
     ui.showToast(t('hint_count_range', { max: currentMaxHintCount.value ?? 50 }), 'error');
     return;
   }
@@ -700,7 +701,7 @@ async function setMarkConfidence(card: BoardCard, confidence: 'firm' | 'tentativ
 }
 
 function selectGuess(index: number) {
-  ui.selectedGuessIndex = index;
+  ui.selectedGuessIndex = ui.selectedGuessIndex === index ? null : index;
 }
 
 async function submitGuess(index = ui.selectedGuessIndex) {
@@ -724,8 +725,7 @@ async function sendGG() {
 }
 
 async function loadWordPack() {
-  const input = document.getElementById('word-pack-input') as HTMLInputElement | null;
-  const url = input?.value.trim() || '';
+  const url = wordPackInput.value?.value.trim() || '';
   if (!url) return;
   await emitWithAck('room:word_pack_set', { url })
     .then(() => ui.showToast(t('word_pack_loaded', { count: '' }), 'success'))
@@ -890,7 +890,7 @@ onBeforeUnmount(() => {
                   autocomplete="off"
                   class="code-field"
                 />
-                <button id="join-btn" class="btn btn-secondary" type="button" @click="joinRoom">{{ t('join_room') }}</button>
+                <button id="join-btn" class="btn btn-accent" type="button" @click="joinRoom">{{ t('join_room') }}</button>
               </div>
             </label>
 
@@ -902,6 +902,9 @@ onBeforeUnmount(() => {
           </div>
 
           <footer class="join-footer">
+            <button class="lang-btn" type="button" @click="preferences.toggleTheme()" :aria-label="preferences.resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+              {{ preferences.resolvedTheme === 'dark' ? '☀' : '☾' }}
+            </button>
             <div class="language-switch" role="group" aria-label="Language">
               <button class="lang-btn" type="button" :class="{ active: preferences.language === 'en' }" @click="preferences.setLanguage('en')">
                 {{ t('language_en') }}
@@ -971,7 +974,7 @@ onBeforeUnmount(() => {
             <div class="controls-strip">
               <div id="ctrl-placeholder" class="ctrl-panel ctrl-placeholder" :class="{ hidden: !!game }">{{ t('ctrl_placeholder') }}</div>
 
-              <section id="hint-section" class="ctrl-panel hint-ctrl" :class="{ hidden: me?.role !== 'spymaster' || !game }">
+              <section id="hint-section" class="ctrl-panel hint-ctrl" :class="{ hidden: !canHintNow }">
                 <div class="ctrl-head">
                   <h3>{{ t('spymaster_hint') }}</h3>
                   <span id="hint-status" class="ctrl-status">{{ hintStatusText() }}</span>
@@ -983,20 +986,18 @@ onBeforeUnmount(() => {
                     type="text"
                     maxlength="30"
                     :placeholder="t('one_word')"
-                    :disabled="!canHintNow"
                     autocomplete="off"
                   />
                   <div class="number-stepper">
-                    <button type="button" class="stepper-btn stepper-btn-down" aria-label="Decrease" @click="hintCountInput = Math.max(0, Number(hintCountInput) - 1)">
+                    <button type="button" class="stepper-btn stepper-btn-down" aria-label="Decrease" @click="hintCountInput = Math.max(1, Number(hintCountInput) - 1)">
                       &minus;
                     </button>
                     <input
                       id="hint-count-input"
                       v-model="hintCountInput"
                       type="number"
-                      min="0"
+                      min="1"
                       :max="currentMaxHintCount ?? 50"
-                      :disabled="!canHintNow"
                     />
                     <button
                       type="button"
@@ -1007,19 +1008,19 @@ onBeforeUnmount(() => {
                       +
                     </button>
                   </div>
-                  <button class="btn btn-primary" type="submit" :disabled="!canHintNow">{{ t('transmit') }}</button>
+                  <button class="btn btn-primary" type="submit">{{ t('transmit') }}</button>
                 </form>
               </section>
 
-              <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: me?.role !== 'operative' || !game }">
+              <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !game || canHintNow || game.phase === 'finished' }">
                 <p id="hint-display" class="hint-display-bar">{{ hintDisplayText() }}</p>
                 <p id="guess-note" class="ctrl-status">{{ guessNoteText() }}</p>
-                <div class="guess-row">
+                <div v-if="canGuessNow" class="guess-row">
                   <span id="selected-guess" class="selected-label">{{ guessLabel }}</span>
                   <button id="submit-guess-btn" class="btn btn-primary" type="button" :disabled="!selectedGuessCard || !canGuessNow" @click="() => void submitGuess()">
                     {{ t('submit_guess') }}
                   </button>
-                  <button id="end-turn-btn" class="btn btn-ghost" type="button" :disabled="!canGuessNow" @click="() => void endTurn()">
+                  <button id="end-turn-btn" class="btn btn-ghost" type="button" @click="() => void endTurn()">
                     {{ t('end_turn') }}
                   </button>
                 </div>
@@ -1269,11 +1270,17 @@ onBeforeUnmount(() => {
 
               <div class="settings-block">
                 <div class="toggle-row">
+                  <button class="toggle-btn" type="button" @click="preferences.toggleTheme()">
+                    <span>{{ preferences.resolvedTheme === 'dark' ? '☀' : '☾' }}</span>
+                  </button>
                   <button id="sound-toggle-btn" class="toggle-btn" type="button" @click="toggleSoundMute()">
                     <span>{{ preferences.soundMuted ? t('sound_off') : t('sound_on') }}</span>
                   </button>
                   <button id="colorblind-toggle-btn" class="toggle-btn" type="button" @click="preferences.setColorblindMode(!preferences.colorblindMode)">
                     <span>{{ preferences.colorblindMode ? t('colorblind_on') : t('colorblind_off') }}</span>
+                  </button>
+                  <button class="toggle-btn" type="button" @click="() => void toggleNoiseSuppression()">
+                    <span>{{ preferences.noiseSuppression ? t('voice_noise_off') : t('voice_noise_on') }}</span>
                   </button>
                 </div>
               </div>
@@ -1281,8 +1288,8 @@ onBeforeUnmount(() => {
               <div class="settings-block">
                 <span class="settings-label">{{ t('word_pack') }}</span>
                 <div class="pack-row">
-                  <input id="word-pack-input" type="url" placeholder="https://..." class="input-sm" />
-                  <button id="word-pack-btn" class="btn btn-ghost btn-sm" type="button" @click="() => void loadWordPack()">{{ t('load') }}</button>
+                  <input ref="wordPackInput" type="url" placeholder="https://..." class="input-sm" />
+                  <button class="btn btn-ghost btn-sm" type="button" @click="() => void loadWordPack()">{{ t('load') }}</button>
                 </div>
               </div>
 

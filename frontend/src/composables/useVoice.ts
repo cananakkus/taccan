@@ -1,6 +1,7 @@
 import { onBeforeUnmount, ref, type Ref } from 'vue';
 
 import { fetchTurnCredentials, emitWithAck, socket } from '../lib/socket';
+import { getAssetPath } from '../lib/runtime';
 import { usePreferencesStore } from '../stores/preferences';
 import { useUiStore } from '../stores/ui';
 import { useVoiceStore } from '../stores/voice';
@@ -12,6 +13,12 @@ interface PeerEntry {
   analyser: AnalyserNode | null;
 }
 
+interface NoiseNodes {
+  source: MediaStreamAudioSourceNode;
+  worklet: AudioWorkletNode | null;
+  dest: MediaStreamAudioDestinationNode;
+}
+
 const STUN_ONLY_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -21,6 +28,7 @@ const STUN_ONLY_CONFIG: RTCConfiguration = {
 
 const SPEAKING_THRESHOLD = 15;
 const SPEAKING_POLL_MS = 100;
+const RNNOISE_WORKLET_ID = '@sapphi-red/web-noise-suppressor/rnnoise';
 
 export function useVoice(
   players: Ref<PlayerView[]>,
@@ -35,6 +43,10 @@ export function useVoice(
   const peers = new Map<string, PeerEntry>();
   const audioElements = new Map<string, HTMLAudioElement>();
   let localStream: MediaStream | null = null;
+  let processedStream: MediaStream | null = null;
+  let noiseNodes: NoiseNodes | null = null;
+  let rnnoiseWasmBinary: ArrayBuffer | null = null;
+  let rnnoiseWorkletReady = false;
   let rtcConfig: RTCConfiguration | null = null;
   let speakingInterval: number | null = null;
   let audioCtx: AudioContext | null = null;
@@ -61,6 +73,66 @@ export function useVoice(
       return rtcConfig;
     }
   }
+
+  // ── RNNoise noise suppression pipeline ──
+
+  async function createRnnoiseNode(): Promise<AudioWorkletNode> {
+    const ctx = ensureAudioContext();
+
+    if (!rnnoiseWorkletReady) {
+      await ctx.audioWorklet.addModule(getAssetPath('rnnoise-worklet.js'));
+      rnnoiseWorkletReady = true;
+    }
+    if (!rnnoiseWasmBinary) {
+      const resp = await fetch(getAssetPath('rnnoise.wasm'));
+      rnnoiseWasmBinary = await resp.arrayBuffer();
+    }
+
+    return new AudioWorkletNode(ctx, RNNOISE_WORKLET_ID, {
+      processorOptions: { wasmBinary: rnnoiseWasmBinary, maxChannels: 1 },
+    });
+  }
+
+  async function setupNoisePipeline(): Promise<void> {
+    if (!localStream) return;
+    const ctx = ensureAudioContext();
+
+    const source = ctx.createMediaStreamSource(localStream);
+    const dest = ctx.createMediaStreamDestination();
+    let worklet: AudioWorkletNode | null = null;
+
+    if (preferences.noiseSuppression) {
+      try {
+        worklet = await createRnnoiseNode();
+        source.connect(worklet).connect(dest);
+      } catch (_error) {
+        source.connect(dest);
+      }
+    } else {
+      source.connect(dest);
+    }
+
+    noiseNodes = { source, worklet, dest };
+    processedStream = dest.stream;
+  }
+
+  function cleanupNoisePipeline(): void {
+    if (noiseNodes) {
+      noiseNodes.source.disconnect();
+      if (noiseNodes.worklet) {
+        noiseNodes.worklet.disconnect();
+        noiseNodes.worklet.port.postMessage('destroy');
+      }
+    }
+    noiseNodes = null;
+    processedStream = null;
+  }
+
+  function getOutboundStream(): MediaStream | null {
+    return processedStream || localStream;
+  }
+
+  // ── Socket event handlers ──
 
   function initialize() {
     if (initialized) return;
@@ -132,6 +204,8 @@ export function useVoice(
     });
   }
 
+  // ── Join / Leave / Mute ──
+
   async function joinVoice() {
     initialize();
     if (voice.active) {
@@ -144,7 +218,7 @@ export function useVoice(
     try {
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          noiseSuppression: preferences.noiseSuppression,
+          noiseSuppression: true,
           echoCancellation: true,
           autoGainControl: true,
         },
@@ -156,7 +230,7 @@ export function useVoice(
       return;
     }
 
-    await getRtcConfig();
+    await Promise.all([setupNoisePipeline(), getRtcConfig()]);
 
     voice.setActive(true);
     voice.setMuted(false);
@@ -178,6 +252,7 @@ export function useVoice(
 
   function leaveVoice(notify = true) {
     destroyAllPeers();
+    cleanupNoisePipeline();
     stopLocalStream();
     stopSpeakingDetection();
     voice.reset();
@@ -199,10 +274,31 @@ export function useVoice(
   async function toggleNoiseSuppression() {
     const nextValue = !preferences.noiseSuppression;
     preferences.setNoiseSuppression(nextValue);
-    if (!voice.active) return;
-    leaveVoice(false);
-    await joinVoice();
+
+    if (!voice.active || !localStream || !noiseNodes) return;
+
+    // Rewire the pipeline live without rejoining
+    noiseNodes.source.disconnect();
+    if (noiseNodes.worklet) {
+      noiseNodes.worklet.disconnect();
+      noiseNodes.worklet.port.postMessage('destroy');
+      noiseNodes.worklet = null;
+    }
+
+    if (nextValue) {
+      try {
+        const worklet = await createRnnoiseNode();
+        noiseNodes.source.connect(worklet).connect(noiseNodes.dest);
+        noiseNodes.worklet = worklet;
+      } catch (_error) {
+        noiseNodes.source.connect(noiseNodes.dest);
+      }
+    } else {
+      noiseNodes.source.connect(noiseNodes.dest);
+    }
   }
+
+  // ── Peer connections ──
 
   function createPeerConnection(sessionId: string, isInitiator: boolean) {
     if (peers.has(sessionId)) return;
@@ -212,9 +308,10 @@ export function useVoice(
     peers.set(sessionId, entry);
     voice.setPeer(sessionId, voice.peers.find((peer) => peer.sessionId === sessionId)?.volume || 100);
 
-    if (localStream) {
-      for (const track of localStream.getTracks()) {
-        pc.addTrack(track, localStream);
+    const outbound = getOutboundStream();
+    if (outbound) {
+      for (const track of outbound.getTracks()) {
+        pc.addTrack(track, outbound);
       }
     }
 
@@ -296,6 +393,8 @@ export function useVoice(
     }
     localStream = null;
   }
+
+  // ── Speaking detection ──
 
   function startSpeakingDetection() {
     if (speakingInterval) return;

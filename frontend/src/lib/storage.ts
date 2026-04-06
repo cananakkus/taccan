@@ -5,6 +5,7 @@ export const LANGUAGE_STORAGE_KEY = 'taccan.language.v1';
 export const SOUND_MUTE_KEY = 'taccan.sound.mute.v1';
 export const COLORBLIND_KEY = 'taccan.colorblind.v1';
 export const NOISE_SUPPRESSION_KEY = 'taccan.noise.v1';
+export const THEME_KEY = 'taccan.theme.v1';
 
 export function readJson<T>(key: string): T | null {
   try {

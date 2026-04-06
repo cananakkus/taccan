@@ -154,9 +154,12 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mvp_winner: '{name} is the MVP!',
       mvp_no_votes: 'No MVP votes cast.',
       vote: 'Vote',
-      // Wave 7 — Accessibility
+      // Wave 7 — Accessibility & Theme
       colorblind_on: 'Patterns On',
       colorblind_off: 'Patterns Off',
+      theme_auto: 'Auto',
+      theme_light: 'Light',
+      theme_dark: 'Dark',
       card_label: 'Card {n}: {word}, {status}',
       card_revealed: 'revealed',
       card_unrevealed: 'unrevealed',
@@ -410,9 +413,12 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mvp_winner: '{name} MVP seçildi!',
       mvp_no_votes: 'MVP oyu kullanılmadı.',
       vote: 'Oyla',
-      // Dalga 7 — Erişilebilirlik
+      // Dalga 7 — Erişilebilirlik & Tema
       colorblind_on: 'Desenler Açık',
       colorblind_off: 'Desenler Kapalı',
+      theme_auto: 'Otomatik',
+      theme_light: 'Aydınlık',
+      theme_dark: 'Karanlık',
       card_label: 'Kart {n}: {word}, {status}',
       card_revealed: 'açık',
       card_unrevealed: 'kapalı',

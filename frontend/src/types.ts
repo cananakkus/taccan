@@ -165,9 +165,7 @@ export interface Snapshot {
   game: GameView | null;
 }
 
-export interface AckSuccess<T = Record<string, unknown>> extends T {
-  ok: true;
-}
+export type AckSuccess<T = Record<string, unknown>> = T & { ok: true };
 
 export interface AckFailure {
   ok: false;
@@ -189,4 +187,11 @@ export interface ToastState {
 export interface VoicePeerEntry {
   sessionId: string;
   volume: number;
+}
+
+export interface TranslationPayload {
+  defaultLanguage?: string;
+  supportedLanguages?: string[];
+  strings?: Record<string, Record<string, string>>;
+  words?: Record<string, Record<string, string>>;
 }

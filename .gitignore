@@ -3,8 +3,10 @@ npm-debug.log*
 .DS_Store
 CLAUDE.md
 .taccan-state.json
-frontend/app.bundle.js
-frontend/app.bundle.js.map
 frontend/dist/
 .codex
 .playwright-mcp/
+.env
+.env.local
+.env.*.local
+coverage/

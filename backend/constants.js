@@ -1,0 +1,30 @@
+const { BOARD_SIZE } = require('./game-engine');
+
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const TEAM_VALUES = new Set(['red', 'blue', 'none']);
+const ROLE_VALUES = new Set(['spymaster', 'operative', 'spectator']);
+const PLAYER_NAME_MAX = 24;
+const ROOM_CONNECTED_LIMIT = 20;
+const DISCONNECTED_PLAYER_TTL_MS = 45 * 60 * 1000;
+const STALE_ROOM_TTL_MS = 8 * 60 * 60 * 1000;
+const MAX_ROOM_CODE_ATTEMPTS = 100;
+const MVP_TIMEOUT_MS = 30_000;
+const CLEANUP_INTERVAL_MS = 60_000;
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+const ROOM_MODE_VALUES = new Set(['casual', 'blitz']);
+
+module.exports = {
+  BOARD_SIZE,
+  ROOM_CODE_ALPHABET,
+  TEAM_VALUES,
+  ROLE_VALUES,
+  PLAYER_NAME_MAX,
+  ROOM_CONNECTED_LIMIT,
+  DISCONNECTED_PLAYER_TTL_MS,
+  STALE_ROOM_TTL_MS,
+  MAX_ROOM_CODE_ATTEMPTS,
+  MVP_TIMEOUT_MS,
+  CLEANUP_INTERVAL_MS,
+  SHUTDOWN_TIMEOUT_MS,
+  ROOM_MODE_VALUES,
+};

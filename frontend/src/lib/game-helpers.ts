@@ -28,10 +28,10 @@ export function canHostRematch(snapshot: Snapshot | null): boolean {
 
 export function getCurrentMaxHintCount(snapshot: Snapshot | null): number | null {
   const fromGame = snapshot?.game?.maxHintCount;
-  if (Number.isInteger(fromGame) && fromGame > 0) return fromGame;
+  if (fromGame != null && Number.isInteger(fromGame) && fromGame > 0) return fromGame;
 
   const fromRoom = snapshot?.room?.modeConfig?.maxHintCount;
-  if (Number.isInteger(fromRoom) && fromRoom > 0) return fromRoom;
+  if (fromRoom != null && Number.isInteger(fromRoom) && fromRoom > 0) return fromRoom;
 
   return null;
 }

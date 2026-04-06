@@ -5,6 +5,7 @@ import {
   LANGUAGE_STORAGE_KEY,
   NOISE_SUPPRESSION_KEY,
   SOUND_MUTE_KEY,
+  THEME_KEY,
 } from '../lib/storage';
 import { DEFAULT_LANGUAGE, normalizeLanguage } from '../lib/translations';
 
@@ -24,17 +25,38 @@ export const usePreferencesStore = defineStore('preferences', {
     soundMuted: false,
     colorblindMode: true,
     noiseSuppression: true,
+    theme: 'auto' as 'auto' | 'light' | 'dark',
+    resolvedTheme: 'dark' as 'light' | 'dark',
   }),
   actions: {
     initialize() {
       try {
-        this.language = normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY));
+        const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        if (stored) {
+          this.language = normalizeLanguage(stored);
+        } else {
+          const browserLang = navigator.language?.split('-')[0] || '';
+          this.language = normalizeLanguage(browserLang);
+        }
       } catch (_error) {
         this.language = DEFAULT_LANGUAGE;
       }
       this.soundMuted = readBoolean(SOUND_MUTE_KEY, false);
       this.colorblindMode = readBoolean(COLORBLIND_KEY, true);
       this.noiseSuppression = readBoolean(NOISE_SUPPRESSION_KEY, true, 'true');
+
+      try {
+        const storedTheme = localStorage.getItem(THEME_KEY);
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+          this.theme = storedTheme;
+        }
+      } catch (_error) {}
+      this.applyTheme();
+
+      const mq = window.matchMedia('(prefers-color-scheme: light)');
+      mq.addEventListener('change', () => {
+        if (this.theme === 'auto') this.applyTheme();
+      });
     },
     setLanguage(language: string) {
       this.language = normalizeLanguage(language);
@@ -59,6 +81,35 @@ export const usePreferencesStore = defineStore('preferences', {
       try {
         localStorage.setItem(NOISE_SUPPRESSION_KEY, value ? 'true' : 'false');
       } catch (_error) {}
+    },
+    toggleTheme() {
+      this.setTheme(this.resolvedTheme === 'dark' ? 'light' : 'dark');
+    },
+    setTheme(value: 'auto' | 'light' | 'dark') {
+      this.theme = value;
+      try {
+        localStorage.setItem(THEME_KEY, value);
+      } catch (_error) {}
+      document.documentElement.classList.add('theme-transitioning');
+      this.applyTheme();
+      setTimeout(() => {
+        document.documentElement.classList.remove('theme-transitioning');
+      }, 450);
+    },
+    applyTheme() {
+      const resolved: 'light' | 'dark' =
+        this.theme === 'auto'
+          ? window.matchMedia('(prefers-color-scheme: light)').matches
+            ? 'light'
+            : 'dark'
+          : this.theme;
+      this.resolvedTheme = resolved;
+      document.documentElement.setAttribute('data-theme', resolved);
+      document.documentElement.style.colorScheme = resolved;
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute('content', resolved === 'dark' ? '#1a140e' : '#e8e0d4');
+      }
     },
   },
 });

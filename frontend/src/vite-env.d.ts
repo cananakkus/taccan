@@ -6,15 +6,6 @@ declare module '*.vue' {
   export default component;
 }
 
-declare global {
-  interface Window {
-    TACCAN_TRANSLATIONS?: TranslationPayload;
-  }
-}
-
-export interface TranslationPayload {
-  defaultLanguage?: string;
-  supportedLanguages?: string[];
-  strings?: Record<string, Record<string, string>>;
-  words?: Record<string, Record<string, string>>;
+interface Window {
+  TACCAN_TRANSLATIONS?: import('./types').TranslationPayload;
 }

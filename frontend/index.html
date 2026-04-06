@@ -11,6 +11,16 @@
       href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700;900&family=Special+Elite&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function(){
+        var p='auto';
+        try{p=localStorage.getItem('taccan.theme.v1')||'auto'}catch(e){}
+        var t=p;
+        if(p==='auto')t=matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';
+        document.documentElement.setAttribute('data-theme',t);
+        document.documentElement.style.colorScheme=t;
+      })();
+    </script>
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />

@@ -1,6 +1,6 @@
 import '../../translations.js';
 
-import type { TranslationPayload } from '../vite-env';
+import type { TranslationPayload } from '../types';
 
 const payload: TranslationPayload = window.TACCAN_TRANSLATIONS || {};
 
