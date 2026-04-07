@@ -83,6 +83,12 @@ class BottomBar extends ConsumerWidget {
               isActive: ui.openPanel == SheetPanel.settings,
               onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.settings),
             ),
+            _TabButton(
+              icon: Icons.mic_outlined,
+              label: 'Voice',
+              isActive: ui.openPanel == SheetPanel.voice,
+              onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.voice),
+            ),
             if (game?.phase == GamePhase.finished)
               _TabButton(
                 icon: Icons.description_outlined,

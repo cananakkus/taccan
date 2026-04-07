@@ -22,6 +22,7 @@ import '../widgets/sheets/debrief_sheet.dart';
 import '../widgets/sheets/feed_sheet.dart';
 import '../widgets/sheets/settings_sheet.dart';
 import '../widgets/sheets/teams_sheet.dart';
+import '../widgets/sheets/voice_sheet.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
@@ -246,6 +247,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       SheetPanel.feed => const FeedSheet(),
                       SheetPanel.settings => const SettingsSheet(),
                       SheetPanel.debrief => const DebriefSheet(),
+                      SheetPanel.voice => const VoiceSheet(),
                     },
                   ),
                 ],
