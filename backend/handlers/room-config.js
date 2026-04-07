@@ -116,6 +116,7 @@ module.exports = function register(socket, deps) {
       .then((words) => {
         const room = deps.rooms.get(roomCode);
         if (!room) return;
+        if (room.game) return;
         room.customWords = words;
         room.lastActiveAt = Date.now();
         emitStateToRoom(room);

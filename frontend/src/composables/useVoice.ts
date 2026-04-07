@@ -251,10 +251,10 @@ export function useVoice(
   }
 
   function leaveVoice(notify = true) {
+    stopSpeakingDetection();
     destroyAllPeers();
     cleanupNoisePipeline();
     stopLocalStream();
-    stopSpeakingDetection();
     voice.reset();
     if (notify) {
       void emitWithAck('voice:leave', {}).catch(() => {});
@@ -350,7 +350,7 @@ export function useVoice(
             sdp: pc.localDescription?.sdp || '',
           })
         )
-        .catch(() => {});
+        .catch(() => closePeer(sessionId));
     }
   }
 

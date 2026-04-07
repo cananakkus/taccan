@@ -195,8 +195,8 @@ module.exports = function register(socket, deps) {
       }
 
       const index = Number(validatedPayload.index);
-      if (!Number.isInteger(index) || index < 0 || index > 24) {
-        ackError(callback, 'Card index must be between 0 and 24.');
+      if (!Number.isInteger(index) || index < 0 || index > BOARD_SIZE - 1) {
+        ackError(callback, `Card index must be between 0 and ${BOARD_SIZE - 1}.`);
         return;
       }
 

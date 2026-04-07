@@ -19,6 +19,8 @@ function readBoolean(key: string, defaultValue: boolean, truthy = '1'): boolean 
   }
 }
 
+let _initialized = false;
+
 export const usePreferencesStore = defineStore('preferences', {
   state: () => ({
     language: DEFAULT_LANGUAGE,
@@ -30,6 +32,8 @@ export const usePreferencesStore = defineStore('preferences', {
   }),
   actions: {
     initialize() {
+      if (_initialized) return;
+      _initialized = true;
       try {
         const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
         if (stored) {

@@ -47,6 +47,7 @@
   --accent: #c07040;
   --accent-light: rgba(192, 112, 64, 0.22);
   --accent-dim: rgba(192, 112, 64, 0.12);
+  --focus-ring: #e8a850;
 
   /* Status — brighter on dark */
   --success: #50a040;
@@ -279,6 +280,7 @@ html[data-theme="light"] {
   --accent: #b86838;
   --accent-light: rgba(184, 104, 56, 0.15);
   --accent-dim: rgba(184, 104, 56, 0.08);
+  --focus-ring: #6a3810;
 
   --success: #2a7a20;
   --warning: #a07818;
@@ -479,11 +481,11 @@ ul { list-style: none; }
 a { color: inherit; text-decoration: none; }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 button:focus-visible, .card:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -1562,7 +1564,7 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-wrap: wrap;
   gap: 1px;
   justify-content: center;
-  max-height: 18px;
+  max-height: 32px;
   overflow: hidden;
 }
 
@@ -1955,7 +1957,7 @@ input[type="number"]::-webkit-outer-spin-button {
    ══════════════════════════════ */
 .toast {
   position: fixed;
-  top: 48px;
+  top: calc(48px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%) translateY(0);
   padding: 10px 24px;
@@ -2010,6 +2012,7 @@ input[type="number"]::-webkit-outer-spin-button {
     linear-gradient(175deg, var(--paper-light) 0%, var(--paper) 50%, var(--paper-dark) 100%);
   border: 1px solid var(--border);
   padding: 32px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--shadow-elevated), inset 0 0 20px var(--overlay-inset);
 }
 .overlay-close {
@@ -2092,6 +2095,15 @@ input[type="number"]::-webkit-outer-spin-button {
   .mode-tag { display: none; }
 }
 
+/* ── Tablet (601–720px) ── */
+@media (max-width: 720px) and (min-width: 601px) {
+  .top-bar { padding: 3px 10px; }
+  .bottom-bar { padding: 5px 8px; }
+  .card-word { font-size: clamp(0.6rem, 2vw, 0.9rem); }
+  .game-stage { gap: 6px; }
+  .board { gap: 5px; }
+}
+
 /* ── Phone (≤600px) ── */
 @media (max-width: 600px) {
 
@@ -2126,9 +2138,9 @@ input[type="number"]::-webkit-outer-spin-button {
   #result-section {
     display: none;
     position: fixed;
-    bottom: calc(var(--bar-h) + 32px);
-    left: 6px;
-    right: 6px;
+    bottom: calc(var(--bar-h) + 32px + env(safe-area-inset-bottom, 0px));
+    left: calc(6px + env(safe-area-inset-left, 0px));
+    right: calc(6px + env(safe-area-inset-right, 0px));
     z-index: 15;
     border-radius: 6px;
     box-shadow: var(--shadow-elevated);
@@ -2447,7 +2459,7 @@ html.theme-transitioning .voice-peer {
 .sheet-body {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 16px 16px;
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 10px;

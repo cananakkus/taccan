@@ -105,10 +105,12 @@ module.exports = function createTimers(ctx) {
 
   function scheduleMvpTimeout(room) {
     clearMvpTimer(room.code);
-    mvpTimers.set(room.code, setTimeout(() => {
+    const timer = setTimeout(() => {
       mvpTimers.delete(room.code);
       broadcastMvpResult(room);
-    }, ctx.constants.MVP_TIMEOUT_MS));
+    }, ctx.constants.MVP_TIMEOUT_MS);
+    if (typeof timer.unref === 'function') timer.unref();
+    mvpTimers.set(room.code, timer);
   }
 
   function clearMvpTimer(roomCode) {

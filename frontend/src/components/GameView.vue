@@ -78,6 +78,7 @@ const boardRefs = ref<(HTMLButtonElement | null)[]>([]);
 const audioContainer = ref<HTMLElement | null>(null);
 const wordPackInput = ref<HTMLInputElement | null>(null);
 const spymasterSelectedIndexes = ref<number[]>([]);
+const theaterMode = new URLSearchParams(window.location.search).get('theater') === '1';
 let liveTimer: number | null = null;
 
 const snapshot = computed(() => app.snapshot);
@@ -382,7 +383,7 @@ function boardWord(card: BoardCard) {
 function syncSceneClasses() {
   const body = document.body;
   body.classList.toggle('colorblind-mode', preferences.colorblindMode);
-  body.classList.toggle('theatrical-mode', new URLSearchParams(window.location.search).get('theater') === '1');
+  body.classList.toggle('theatrical-mode', theaterMode);
   body.classList.remove(...SCENE_CLASSES);
   if (!game.value) {
     body.classList.add('scene-lobby');
@@ -727,8 +728,8 @@ async function sendGG() {
 async function loadWordPack() {
   const url = wordPackInput.value?.value.trim() || '';
   if (!url) return;
-  await emitWithAck('room:word_pack_set', { url })
-    .then(() => ui.showToast(t('word_pack_loaded', { count: '' }), 'success'))
+  await emitWithAck<{ wordCount?: number }>('room:word_pack_set', { url })
+    .then((response) => ui.showToast(t('word_pack_loaded', { count: response.wordCount ?? '' }), 'success'))
     .catch((error: Error) => ui.showToast(error.message, 'error'));
 }
 
@@ -804,7 +805,7 @@ watch(
 );
 
 watch(
-  () => [preferences.colorblindMode, game.value?.phase, game.value?.currentTeam, new URLSearchParams(window.location.search).get('theater')],
+  () => [preferences.colorblindMode, game.value?.phase, game.value?.currentTeam],
   () => syncSceneClasses(),
   { immediate: true }
 );
