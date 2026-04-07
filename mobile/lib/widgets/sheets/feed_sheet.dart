@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +8,7 @@ import '../../core/constants.dart';
 import '../../models/chat_message.dart';
 import '../../providers/providers.dart';
 import '../../providers/ui_provider.dart';
+import '../../services/socket_service.dart';
 import '../../theme/card_theme.dart';
 
 class FeedSheet extends ConsumerStatefulWidget {
@@ -17,11 +20,38 @@ class FeedSheet extends ConsumerStatefulWidget {
 
 class _FeedSheetState extends ConsumerState<FeedSheet> {
   final _chatController = TextEditingController();
+  final _localMessages = <ChatMessage>[];
+  StreamSubscription<SocketEvent>? _eventSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for real-time chat messages
+    _eventSub = ref.read(socketServiceProvider).events.listen((event) {
+      if (event.name == 'chat:message' && mounted) {
+        setState(() {
+          _localMessages.add(ChatMessage.fromJson(event.data));
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
     _chatController.dispose();
+    _eventSub?.cancel();
     super.dispose();
+  }
+
+  List<ChatMessage> _mergedMessages() {
+    final snapshot = ref.read(roomProvider)?.chatMessages ?? [];
+    // Combine snapshot messages with locally received ones, dedup by timestamp
+    final seen = <int>{};
+    final merged = <ChatMessage>[];
+    for (final m in [...snapshot, ..._localMessages]) {
+      if (seen.add(m.ts)) merged.add(m);
+    }
+    return merged;
   }
 
   Future<void> _sendChat() async {
@@ -37,17 +67,19 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final room = ref.watch(roomProvider);
+    // Watch snapshot to rebuild when it changes
+    ref.watch(roomProvider);
     final colors = Theme.of(context).colorScheme;
     final ct = Theme.of(context).extension<TaccanCardTheme>()!;
-    final messages = room?.chatMessages ?? [];
+    final tr = ref.watch(trProvider);
+    final messages = _mergedMessages();
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Text(
-            'FEED',
+            tr('feed'),
             style: GoogleFonts.playfairDisplaySc(
               fontSize: 14,
               letterSpacing: 1,
@@ -59,11 +91,8 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
           child: messages.isEmpty
               ? Center(
                   child: Text(
-                    'No activity yet.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.onSurface.withValues(alpha: 0.3),
-                    ),
+                    tr('no_activity'),
+                    style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.3)),
                   ),
                 )
               : ListView.builder(
@@ -76,7 +105,6 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
                   },
                 ),
         ),
-        // Chat input
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -87,10 +115,10 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
               Expanded(
                 child: TextField(
                   controller: _chatController,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a message...',
+                  decoration: InputDecoration(
+                    hintText: tr('type_message'),
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     border: InputBorder.none,
                   ),
                   style: const TextStyle(fontSize: 13),
@@ -99,10 +127,7 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
                   onSubmitted: (_) => _sendChat(),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.send, size: 18),
-                onPressed: _sendChat,
-              ),
+              IconButton(icon: const Icon(Icons.send, size: 18), onPressed: _sendChat),
             ],
           ),
         ),
@@ -133,18 +158,11 @@ class _ChatBubble extends StatelessWidget {
         children: [
           Text(
             message.name,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: teamColor,
-            ),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: teamColor),
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              message.text,
-              style: TextStyle(fontSize: 12, color: colors.onSurface),
-            ),
+            child: Text(message.text, style: TextStyle(fontSize: 12, color: colors.onSurface)),
           ),
         ],
       ),

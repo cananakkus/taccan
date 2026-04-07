@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -7,7 +8,9 @@ import '../../providers/providers.dart';
 import '../../providers/ui_provider.dart';
 
 class BottomBar extends ConsumerWidget {
-  const BottomBar({super.key});
+  final void Function(SheetPanel panel) onToggleSheet;
+
+  const BottomBar({super.key, required this.onToggleSheet});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -16,6 +19,7 @@ class BottomBar extends ConsumerWidget {
     final game = ref.watch(gameProvider);
     final connected = ref.watch(connectionProvider);
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -27,10 +31,14 @@ class BottomBar extends ConsumerWidget {
         top: false,
         child: Row(
           children: [
-            // Room code
+            // Room code (tap to copy)
             GestureDetector(
               onTap: () {
-                // TODO: copy to clipboard
+                final code = room?.code ?? '';
+                if (code.isNotEmpty) {
+                  Clipboard.setData(ClipboardData(text: code));
+                  ref.read(toastProvider.notifier).show(tr('room_code_copied'), ToastStyle.success);
+                }
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -63,43 +71,33 @@ class BottomBar extends ConsumerWidget {
               ),
             ),
             const Spacer(),
-
-            // Sheet tabs
             _TabButton(
               icon: Icons.groups_outlined,
-              label: 'Teams',
               isActive: ui.openPanel == SheetPanel.teams,
-              onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.teams),
+              onTap: () => onToggleSheet(SheetPanel.teams),
             ),
             _TabButton(
               icon: Icons.chat_outlined,
-              label: 'Feed',
               isActive: ui.openPanel == SheetPanel.feed,
-              onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.feed),
-            ),
-            _TabButton(
-              icon: Icons.settings_outlined,
-              label: 'Settings',
-              isActive: ui.openPanel == SheetPanel.settings,
-              onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.settings),
+              onTap: () => onToggleSheet(SheetPanel.feed),
             ),
             _TabButton(
               icon: Icons.mic_outlined,
-              label: 'Voice',
               isActive: ui.openPanel == SheetPanel.voice,
-              onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.voice),
+              onTap: () => onToggleSheet(SheetPanel.voice),
+            ),
+            _TabButton(
+              icon: Icons.settings_outlined,
+              isActive: ui.openPanel == SheetPanel.settings,
+              onTap: () => onToggleSheet(SheetPanel.settings),
             ),
             if (game?.phase == GamePhase.finished)
               _TabButton(
                 icon: Icons.description_outlined,
-                label: 'Debrief',
                 isActive: ui.openPanel == SheetPanel.debrief,
-                onTap: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.debrief),
+                onTap: () => onToggleSheet(SheetPanel.debrief),
               ),
-
             const Spacer(),
-
-            // Leave
             IconButton(
               icon: const Icon(Icons.logout, size: 18),
               onPressed: () async {
@@ -109,7 +107,7 @@ class BottomBar extends ConsumerWidget {
                 ref.read(snapshotProvider.notifier).clear();
                 await ref.read(sessionProvider.notifier).clear();
               },
-              tooltip: 'Leave',
+              tooltip: tr('leave'),
               iconSize: 18,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -123,16 +121,10 @@ class BottomBar extends ConsumerWidget {
 
 class _TabButton extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool isActive;
   final VoidCallback onTap;
 
-  const _TabButton({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
+  const _TabButton({required this.icon, required this.isActive, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

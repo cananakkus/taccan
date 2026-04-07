@@ -18,6 +18,7 @@ class TeamsSheet extends ConsumerWidget {
     final game = ref.watch(gameProvider);
     final ct = Theme.of(context).extension<TaccanCardTheme>()!;
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
     final isHost = me?.isHost ?? false;
     final inGame = game != null;
 
@@ -27,17 +28,14 @@ class TeamsSheet extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Header
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
             children: [
               Text(
-                'TEAMS',
+                tr('teams'),
                 style: GoogleFonts.playfairDisplaySc(
-                  fontSize: 14,
-                  letterSpacing: 1,
-                  color: colors.onSurface,
+                  fontSize: 14, letterSpacing: 1, color: colors.onSurface,
                 ),
               ),
               const Spacer(),
@@ -45,7 +43,7 @@ class TeamsSheet extends ConsumerWidget {
                 ElevatedButton.icon(
                   onPressed: () => _startGame(ref),
                   icon: const Icon(Icons.play_arrow, size: 16),
-                  label: const Text('START'),
+                  label: Text(tr('start_game')),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     textStyle: const TextStyle(fontSize: 12),
@@ -54,8 +52,6 @@ class TeamsSheet extends ConsumerWidget {
             ],
           ),
         ),
-
-        // Team panels
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -69,22 +65,20 @@ class TeamsSheet extends ConsumerWidget {
             ),
           ),
         ),
-
-        // Actions
         Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               OutlinedButton(
-                onPressed: () => ref.read(socketServiceProvider).setTeam('none').catchError((_) {}),
-                child: const Text('Spectator'),
+                onPressed: () => ref.read(socketServiceProvider).setTeam('none').catchError((_) => <String, dynamic>{}),
+                child: Text(tr('spectator')),
               ),
               if (isHost) ...[
                 const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: () => _pruneDisconnected(ref),
-                  child: const Text('Prune Offline'),
+                  child: Text(tr('prune_offline')),
                 ),
               ],
             ],
@@ -97,7 +91,6 @@ class TeamsSheet extends ConsumerWidget {
   Future<void> _startGame(WidgetRef ref) async {
     try {
       await ref.read(socketServiceProvider).startGame();
-      ref.read(uiProvider.notifier).closeSheet();
     } catch (e) {
       ref.read(toastProvider.notifier).show(e.toString(), ToastStyle.error);
     }
@@ -118,17 +111,13 @@ class _TeamPanel extends ConsumerWidget {
   final Color color;
   final MeView? me;
 
-  const _TeamPanel({
-    required this.team,
-    required this.players,
-    required this.color,
-    this.me,
-  });
+  const _TeamPanel({required this.team, required this.players, required this.color, this.me});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
-    final teamName = team == Team.red ? 'RED' : 'BLUE';
+    final tr = ref.watch(trProvider);
+    final teamName = tr(team == Team.red ? 'red' : 'blue').toUpperCase();
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -145,19 +134,15 @@ class _TeamPanel extends ConsumerWidget {
               Text(
                 teamName,
                 style: GoogleFonts.playfairDisplaySc(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                  letterSpacing: 1,
+                  fontSize: 11, fontWeight: FontWeight.w700, color: color, letterSpacing: 1,
                 ),
               ),
               const Spacer(),
-              // Join team button
               if (me?.team != team)
                 GestureDetector(
-                  onTap: () => ref.read(socketServiceProvider).setTeam(team.name).catchError((_) {}),
+                  onTap: () => ref.read(socketServiceProvider).setTeam(team.name).catchError((_) => <String, dynamic>{}),
                   child: Text(
-                    'JOIN',
+                    tr('join_team'),
                     style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -166,7 +151,7 @@ class _TeamPanel extends ConsumerWidget {
           const SizedBox(height: 6),
           if (players.isEmpty)
             Text(
-              'No agents',
+              tr('no_agents'),
               style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.3)),
             )
           else
@@ -187,25 +172,23 @@ class _PlayerRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          // Connection dot
           Container(
-            width: 5,
-            height: 5,
+            width: 5, height: 5,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: player.connected ? Colors.green : colors.error,
             ),
           ),
           const SizedBox(width: 4),
-          // Name
           Expanded(
             child: Text(
-              player.name + (isMe ? ' (you)' : ''),
+              player.name + (isMe ? ' ${tr('you')}' : ''),
               style: TextStyle(
                 fontSize: 12,
                 color: colors.onSurface,
@@ -214,7 +197,6 @@ class _PlayerRow extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Host badge
           if (player.isHost)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
@@ -225,24 +207,35 @@ class _PlayerRow extends ConsumerWidget {
               ),
               child: Text('HOST', style: TextStyle(fontSize: 7, color: colors.primary)),
             ),
-          // Role
+          // Role toggle — only for self
           GestureDetector(
             onTap: () {
-              final nextRole = player.role == PlayerRole.spymaster ? 'operative' : 'spymaster';
-              if (player.sessionId == ref.read(meProvider)?.sessionId) {
-                ref.read(socketServiceProvider).setRole(nextRole).catchError((_) {});
-              }
+              if (player.sessionId != ref.read(meProvider)?.sessionId) return;
+              final nextRole = switch (player.role) {
+                PlayerRole.spymaster => 'operative',
+                PlayerRole.operative => 'spymaster',
+                PlayerRole.spectator => 'operative',
+              };
+              ref.read(socketServiceProvider).setRole(nextRole).catchError((e) {
+                ref.read(toastProvider.notifier).show(e.toString(), ToastStyle.error);
+              });
             },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               margin: const EdgeInsets.only(left: 2),
               decoration: BoxDecoration(
+                color: isMe ? color.withValues(alpha: 0.12) : Colors.transparent,
                 border: Border.all(color: color.withValues(alpha: 0.3)),
                 borderRadius: BorderRadius.circular(2),
               ),
               child: Text(
                 player.role == PlayerRole.spymaster ? 'SPY' : 'OPS',
-                style: TextStyle(fontSize: 7, color: color),
+                style: TextStyle(
+                  fontSize: 7,
+                  color: color,
+                  fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
             ),
           ),

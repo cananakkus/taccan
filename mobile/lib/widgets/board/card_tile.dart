@@ -12,6 +12,7 @@ class CardTile extends StatelessWidget {
   final bool isSpymasterSelected;
   final bool canInteract;
   final bool isSpymaster;
+  final bool colorblindMode;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onDoubleTap;
@@ -24,6 +25,7 @@ class CardTile extends StatelessWidget {
     this.isSpymasterSelected = false,
     this.canInteract = false,
     this.isSpymaster = false,
+    this.colorblindMode = false,
     this.onTap,
     this.onLongPress,
     this.onDoubleTap,
@@ -61,93 +63,111 @@ class CardTile extends StatelessWidget {
       onTap: canInteract || isSpymaster ? onTap : null,
       onLongPress: isSpymaster ? onLongPress : null,
       onDoubleTap: canInteract ? onDoubleTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: bg,
-          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
-          borderRadius: BorderRadius.circular(4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 4,
-              offset: const Offset(1, 2),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Word
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Text(
-                  card.word,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.specialElite(
-                    fontSize: 11,
-                    color: textColor,
-                    letterSpacing: 0.5,
-                    height: 1.2,
+      child: AnimatedScale(
+        scale: isSelected ? 1.04 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isSelected ? 0.2 : 0.1),
+                blurRadius: isSelected ? 6 : 3,
+                offset: const Offset(1, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Word
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    card.word,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.specialElite(
+                      fontSize: 11,
+                      color: textColor,
+                      letterSpacing: 0.5,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
 
-            // Markers
-            if (card.marks.isNotEmpty)
-              Positioned(
-                bottom: 1,
-                left: 1,
-                right: 1,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: card.marks.take(4).map((mark) {
-                    final markColor = mark.team == Team.red
-                        ? ct.red
-                        : mark.team == Team.blue
-                            ? ct.blue
-                            : ct.neutral;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 0.5),
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: mark.confidence == Confidence.tentative
-                            ? Colors.transparent
-                            : markColor,
-                        border: mark.confidence == Confidence.tentative
-                            ? Border.all(color: markColor, width: 0.5)
-                            : null,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: Text(
-                        mark.name.isNotEmpty ? mark.name[0] : '?',
-                        style: TextStyle(
-                          fontSize: 7,
-                          color: ct.markerText,
-                          fontWeight: FontWeight.bold,
+              // Colorblind pattern indicator
+              if (colorblindMode && card.revealed && card.color != null)
+                Positioned(
+                  top: 2,
+                  left: 2,
+                  child: Icon(
+                    _colorblindIcon(card.color!),
+                    size: 10,
+                    color: ct.revealedText.withValues(alpha: 0.7),
+                  ),
+                ),
+
+              // Markers
+              if (card.marks.isNotEmpty)
+                Positioned(
+                  bottom: 1,
+                  left: 1,
+                  right: 1,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: card.marks.take(4).map((mark) {
+                      final markColor = mark.team == Team.red
+                          ? ct.red
+                          : mark.team == Team.blue
+                              ? ct.blue
+                              : ct.neutral;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: mark.confidence == Confidence.tentative
+                              ? Colors.transparent
+                              : markColor,
+                          border: mark.confidence == Confidence.tentative
+                              ? Border.all(color: markColor, width: 0.5)
+                              : null,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                        child: Text(
+                          mark.name.isNotEmpty ? mark.name[0] : '?',
+                          style: TextStyle(
+                            fontSize: 7,
+                            color: ct.markerText,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
-              ),
 
-            // Revealed stamp
-            if (card.revealed && card.color != null)
-              Positioned(
-                top: 2,
-                right: 2,
-                child: Icon(
-                  _stampIcon(card.color!),
-                  size: 12,
-                  color: ct.revealedText.withValues(alpha: 0.5),
+              // Revealed stamp
+              if (card.revealed && card.color != null && !colorblindMode)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Icon(
+                    _stampIcon(card.color!),
+                    size: 12,
+                    color: ct.revealedText.withValues(alpha: 0.5),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -180,5 +200,12 @@ class CardTile extends StatelessWidget {
         CardColor.blue => Icons.shield,
         CardColor.assassin => Icons.dangerous,
         _ => Icons.close,
+      };
+
+  IconData _colorblindIcon(CardColor color) => switch (color) {
+        CardColor.red => Icons.signal_cellular_4_bar,
+        CardColor.blue => Icons.blur_on,
+        CardColor.assassin => Icons.close,
+        _ => Icons.remove,
       };
 }

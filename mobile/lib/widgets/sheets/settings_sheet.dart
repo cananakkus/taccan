@@ -15,6 +15,7 @@ class SettingsSheet extends ConsumerWidget {
     final room = ref.watch(roomProvider);
     final game = ref.watch(gameProvider);
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
     final isHost = me?.isHost ?? false;
     final inLobby = game == null;
 
@@ -24,7 +25,7 @@ class SettingsSheet extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'SETTINGS',
+            tr('settings'),
             style: GoogleFonts.playfairDisplaySc(
               fontSize: 14,
               letterSpacing: 1,
@@ -33,68 +34,67 @@ class SettingsSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // Mode selection (host only, lobby only)
           if (isHost && inLobby) ...[
             Text(
-              'Game Mode',
+              tr('game_mode'),
               style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 6),
             Row(
               children: [
                 _ModeChip(
-                  label: 'Casual',
+                  label: tr('casual'),
                   selected: room?.mode == RoomMode.casual,
-                  onTap: () => ref.read(socketServiceProvider).setMode('casual').catchError((_) {}),
+                  onTap: () => ref.read(socketServiceProvider).setMode('casual').catchError((_) => <String, dynamic>{}),
                 ),
                 const SizedBox(width: 8),
                 _ModeChip(
-                  label: 'Blitz',
+                  label: tr('blitz'),
                   selected: room?.mode == RoomMode.blitz,
-                  onTap: () => ref.read(socketServiceProvider).setMode('blitz').catchError((_) {}),
+                  onTap: () => ref.read(socketServiceProvider).setMode('blitz').catchError((_) => <String, dynamic>{}),
                 ),
               ],
             ),
             const SizedBox(height: 16),
           ],
 
-          // Toggle row
           _ToggleRow(
-            icon: Theme.of(context).brightness == Brightness.dark
+            icon: prefs.themeMode == ThemeMode.dark
                 ? Icons.wb_sunny_outlined
                 : Icons.nightlight_outlined,
-            label: 'Theme',
-            onTap: () => ref.read(preferencesProvider.notifier).toggleTheme(Theme.of(context).brightness),
+            label: tr('theme'),
+            onTap: () {
+              final next = prefs.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+              ref.read(preferencesProvider.notifier).setThemeMode(next);
+            },
           ),
           _ToggleRow(
             icon: prefs.soundMuted ? Icons.volume_off : Icons.volume_up,
-            label: prefs.soundMuted ? 'Sound Off' : 'Sound On',
+            label: prefs.soundMuted ? tr('sound_off') : tr('sound_on'),
             onTap: () => ref.read(preferencesProvider.notifier).toggleSound(),
           ),
           _ToggleRow(
             icon: Icons.palette_outlined,
-            label: prefs.colorblindMode ? 'Patterns On' : 'Patterns Off',
+            label: prefs.colorblindMode ? tr('patterns_on') : tr('patterns_off'),
             onTap: () => ref.read(preferencesProvider.notifier).toggleColorblind(),
           ),
 
           const SizedBox(height: 16),
-
-          // Language
           Text(
-            'Language',
+            tr('language'),
             style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 6),
           Row(
             children: [
               _ModeChip(
-                label: 'English',
+                label: tr('english'),
                 selected: prefs.language == 'en',
                 onTap: () => ref.read(preferencesProvider.notifier).setLanguage('en'),
               ),
               const SizedBox(width: 8),
               _ModeChip(
-                label: 'Turkce',
+                label: tr('turkish'),
                 selected: prefs.language == 'tr',
                 onTap: () => ref.read(preferencesProvider.notifier).setLanguage('tr'),
               ),
@@ -118,7 +118,8 @@ class _ModeChip extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? colors.primary.withValues(alpha: 0.15) : Colors.transparent,

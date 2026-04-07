@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../core/env.dart';
@@ -44,7 +45,7 @@ class SocketService {
       try {
         final json = Map<String, dynamic>.from(data as Map);
         _snapshotController.add(Snapshot.fromJson(json));
-      } catch (_) {}
+      } catch (e) { debugPrint('Socket parse error: $e'); }
     });
 
     _socket!.on('error:rule_violation', (data) {

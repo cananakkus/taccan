@@ -38,8 +38,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
 
   Future<void> _createRoom() async {
     final name = _nameController.text.trim();
+    final tr = ref.read(trProvider);
     if (name.isEmpty) {
-      setState(() => _error = 'Enter your name');
+      setState(() => _error = tr('enter_name'));
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -62,12 +63,13 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   Future<void> _joinRoom() async {
     final name = _nameController.text.trim();
     final code = _codeController.text.trim().toUpperCase();
+    final tr = ref.read(trProvider);
     if (name.isEmpty) {
-      setState(() => _error = 'Enter your name');
+      setState(() => _error = tr('enter_name'));
       return;
     }
     if (code.isEmpty) {
-      setState(() => _error = 'Enter a room code');
+      setState(() => _error = tr('enter_code'));
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -91,6 +93,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     final colors = theme.colorScheme;
     final prefs = ref.watch(preferencesProvider);
     final connected = ref.watch(connectionProvider);
+    final tr = ref.watch(trProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -114,7 +117,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header
                   Text(
                     'DOC. NO. TC-4782',
                     style: GoogleFonts.specialElite(
@@ -134,19 +136,13 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    height: 2,
-                    width: 60,
-                    color: colors.primary,
-                  ),
+                  Container(height: 2, width: 60, color: colors.primary),
                   const SizedBox(height: 24),
-
-                  // Name input
                   TextField(
                     controller: _nameController,
                     maxLength: playerNameMax,
                     decoration: InputDecoration(
-                      labelText: 'Agent Name',
+                      labelText: tr('agent_name'),
                       labelStyle: GoogleFonts.specialElite(),
                       counterText: '',
                     ),
@@ -154,8 +150,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 16),
-
-                  // Code input + Join
                   Row(
                     children: [
                       Expanded(
@@ -163,42 +157,33 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                           controller: _codeController,
                           maxLength: 8,
                           decoration: InputDecoration(
-                            labelText: 'Room Code',
+                            labelText: tr('room_code'),
                             labelStyle: GoogleFonts.specialElite(),
                             counterText: '',
                           ),
-                          style: GoogleFonts.specialElite(
-                            fontSize: 18,
-                            letterSpacing: 3,
-                          ),
+                          style: GoogleFonts.specialElite(fontSize: 18, letterSpacing: 3),
                           textCapitalization: TextCapitalization.characters,
                         ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: _loading ? null : _joinRoom,
-                        child: Text(_loading ? '...' : 'JOIN'),
+                        child: Text(_loading ? '...' : tr('join')),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Create room
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
                       onPressed: _loading ? null : _createRoom,
                       child: Text(
-                        'CREATE NEW ROOM',
-                        style: GoogleFonts.playfairDisplaySc(
-                          letterSpacing: 1,
-                        ),
+                        tr('create_room'),
+                        style: GoogleFonts.playfairDisplaySc(letterSpacing: 1),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // Error
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -208,11 +193,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-
-                  // Connection status
                   if (!connected)
                     Text(
-                      'Connecting...',
+                      tr('connecting'),
                       style: GoogleFonts.specialElite(
                         fontSize: 11,
                         color: colors.onSurface.withValues(alpha: 0.5),
@@ -224,8 +207,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
           ),
         ),
       ),
-
-      // Footer: theme toggle + language
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -234,14 +215,15 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
             children: [
               IconButton(
                 icon: Icon(
-                  theme.brightness == Brightness.dark
+                  prefs.themeMode == ThemeMode.dark
                       ? Icons.wb_sunny_outlined
                       : Icons.nightlight_outlined,
                 ),
-                onPressed: () => ref
-                    .read(preferencesProvider.notifier)
-                    .toggleTheme(theme.brightness),
-                tooltip: 'Toggle theme',
+                onPressed: () {
+                  final next = prefs.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+                  ref.read(preferencesProvider.notifier).setThemeMode(next);
+                },
+                tooltip: tr('theme'),
               ),
               const SizedBox(width: 16),
               TextButton(
@@ -251,10 +233,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                 },
                 child: Text(
                   prefs.language == 'en' ? 'TR' : 'EN',
-                  style: GoogleFonts.specialElite(
-                    letterSpacing: 2,
-                    color: colors.onSurface,
-                  ),
+                  style: GoogleFonts.specialElite(letterSpacing: 2, color: colors.onSurface),
                 ),
               ),
             ],

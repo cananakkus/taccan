@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/translations.dart';
 import '../models/session_record.dart';
 import '../models/snapshot.dart';
 import '../services/socket_service.dart';
@@ -182,6 +183,13 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     await _storage.setColorblind(next);
   }
 }
+
+// ── Translation ──
+
+final trProvider = Provider<String Function(String, {Map<String, String>? vars})>((ref) {
+  final lang = ref.watch(preferencesProvider).language;
+  return (key, {vars}) => t(key, lang: lang, vars: vars);
+});
 
 // ── Derived ──
 

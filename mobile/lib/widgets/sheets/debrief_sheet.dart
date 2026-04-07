@@ -14,10 +14,11 @@ class DebriefSheet extends ConsumerWidget {
     final players = ref.watch(playersProvider);
     final colors = Theme.of(context).colorScheme;
     final ct = Theme.of(context).extension<TaccanCardTheme>()!;
+    final tr = ref.watch(trProvider);
 
     if (game == null) return const SizedBox.shrink();
 
-    final entries = _buildNarrative(game, players, ct);
+    final entries = _buildNarrative(game, players, ct, tr);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -26,22 +27,18 @@ class DebriefSheet extends ConsumerWidget {
         children: [
           Center(
             child: Text(
-              'INTELLIGENCE DEBRIEF',
+              tr('intelligence_debrief'),
               style: GoogleFonts.playfairDisplaySc(
-                fontSize: 14,
-                letterSpacing: 2,
-                color: colors.onSurface,
+                fontSize: 14, letterSpacing: 2, color: colors.onSurface,
               ),
             ),
           ),
           const SizedBox(height: 4),
           Center(
             child: Text(
-              'CLASSIFICATION: TOP SECRET',
+              tr('classification'),
               style: GoogleFonts.specialElite(
-                fontSize: 9,
-                letterSpacing: 2,
-                color: colors.onSurface.withValues(alpha: 0.4),
+                fontSize: 9, letterSpacing: 2, color: colors.onSurface.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -52,7 +49,7 @@ class DebriefSheet extends ConsumerWidget {
     );
   }
 
-  List<Widget> _buildNarrative(dynamic game, List players, TaccanCardTheme ct) {
+  List<Widget> _buildNarrative(dynamic game, List players, TaccanCardTheme ct, Function tr) {
     final widgets = <Widget>[];
     int transmissionNum = 0;
 
@@ -71,11 +68,9 @@ class DebriefSheet extends ConsumerWidget {
         widgets.add(Padding(
           padding: const EdgeInsets.only(top: 12, bottom: 4),
           child: Text(
-            'TRANSMISSION #$transmissionNum',
+            '${tr('transmission')}$transmissionNum',
             style: GoogleFonts.specialElite(
-              fontSize: 10,
-              letterSpacing: 1,
-              color: color.withValues(alpha: 0.6),
+              fontSize: 10, letterSpacing: 1, color: color.withValues(alpha: 0.6),
             ),
           ),
         ));
@@ -108,10 +103,7 @@ class DebriefSheet extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Text(
             '— Turn ended: $reason',
-            style: GoogleFonts.specialElite(
-              fontSize: 10,
-              color: const Color(0xFF888888),
-            ),
+            style: GoogleFonts.specialElite(fontSize: 10, color: const Color(0xFF888888)),
           ),
         ));
       } else if (type == 'game_end') {
@@ -120,11 +112,8 @@ class DebriefSheet extends ConsumerWidget {
         widgets.add(Padding(
           padding: const EdgeInsets.only(top: 12),
           child: Text(
-            'MISSION CONCLUSION: ${winner.toUpperCase()} TEAM WINS — $reason',
-            style: GoogleFonts.playfairDisplaySc(
-              fontSize: 12,
-              letterSpacing: 0.5,
-            ),
+            '${tr('mission_conclusion')}: ${winner.toUpperCase()} TEAM WINS — $reason',
+            style: GoogleFonts.playfairDisplaySc(fontSize: 12, letterSpacing: 0.5),
           ),
         ));
       }

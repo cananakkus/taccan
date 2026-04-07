@@ -31,15 +31,34 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends ConsumerState<GameScreen> {
+class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProviderStateMixin {
   StreamSubscription<ToastEvent>? _toastSub;
   StreamSubscription<SocketEvent>? _eventSub;
+  late final AnimationController _sheetController;
+  late final Animation<Offset> _sheetSlide;
+  late final Animation<double> _backdropOpacity;
+  SheetPanel? _animatingPanel;
 
   @override
   void initState() {
     super.initState();
-    final socket = ref.read(socketServiceProvider);
+    _sheetController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _sheetSlide = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _sheetController, curve: Curves.easeOutCubic));
+    _backdropOpacity = Tween<double>(begin: 0, end: 1).animate(_sheetController);
 
+    _sheetController.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed) {
+        setState(() => _animatingPanel = null);
+      }
+    });
+
+    final socket = ref.read(socketServiceProvider);
     _toastSub = socket.toasts.listen((event) {
       ref.read(toastProvider.notifier).show(
             event.message,
@@ -48,20 +67,20 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     });
 
     _eventSub = socket.events.listen((event) {
+      final tr = ref.read(trProvider);
       switch (event.name) {
         case 'game:gg_received':
           final name = event.data['name'] as String? ?? 'Someone';
-          ref.read(toastProvider.notifier).show('$name says GG!', ToastStyle.success);
+          ref.read(toastProvider.notifier).show(
+                tr('says_gg', vars: {'name': name}),
+                ToastStyle.success,
+              );
         case 'turn:timer_started':
           final phase = event.data['phase'] as String? ?? '';
-          ref.read(toastProvider.notifier).show('$phase timer started');
+          ref.read(toastProvider.notifier).show(tr('timer_started', vars: {'phase': phase}));
         case 'turn:timer_expired':
           final phase = event.data['phase'] as String? ?? '';
-          ref.read(toastProvider.notifier).show('$phase timer expired');
-        case 'turn:mark_update':
-          // Update board marks in snapshot
-          // Marks are handled via state:full
-          break;
+          ref.read(toastProvider.notifier).show(tr('timer_expired', vars: {'phase': phase}));
       }
     });
   }
@@ -70,7 +89,33 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   void dispose() {
     _toastSub?.cancel();
     _eventSub?.cancel();
+    _sheetController.dispose();
     super.dispose();
+  }
+
+  void _openSheet(SheetPanel panel) {
+    _animatingPanel = panel;
+    ref.read(uiProvider.notifier).openSheet(panel);
+    _sheetController.forward(from: 0);
+  }
+
+  void _closeSheet() {
+    _sheetController.reverse().then((_) {
+      ref.read(uiProvider.notifier).closeSheet();
+    });
+  }
+
+  void _toggleSheet(SheetPanel panel) {
+    final current = ref.read(uiProvider).openPanel;
+    if (current == panel) {
+      _closeSheet();
+    } else if (current != null) {
+      // Switch panels without animation
+      ref.read(uiProvider.notifier).openSheet(panel);
+      _animatingPanel = panel;
+    } else {
+      _openSheet(panel);
+    }
   }
 
   @override
@@ -78,45 +123,49 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final snapshot = ref.watch(snapshotProvider);
     final game = ref.watch(gameProvider);
     final ui = ref.watch(uiProvider);
+    final tr = ref.watch(trProvider);
     final playerCanHint = canHint(snapshot);
     final playerCanGuess = canGuess(snapshot);
+    final showPanel = ui.openPanel ?? _animatingPanel;
 
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: Stack(
           children: [
-            // Main content
             Column(
               children: [
-                // Score bar
                 const ScoreBar(),
-
-                // Board
                 Expanded(
-                  child: game != null
-                      ? const GameBoard()
-                      : _buildLobby(context),
+                  child: game != null ? const GameBoard() : _buildLobby(context, tr),
                 ),
-
-                // Turn banner + timer
                 if (game != null) ...[
                   const TurnBanner(),
                   const PhaseTimerBar(),
                 ],
-
-                // Controls strip
                 if (game != null) _buildControls(game, playerCanHint, playerCanGuess),
-
-                // Bottom bar
-                const BottomBar(),
+                BottomBar(onToggleSheet: _toggleSheet),
               ],
             ),
-
-            // Sheet overlay
-            if (ui.openPanel != null) _buildSheet(ui.openPanel!, context),
-
-            // Toast
+            // Animated sheet overlay
+            if (showPanel != null) ...[
+              FadeTransition(
+                opacity: _backdropOpacity,
+                child: GestureDetector(
+                  onTap: _closeSheet,
+                  child: Container(color: Colors.black.withValues(alpha: 0.3)),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SlideTransition(
+                  position: _sheetSlide,
+                  child: _buildSheetContainer(showPanel, context),
+                ),
+              ),
+            ],
             const ToastOverlay(),
           ],
         ),
@@ -124,7 +173,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  Widget _buildLobby(BuildContext context) {
+  Widget _buildLobby(BuildContext context, String Function(String, {Map<String, String>? vars}) tr) {
     final me = ref.watch(meProvider);
     final players = ref.watch(playersProvider);
     final colors = Theme.of(context).colorScheme;
@@ -137,7 +186,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'LOBBY',
+              tr('lobby'),
               style: GoogleFonts.playfairDisplaySc(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -146,12 +195,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              '${players.length} agents in room',
+              tr('agents_in_room', vars: {'count': '${players.length}'}),
               style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 8),
             Text(
-              'Assign teams, then host starts the game.',
+              tr('assign_teams'),
               style: GoogleFonts.specialElite(
                 fontSize: 12,
                 color: colors.onSurface.withValues(alpha: 0.4),
@@ -169,13 +218,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   }
                 },
                 child: Text(
-                  'START GAME',
+                  tr('start_game'),
                   style: GoogleFonts.playfairDisplaySc(letterSpacing: 1),
                 ),
               )
             else
               Text(
-                'Waiting for host...',
+                tr('waiting_host'),
                 style: GoogleFonts.specialElite(
                   color: colors.onSurface.withValues(alpha: 0.4),
                 ),
@@ -195,67 +244,49 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildSheet(SheetPanel panel, BuildContext context) {
+  Widget _buildSheetContainer(SheetPanel panel, BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
-    return Stack(
-      children: [
-        // Backdrop
-        GestureDetector(
-          onTap: () => ref.read(uiProvider.notifier).closeSheet(),
-          child: Container(color: Colors.black.withValues(alpha: 0.3)),
-        ),
-        // Sheet
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.65,
-            ),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 16,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle
-                  Container(
-                    width: 32,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 8),
-                    decoration: BoxDecoration(
-                      color: colors.outline.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  // Content
-                  Flexible(
-                    child: switch (panel) {
-                      SheetPanel.teams => const TeamsSheet(),
-                      SheetPanel.feed => const FeedSheet(),
-                      SheetPanel.settings => const SettingsSheet(),
-                      SheetPanel.debrief => const DebriefSheet(),
-                      SheetPanel.voice => const VoiceSheet(),
-                    },
-                  ),
-                ],
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.65,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 32,
+              height: 4,
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: colors.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
+            Flexible(
+              child: switch (panel) {
+                SheetPanel.teams => const TeamsSheet(),
+                SheetPanel.feed => const FeedSheet(),
+                SheetPanel.settings => const SettingsSheet(),
+                SheetPanel.debrief => const DebriefSheet(),
+                SheetPanel.voice => const VoiceSheet(),
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

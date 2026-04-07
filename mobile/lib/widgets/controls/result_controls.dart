@@ -14,10 +14,11 @@ class ResultControls extends ConsumerWidget {
     final game = ref.watch(gameProvider);
     final me = ref.watch(meProvider);
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
     if (game == null) return const SizedBox.shrink();
 
     final isHost = me?.isHost ?? false;
-    final resultText = _buildResultText(game);
+    final resultText = _buildResultText(game, tr);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -30,10 +31,7 @@ class ResultControls extends ConsumerWidget {
         children: [
           Text(
             resultText,
-            style: GoogleFonts.playfairDisplaySc(
-              fontSize: 14,
-              color: colors.onSurface,
-            ),
+            style: GoogleFonts.playfairDisplaySc(fontSize: 14, color: colors.onSurface),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -45,20 +43,17 @@ class ResultControls extends ConsumerWidget {
               if (isHost)
                 ElevatedButton(
                   onPressed: () => _rematch(ref, 'same_teams'),
-                  child: const Text('REMATCH'),
+                  child: Text(tr('rematch')),
                 ),
               if (isHost)
                 OutlinedButton(
                   onPressed: () => _rematch(ref, 'swap_teams'),
-                  child: const Text('SWAP + REMATCH'),
+                  child: Text(tr('swap_rematch')),
                 ),
-              OutlinedButton(
-                onPressed: () => _sendGG(ref),
-                child: const Text('GG'),
-              ),
+              OutlinedButton(onPressed: () => _sendGG(ref), child: Text(tr('gg'))),
               OutlinedButton(
                 onPressed: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.debrief),
-                child: const Text('DEBRIEF'),
+                child: Text(tr('debrief')),
               ),
             ],
           ),
@@ -67,13 +62,13 @@ class ResultControls extends ConsumerWidget {
     );
   }
 
-  String _buildResultText(dynamic game) {
+  String _buildResultText(dynamic game, Function tr) {
     final winner = formatTeam(game.winner);
+    final loser = formatTeam(game.loser);
     return switch (game.reason) {
-      'assassin' => 'Assassin revealed! ${formatTeam(game.loser)} loses.',
-      'all_agents_revealed' => '$winner found all agents!',
-      'opponent_agents_revealed' => '$winner wins — opponent found all their agents!',
-      _ => '$winner wins!',
+      'assassin' => tr('result_assassin', vars: {'loser': loser}) as String,
+      'all_agents_revealed' => tr('result_all_agents', vars: {'winner': winner}) as String,
+      _ => tr('result_generic', vars: {'winner': winner}) as String,
     };
   }
 

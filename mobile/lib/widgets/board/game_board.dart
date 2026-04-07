@@ -21,6 +21,7 @@ class GameBoard extends ConsumerWidget {
     final playerCanGuess = canGuess(snapshot);
     final playerCanMark = canMark(snapshot);
     final playerIsSpymaster = isSpymaster(snapshot);
+    final colorblind = ref.watch(preferencesProvider).colorblindMode;
 
     if (board.isEmpty) {
       return const Center(child: Text('Waiting for game...'));
@@ -47,6 +48,7 @@ class GameBoard extends ConsumerWidget {
             isSpymasterSelected: ui.spymasterSelected.contains(index),
             canInteract: (playerCanGuess || playerCanMark) && !card.revealed,
             isSpymaster: playerIsSpymaster,
+            colorblindMode: colorblind,
             onTap: () => _handleTap(ref, card, playerCanGuess, playerCanMark, playerIsSpymaster),
             onDoubleTap: playerCanGuess && !card.revealed
                 ? () => _submitGuess(ref, card.index)

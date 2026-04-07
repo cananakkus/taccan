@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
 import '../../providers/providers.dart';
 import '../../theme/card_theme.dart';
-import '../../utils/game_helpers.dart';
 
 class TurnBanner extends ConsumerWidget {
   const TurnBanner({super.key});
@@ -17,10 +16,17 @@ class TurnBanner extends ConsumerWidget {
 
     final ct = Theme.of(context).extension<TaccanCardTheme>()!;
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
     final teamClr = game.currentTeam == Team.red ? ct.red : ct.blue;
     final borderClr = game.phase == GamePhase.finished
         ? colors.outline
         : teamClr.withValues(alpha: 0.4);
+
+    final phaseText = switch (game.phase) {
+      GamePhase.hint => '${tr(game.currentTeam == Team.red ? 'red' : 'blue')} — ${tr('phase_hint')}',
+      GamePhase.guess => '${tr(game.currentTeam == Team.red ? 'red' : 'blue')} — ${tr('phase_guess')}',
+      GamePhase.finished => tr('game_over'),
+    };
 
     return Container(
       width: double.infinity,
@@ -36,42 +42,22 @@ class TurnBanner extends ConsumerWidget {
               width: 8,
               height: 8,
               margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: teamClr,
-              ),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: teamClr),
             ),
           Expanded(
             child: Text(
-              formatPhase(game.phase, game.currentTeam),
+              phaseText,
               style: GoogleFonts.playfairDisplaySc(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: game.phase == GamePhase.finished
-                    ? colors.onSurface
-                    : teamClr,
+                color: game.phase == GamePhase.finished ? colors.onSurface : teamClr,
                 letterSpacing: 0.5,
               ),
             ),
           ),
-          // Remaining agents
-          Text(
-            '${game.remaining.red}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: ct.red,
-            ),
-          ),
+          Text('${game.remaining.red}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ct.red)),
           Text(' / ', style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.4))),
-          Text(
-            '${game.remaining.blue}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: ct.blue,
-            ),
-          ),
+          Text('${game.remaining.blue}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ct.blue)),
         ],
       ),
     );

@@ -42,6 +42,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
   Widget build(BuildContext context) {
     final game = ref.watch(gameProvider);
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
     final maxCount = game?.maxHintCount ?? 25;
 
     return Container(
@@ -55,7 +56,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'SPYMASTER HINT',
+            tr('spymaster_hint'),
             style: GoogleFonts.playfairDisplaySc(
               fontSize: 11,
               letterSpacing: 1,
@@ -69,7 +70,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
                 child: TextField(
                   controller: _wordController,
                   decoration: InputDecoration(
-                    hintText: 'One-word hint',
+                    hintText: tr('one_word_hint'),
                     hintStyle: GoogleFonts.crimsonPro(),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -80,7 +81,6 @@ class _HintControlsState extends ConsumerState<HintControls> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Count stepper
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: colors.outline),
@@ -91,22 +91,15 @@ class _HintControlsState extends ConsumerState<HintControls> {
                   children: [
                     _StepperBtn(
                       icon: Icons.remove,
-                      onTap: _count > 1
-                          ? () => setState(() => _count--)
-                          : null,
+                      onTap: !_submitting && _count > 1 ? () => setState(() => _count--) : null,
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '$_count',
-                        style: GoogleFonts.specialElite(fontSize: 16),
-                      ),
+                      child: Text('$_count', style: GoogleFonts.specialElite(fontSize: 16)),
                     ),
                     _StepperBtn(
                       icon: Icons.add,
-                      onTap: _count < maxCount
-                          ? () => setState(() => _count++)
-                          : null,
+                      onTap: !_submitting && _count < maxCount ? () => setState(() => _count++) : null,
                     ),
                   ],
                 ),
@@ -114,7 +107,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: _submitting ? null : _submit,
-                child: Text(_submitting ? '...' : 'TRANSMIT'),
+                child: Text(_submitting ? '...' : tr('transmit')),
               ),
             ],
           ),

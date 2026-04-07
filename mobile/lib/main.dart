@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
 import 'providers/providers.dart';
@@ -10,6 +11,13 @@ import 'services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Preload fonts to avoid flash of unstyled text
+  await GoogleFonts.pendingFonts([
+    GoogleFonts.crimsonPro(),
+    GoogleFonts.playfairDisplaySc(),
+    GoogleFonts.specialElite(),
+  ]);
 
   // Initialize storage
   final storage = StorageService();

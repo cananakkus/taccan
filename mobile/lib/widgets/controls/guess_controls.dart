@@ -15,11 +15,11 @@ class GuessControls extends ConsumerWidget {
     final game = ref.watch(gameProvider);
     final ui = ref.watch(uiProvider);
     final colors = Theme.of(context).colorScheme;
+    final tr = ref.watch(trProvider);
     final playerCanGuess = canGuess(snapshot);
 
     if (game == null) return const SizedBox.shrink();
 
-    // Hint display (visible to everyone during guess phase)
     final hint = game.hint;
     final selectedCard = ui.selectedGuessIndex != null && ui.selectedGuessIndex! < game.board.length
         ? game.board[ui.selectedGuessIndex!]
@@ -34,7 +34,6 @@ class GuessControls extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Hint display bar
           if (hint != null)
             Container(
               width: double.infinity,
@@ -47,11 +46,8 @@ class GuessControls extends ConsumerWidget {
               child: Row(
                 children: [
                   Text(
-                    'Hint: ',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.onSurface.withValues(alpha: 0.5),
-                    ),
+                    '${tr('hint_label')} ',
+                    style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
                   ),
                   Text(
                     hint.word.toUpperCase(),
@@ -64,32 +60,22 @@ class GuessControls extends ConsumerWidget {
                   ),
                   Text(
                     ' ${hint.count}',
-                    style: GoogleFonts.specialElite(
-                      fontSize: 14,
-                      color: colors.primary,
-                    ),
+                    style: GoogleFonts.specialElite(fontSize: 14, color: colors.primary),
                   ),
                   const Spacer(),
                   if (game.guessesRemaining != null)
                     Text(
-                      '${game.guessesRemaining} left',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: colors.onSurface.withValues(alpha: 0.5),
-                      ),
+                      '${game.guessesRemaining} ${tr('left')}',
+                      style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
                     ),
                 ],
               ),
             )
           else
             Text(
-              'Awaiting hint...',
-              style: GoogleFonts.specialElite(
-                fontSize: 13,
-                color: colors.onSurface.withValues(alpha: 0.4),
-              ),
+              tr('awaiting_hint'),
+              style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.4)),
             ),
-
           if (playerCanGuess && hint != null) ...[
             const SizedBox(height: 8),
             Row(
@@ -97,12 +83,9 @@ class GuessControls extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     selectedCard != null
-                        ? 'Selected: ${selectedCard.word}'
-                        : 'Tap a card to select',
-                    style: GoogleFonts.crimsonPro(
-                      fontSize: 13,
-                      color: colors.onSurface.withValues(alpha: 0.6),
-                    ),
+                        ? '${tr('selected')} ${selectedCard.word}'
+                        : tr('tap_card'),
+                    style: GoogleFonts.crimsonPro(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.6)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -110,12 +93,12 @@ class GuessControls extends ConsumerWidget {
                   onPressed: selectedCard != null && !selectedCard.revealed
                       ? () => _submitGuess(ref, selectedCard.index)
                       : null,
-                  child: const Text('GUESS'),
+                  child: Text(tr('guess')),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
-                  onPressed: () => _endTurn(ref, context),
-                  child: const Text('END TURN'),
+                  onPressed: () => _endTurn(ref, context, tr),
+                  child: Text(tr('end_turn')),
                 ),
               ],
             ),
@@ -134,15 +117,15 @@ class GuessControls extends ConsumerWidget {
     }
   }
 
-  Future<void> _endTurn(WidgetRef ref, BuildContext context) async {
+  Future<void> _endTurn(WidgetRef ref, BuildContext context, Function tr) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('End Turn'),
-        content: const Text('End your team\'s turn?'),
+        title: Text(tr('end_turn') as String),
+        content: Text(tr('end_turn_confirm') as String),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('cancel') as String)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('confirm') as String)),
         ],
       ),
     );

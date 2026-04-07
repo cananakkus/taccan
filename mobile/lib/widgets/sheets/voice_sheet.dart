@@ -86,57 +86,35 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
           Text(
             'VOICE',
             style: GoogleFonts.playfairDisplaySc(
-              fontSize: 14,
-              letterSpacing: 1,
-              color: colors.onSurface,
+              fontSize: 14, letterSpacing: 1, color: colors.onSurface,
             ),
           ),
           const SizedBox(height: 12),
-
-          // Join/Leave button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: voice.joining ? null : _toggleVoice,
-              icon: Icon(
-                voice.active ? Icons.call_end : Icons.call,
-                size: 18,
-              ),
+              icon: Icon(voice.active ? Icons.call_end : Icons.call, size: 18),
               label: Text(
-                voice.joining
-                    ? 'Joining...'
-                    : voice.active
-                        ? 'Leave Voice'
-                        : 'Join Voice',
+                voice.joining ? '...' : voice.active ? 'Leave Voice' : 'Join Voice',
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: voice.active ? colors.error : colors.primary,
               ),
             ),
           ),
-
           if (voice.active) ...[
             const SizedBox(height: 8),
-            // Mute button
             OutlinedButton.icon(
               onPressed: _toggleMute,
-              icon: Icon(
-                voice.muted ? Icons.mic_off : Icons.mic,
-                size: 18,
-              ),
+              icon: Icon(voice.muted ? Icons.mic_off : Icons.mic, size: 18),
               label: Text(voice.muted ? 'Unmute' : 'Mute'),
             ),
-
             const SizedBox(height: 16),
-
-            // Peer list
             if (voice.peers.isEmpty)
               Text(
                 'No one else in voice',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colors.onSurface.withValues(alpha: 0.4),
-                ),
+                style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.4)),
               )
             else
               ...voice.peers.map((peer) {
@@ -149,15 +127,12 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      // Speaking indicator
-                      Container(
-                        width: 8,
-                        height: 8,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 8, height: 8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isSpeaking
-                              ? Colors.green
-                              : colors.onSurface.withValues(alpha: 0.2),
+                          color: isSpeaking ? Colors.green : colors.onSurface.withValues(alpha: 0.2),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -171,25 +146,15 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                           ),
                         ),
                       ),
-                      if (isMuted)
-                        Icon(
-                          Icons.mic_off,
-                          size: 14,
-                          color: colors.onSurface.withValues(alpha: 0.4),
-                        ),
+                      if (isMuted) Icon(Icons.mic_off, size: 14, color: colors.onSurface.withValues(alpha: 0.4)),
                       const SizedBox(width: 8),
-                      // Volume slider
                       SizedBox(
                         width: 80,
                         child: Slider(
                           value: peer.volume.toDouble(),
-                          min: 0,
-                          max: 100,
+                          min: 0, max: 100,
                           onChanged: (v) {
-                            ref.read(voiceProvider.notifier).setPeerVolume(
-                                  peer.sessionId,
-                                  v.round(),
-                                );
+                            ref.read(voiceProvider.notifier).setPeerVolume(peer.sessionId, v.round());
                           },
                         ),
                       ),
