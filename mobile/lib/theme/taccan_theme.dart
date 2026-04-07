@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'card_theme.dart';
 import 'colors.dart';
 
 ThemeData buildDarkTheme() => _build(
@@ -102,5 +103,10 @@ ThemeData _build({
     ),
     dividerColor: border,
     useMaterial3: true,
+    extensions: [
+      brightness == Brightness.dark
+          ? TaccanCardTheme.dark()
+          : TaccanCardTheme.light(),
+    ],
   );
 }
