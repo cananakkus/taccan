@@ -72,7 +72,8 @@ class _HintControlsState extends ConsumerState<HintControls> {
                   controller: _wordController,
                   decoration: InputDecoration(
                     hintText: tr('one_word_hint'),
-                    hintStyle: GoogleFonts.specialElite(),
+                    hintStyle: GoogleFonts.specialElite(fontSize: 13),
+                    hintMaxLines: 1,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   ),

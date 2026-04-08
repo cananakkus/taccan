@@ -202,11 +202,14 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   Widget _buildLandscapeLayout(dynamic game, bool playerCanHint, bool playerCanGuess, dynamic tr) {
     return Column(
       children: [
-        // Score bar — full width
+        // Full-width top: score bar + turn banner + timer
         const ScoreBar(),
-        // Board left + controls right
+        const TurnBanner(),
+        const PhaseTimerBar(),
+        // Board left + controls right, tops aligned
         Expanded(
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 flex: 55,
@@ -214,24 +217,16 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
               ),
               Expanded(
                 flex: 45,
-                child: Column(
-                  children: [
-                    const TurnBanner(),
-                    const PhaseTimerBar(),
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          child: _buildControls(game, playerCanHint, playerCanGuess),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: _buildControls(game, playerCanHint, playerCanGuess),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        // Bottom bar — full width
+        // Full-width bottom bar
         BottomBar(onToggleSheet: _toggleSheet),
       ],
     );
