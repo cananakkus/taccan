@@ -8,6 +8,7 @@ import '../core/constants.dart';
 import '../providers/providers.dart';
 import '../providers/ui_provider.dart';
 import '../services/socket_service.dart';
+import '../services/sound_service.dart';
 import '../utils/game_helpers.dart';
 import '../widgets/bars/bottom_bar.dart';
 import '../widgets/bars/phase_timer_bar.dart';
@@ -58,6 +59,9 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
       }
     });
 
+    // Sync sound mute with preferences
+    soundService.setMuted(ref.read(preferencesProvider).soundMuted);
+
     final socket = ref.read(socketServiceProvider);
     _toastSub = socket.toasts.listen((event) {
       ref.read(toastProvider.notifier).show(
@@ -69,8 +73,18 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
     _eventSub = socket.events.listen((event) {
       final tr = ref.read(trProvider);
       switch (event.name) {
+        case 'turn:guess_resolved':
+          final color = event.data['color'] as String? ?? '';
+          if (color == 'assassin') {
+            soundService.play('assassin');
+          } else if (color == (event.data['team'] ?? '')) {
+            soundService.play('correct');
+          } else {
+            soundService.play('reveal');
+          }
         case 'game:gg_received':
           final name = event.data['name'] as String? ?? 'Someone';
+          soundService.play('gg');
           ref.read(toastProvider.notifier).show(
                 tr('says_gg', vars: {'name': name}),
                 ToastStyle.success,
@@ -128,25 +142,16 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
     final playerCanGuess = canGuess(snapshot);
     final showPanel = ui.openPanel ?? _animatingPanel;
 
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: Stack(
           children: [
-            Column(
-              children: [
-                const ScoreBar(),
-                Expanded(
-                  child: game != null ? const GameBoard() : _buildLobby(context, tr),
-                ),
-                if (game != null) ...[
-                  const TurnBanner(),
-                  const PhaseTimerBar(),
-                ],
-                if (game != null) _buildControls(game, playerCanHint, playerCanGuess),
-                BottomBar(onToggleSheet: _toggleSheet),
-              ],
-            ),
+            isLandscape && game != null
+                ? _buildLandscapeLayout(game, playerCanHint, playerCanGuess, tr)
+                : _buildPortraitLayout(game, playerCanHint, playerCanGuess, tr),
             // Animated sheet overlay
             if (showPanel != null) ...[
               FadeTransition(
@@ -170,6 +175,62 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPortraitLayout(dynamic game, bool playerCanHint, bool playerCanGuess, dynamic tr) {
+    return Column(
+      children: [
+        const ScoreBar(),
+        Expanded(
+          child: game != null ? const GameBoard() : _buildLobby(context, tr),
+        ),
+        if (game != null) ...[
+          const TurnBanner(),
+          const PhaseTimerBar(),
+        ],
+        if (game != null) _buildControls(game, playerCanHint, playerCanGuess),
+        BottomBar(onToggleSheet: _toggleSheet),
+      ],
+    );
+  }
+
+  Widget _buildLandscapeLayout(dynamic game, bool playerCanHint, bool playerCanGuess, dynamic tr) {
+    return Column(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              // Board takes left side
+              Expanded(
+                flex: 6,
+                child: Column(
+                  children: [
+                    const ScoreBar(),
+                    Expanded(child: const GameBoard()),
+                  ],
+                ),
+              ),
+              // Controls take right side
+              Expanded(
+                flex: 4,
+                child: Column(
+                  children: [
+                    const TurnBanner(),
+                    const PhaseTimerBar(),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: _buildControls(game, playerCanHint, playerCanGuess),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        BottomBar(onToggleSheet: _toggleSheet),
+      ],
     );
   }
 

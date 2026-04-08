@@ -55,9 +55,9 @@ class TurnBanner extends ConsumerWidget {
               ),
             ),
           ),
-          Text('${game.remaining.red}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ct.red)),
-          Text(' / ', style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.4))),
-          Text('${game.remaining.blue}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ct.blue)),
+          Text('${game.remaining.red}', style: GoogleFonts.specialElite(fontSize: 13, fontWeight: FontWeight.bold, color: ct.red)),
+          Text(' / ', style: GoogleFonts.specialElite(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.4))),
+          Text('${game.remaining.blue}', style: GoogleFonts.specialElite(fontSize: 13, fontWeight: FontWeight.bold, color: ct.blue)),
         ],
       ),
     );

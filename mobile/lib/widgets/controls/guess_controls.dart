@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../l10n/translations.dart';
 import '../../providers/providers.dart';
 import '../../providers/ui_provider.dart';
 import '../../utils/game_helpers.dart';
@@ -17,6 +18,7 @@ class GuessControls extends ConsumerWidget {
     final colors = Theme.of(context).colorScheme;
     final tr = ref.watch(trProvider);
     final playerCanGuess = canGuess(snapshot);
+    final lang = ref.watch(preferencesProvider).language;
 
     if (game == null) return const SizedBox.shrink();
 
@@ -46,8 +48,8 @@ class GuessControls extends ConsumerWidget {
               child: Row(
                 children: [
                   Text(
-                    '${tr('hint_label')} ',
-                    style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
+                    '${tr('hint_label')}  ',
+                    style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
                   ),
                   Text(
                     hint.word.toUpperCase(),
@@ -66,7 +68,7 @@ class GuessControls extends ConsumerWidget {
                   if (game.guessesRemaining != null)
                     Text(
                       '${game.guessesRemaining} ${tr('left')}',
-                      style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                      style: GoogleFonts.crimsonPro(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
                     ),
                 ],
               ),
@@ -83,7 +85,7 @@ class GuessControls extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     selectedCard != null
-                        ? '${tr('selected')} ${selectedCard.word}'
+                        ? '${tr('selected')} ${translateWord(selectedCard.word, lang: lang)}'
                         : tr('tap_card'),
                     style: GoogleFonts.crimsonPro(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.6)),
                   ),

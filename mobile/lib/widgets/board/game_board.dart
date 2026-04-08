@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
+import '../../l10n/translations.dart';
 import '../../models/board_card.dart';
 import '../../providers/providers.dart';
 import '../../providers/ui_provider.dart';
@@ -22,16 +23,19 @@ class GameBoard extends ConsumerWidget {
     final playerCanMark = canMark(snapshot);
     final playerIsSpymaster = isSpymaster(snapshot);
     final colorblind = ref.watch(preferencesProvider).colorblindMode;
+    final lang = ref.watch(preferencesProvider).language;
 
     if (board.isEmpty) {
       return const Center(child: Text('Waiting for game...'));
     }
 
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return AspectRatio(
-      aspectRatio: 5 / 5.2,
+      aspectRatio: isLandscape ? 5 / 4.5 : 5 / 5.2,
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: boardColumns,
           crossAxisSpacing: 4,
@@ -43,6 +47,7 @@ class GameBoard extends ConsumerWidget {
           final card = board[index];
           return CardTile(
             card: card,
+            displayWord: translateWord(card.word, lang: lang),
             showKeycard: showKey,
             isSelected: ui.selectedGuessIndex == index,
             isSpymasterSelected: ui.spymasterSelected.contains(index),

@@ -13,6 +13,7 @@ class CardTile extends StatelessWidget {
   final bool canInteract;
   final bool isSpymaster;
   final bool colorblindMode;
+  final String? displayWord;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onDoubleTap;
@@ -26,6 +27,7 @@ class CardTile extends StatelessWidget {
     this.canInteract = false,
     this.isSpymaster = false,
     this.colorblindMode = false,
+    this.displayWord,
     this.onTap,
     this.onLongPress,
     this.onDoubleTap,
@@ -68,7 +70,7 @@ class CardTile extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
             color: bg,
@@ -89,7 +91,7 @@ class CardTile extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   child: Text(
-                    card.word,
+                    displayWord ?? card.word,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.specialElite(
                       fontSize: 11,

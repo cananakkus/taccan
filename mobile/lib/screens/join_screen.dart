@@ -175,11 +175,18 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton(
+                    child: ElevatedButton(
                       onPressed: _loading ? null : _createRoom,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                       child: Text(
                         tr('create_room'),
-                        style: GoogleFonts.playfairDisplaySc(letterSpacing: 1),
+                        style: GoogleFonts.playfairDisplaySc(
+                          fontSize: 14,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

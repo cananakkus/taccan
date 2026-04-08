@@ -159,7 +159,7 @@ class _ToggleRow extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: colors.onSurface.withValues(alpha: 0.6)),
             const SizedBox(width: 10),
-            Text(label, style: TextStyle(fontSize: 13, color: colors.onSurface)),
+            Text(label, style: GoogleFonts.crimsonPro(fontSize: 13, color: colors.onSurface)),
           ],
         ),
       ),
