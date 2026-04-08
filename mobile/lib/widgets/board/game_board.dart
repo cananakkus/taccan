@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,25 +45,33 @@ class GameBoard extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Fill 100% width, calculate card size from available width
-        final spacing = 4.0;
-        final hPad = 2.0;
-        final totalWidth = constraints.maxWidth - hPad * 2;
-        final cardWidth = (totalWidth - spacing * (boardColumns - 1)) / boardColumns;
-        final cardHeight = cardWidth / 1.15;
-        final totalHeight = cardHeight * 5 + spacing * 4 + 8; // 5 rows + spacing + vPad
+        const spacing = 4.0;
+        const hPad = 3.0;
+        const vPad = 3.0;
+        const rows = 5;
+        const cols = boardColumns; // 5
+
+        final availW = constraints.maxWidth - hPad * 2;
+        final availH = constraints.maxHeight - vPad * 2;
+
+        // Calculate card size to fill both width AND height
+        final cardW = (availW - spacing * (cols - 1)) / cols;
+        final cardH = (availH - spacing * (rows - 1)) / rows;
+
+        // Aspect ratio: width / height — cards fill space
+        final aspectRatio = cardW / min(cardH, cardW * 1.4);
 
         return SizedBox(
           width: constraints.maxWidth,
-          height: totalHeight.clamp(0, constraints.maxHeight),
+          height: constraints.maxHeight,
           child: GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: boardColumns,
+              crossAxisCount: cols,
               crossAxisSpacing: spacing,
               mainAxisSpacing: spacing,
-              childAspectRatio: 1.15,
+              childAspectRatio: aspectRatio.clamp(0.7, 1.6),
             ),
             itemCount: board.length,
             itemBuilder: (context, index) {
