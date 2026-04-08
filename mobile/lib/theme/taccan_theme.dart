@@ -99,6 +99,12 @@ ThemeData _build({
         foregroundColor: onSurface,
         side: BorderSide(color: border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        textStyle: GoogleFonts.crimsonPro(),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        textStyle: GoogleFonts.crimsonPro(),
       ),
     ),
     dividerColor: border,

@@ -196,7 +196,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         _error!,
-                        style: TextStyle(color: colors.error, fontSize: 13),
+                        style: GoogleFonts.crimsonPro(color: colors.error, fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
                     ),

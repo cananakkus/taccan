@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../l10n/translations.dart';
 import '../../providers/providers.dart';
 import '../../theme/card_theme.dart';
 
@@ -18,7 +19,8 @@ class DebriefSheet extends ConsumerWidget {
 
     if (game == null) return const SizedBox.shrink();
 
-    final entries = _buildNarrative(game, players, ct, tr);
+    final lang = ref.watch(preferencesProvider).language;
+    final entries = _buildNarrative(game, players, ct, tr, lang);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -49,7 +51,7 @@ class DebriefSheet extends ConsumerWidget {
     );
   }
 
-  List<Widget> _buildNarrative(dynamic game, List players, TaccanCardTheme ct, Function tr) {
+  List<Widget> _buildNarrative(dynamic game, List players, TaccanCardTheme ct, Function tr, String lang) {
     final widgets = <Widget>[];
     int transmissionNum = 0;
 
@@ -84,7 +86,8 @@ class DebriefSheet extends ConsumerWidget {
         final cardColor = entry['color'] as String? ?? '';
         final index = entry['index'] as int? ?? 0;
         final board = game.board;
-        final word = index < board.length ? board[index].word : '???';
+        final rawWord = index < board.length ? board[index].word : '???';
+        final word = translateWord(rawWord, lang: lang);
         final outcome = cardColor == (entry['team'] ?? '') ? 'correct' : 'wrong';
 
         widgets.add(Padding(

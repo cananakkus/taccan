@@ -97,6 +97,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
               icon: Icon(voice.active ? Icons.call_end : Icons.call, size: 18),
               label: Text(
                 voice.joining ? '...' : voice.active ? 'Leave Voice' : 'Join Voice',
+                style: GoogleFonts.crimsonPro(),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: voice.active ? colors.error : colors.primary,
@@ -108,13 +109,13 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
             OutlinedButton.icon(
               onPressed: _toggleMute,
               icon: Icon(voice.muted ? Icons.mic_off : Icons.mic, size: 18),
-              label: Text(voice.muted ? 'Unmute' : 'Mute'),
+              label: Text(voice.muted ? 'Unmute' : 'Mute', style: GoogleFonts.crimsonPro()),
             ),
             const SizedBox(height: 16),
             if (voice.peers.isEmpty)
               Text(
                 'No one else in voice',
-                style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.4)),
+                style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.4)),
               )
             else
               ...voice.peers.map((peer) {
@@ -139,7 +140,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                       Expanded(
                         child: Text(
                           name,
-                          style: TextStyle(
+                          style: GoogleFonts.crimsonPro(
                             fontSize: 13,
                             color: colors.onSurface,
                             fontWeight: isSpeaking ? FontWeight.bold : FontWeight.normal,

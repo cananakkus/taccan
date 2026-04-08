@@ -146,7 +146,7 @@ class CardTile extends StatelessWidget {
                         ),
                         child: Text(
                           mark.name.isNotEmpty ? mark.name[0] : '?',
-                          style: TextStyle(
+                          style: GoogleFonts.specialElite(
                             fontSize: 7,
                             color: ct.markerText,
                             fontWeight: FontWeight.bold,

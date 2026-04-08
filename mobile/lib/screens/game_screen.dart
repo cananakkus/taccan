@@ -257,7 +257,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
             const SizedBox(height: 12),
             Text(
               tr('agents_in_room', vars: {'count': '${players.length}'}),
-              style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6)),
+              style: GoogleFonts.crimsonPro(color: colors.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 8),
             Text(
