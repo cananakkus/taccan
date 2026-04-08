@@ -47,7 +47,7 @@ class TurnBanner extends ConsumerWidget {
           Expanded(
             child: Text(
               phaseText,
-              style: GoogleFonts.playfairDisplaySc(
+              style: GoogleFonts.specialElite(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: game.phase == GamePhase.finished ? colors.onSurface : teamClr,

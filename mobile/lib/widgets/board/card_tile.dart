@@ -123,15 +123,17 @@ class CardTile extends StatelessWidget {
                     ),
                   ),
 
-                  // Colorblind pattern indicator
-                  if (colorblindMode && card.revealed && card.color != null)
+                  // Colorblind pattern indicator (on revealed AND keycard cards)
+                  if (colorblindMode && card.color != null && (card.revealed || showKeycard))
                     Positioned(
                       top: 2,
                       left: 2,
                       child: Icon(
                         _colorblindIcon(card.color!),
-                        size: (cardWidth * 0.16).clamp(10.0, 16.0),
-                        color: textColor.withValues(alpha: 0.7),
+                        size: (cardWidth * 0.18).clamp(12.0, 18.0),
+                        color: card.revealed
+                            ? textColor.withValues(alpha: 0.8)
+                            : _keycardBorder(card.color!, Theme.of(context).extension<TaccanCardTheme>()!),
                       ),
                     ),
 

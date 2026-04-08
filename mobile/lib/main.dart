@@ -21,7 +21,6 @@ void main() async {
   // Preload fonts to avoid flash of unstyled text
   await GoogleFonts.pendingFonts([
     GoogleFonts.specialElite(),
-    GoogleFonts.playfairDisplaySc(),
   ]);
 
   // Initialize storage

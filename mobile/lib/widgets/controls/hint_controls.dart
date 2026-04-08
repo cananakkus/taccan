@@ -58,7 +58,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
         children: [
           Text(
             tr('spymaster_hint'),
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 11,
               letterSpacing: 1,
               color: colors.onSurface.withValues(alpha: 0.5),

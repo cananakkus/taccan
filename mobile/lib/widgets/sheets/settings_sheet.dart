@@ -26,7 +26,7 @@ class SettingsSheet extends ConsumerWidget {
         children: [
           Text(
             tr('settings'),
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 14,
               letterSpacing: 1,
               color: colors.onSurface,

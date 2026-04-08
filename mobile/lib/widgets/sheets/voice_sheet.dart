@@ -85,7 +85,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
         children: [
           Text(
             'VOICE',
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 14, letterSpacing: 1, color: colors.onSurface,
             ),
           ),

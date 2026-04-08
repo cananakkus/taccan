@@ -30,7 +30,7 @@ class DebriefSheet extends ConsumerWidget {
           Center(
             child: Text(
               tr('intelligence_debrief'),
-              style: GoogleFonts.playfairDisplaySc(
+              style: GoogleFonts.specialElite(
                 fontSize: 14, letterSpacing: 2, color: colors.onSurface,
               ),
             ),
@@ -116,7 +116,7 @@ class DebriefSheet extends ConsumerWidget {
           padding: const EdgeInsets.only(top: 12),
           child: Text(
             '${tr('mission_conclusion')}: ${winner.toUpperCase()} TEAM WINS — $reason',
-            style: GoogleFonts.playfairDisplaySc(fontSize: 12, letterSpacing: 0.5),
+            style: GoogleFonts.specialElite(fontSize: 12, letterSpacing: 0.5),
           ),
         ));
       }

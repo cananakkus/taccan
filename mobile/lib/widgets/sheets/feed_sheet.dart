@@ -80,7 +80,7 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Text(
             tr('feed'),
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 14,
               letterSpacing: 1,
               color: colors.onSurface,

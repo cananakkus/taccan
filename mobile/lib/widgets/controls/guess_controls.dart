@@ -129,7 +129,7 @@ class GuessControls extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(tr('end_turn') as String, style: GoogleFonts.playfairDisplaySc(fontSize: 16)),
+        title: Text(tr('end_turn') as String, style: GoogleFonts.specialElite(fontSize: 16)),
         content: Text(tr('end_turn_confirm') as String, style: GoogleFonts.specialElite()),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('cancel') as String, style: GoogleFonts.specialElite())),

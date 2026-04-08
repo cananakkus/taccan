@@ -32,7 +32,7 @@ class ResultControls extends ConsumerWidget {
         children: [
           Text(
             resultText,
-            style: GoogleFonts.playfairDisplaySc(fontSize: 14, color: colors.onSurface),
+            style: GoogleFonts.specialElite(fontSize: 14, color: colors.onSurface),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),

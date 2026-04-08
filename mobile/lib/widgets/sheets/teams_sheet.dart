@@ -35,7 +35,7 @@ class TeamsSheet extends ConsumerWidget {
           // Header
           Text(
             tr('teams'),
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 16, letterSpacing: 1, color: colors.onSurface,
             ),
             textAlign: TextAlign.center,
@@ -205,7 +205,7 @@ class _TeamJoinButton extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 1,
@@ -303,7 +303,7 @@ class _TeamRoster extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: GoogleFonts.playfairDisplaySc(
+            style: GoogleFonts.specialElite(
               fontSize: 11, fontWeight: FontWeight.w700, color: color, letterSpacing: 1,
             ),
           ),

@@ -200,40 +200,35 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   }
 
   Widget _buildLandscapeLayout(dynamic game, bool playerCanHint, bool playerCanGuess, dynamic tr) {
-    return Column(
+    return Row(
       children: [
+        // Board takes left side — full height
         Expanded(
-          child: Row(
+          flex: 55,
+          child: Column(
             children: [
-              // Board takes left side
+              const ScoreBar(),
+              Expanded(child: const GameBoard()),
+              // Compact bottom bar in landscape
+              BottomBar(onToggleSheet: _toggleSheet),
+            ],
+          ),
+        ),
+        // Controls take right side
+        Expanded(
+          flex: 45,
+          child: Column(
+            children: [
+              const TurnBanner(),
+              const PhaseTimerBar(),
               Expanded(
-                flex: 6,
-                child: Column(
-                  children: [
-                    const ScoreBar(),
-                    Expanded(child: const GameBoard()),
-                  ],
-                ),
-              ),
-              // Controls take right side
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    const TurnBanner(),
-                    const PhaseTimerBar(),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: _buildControls(game, playerCanHint, playerCanGuess),
-                      ),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  child: _buildControls(game, playerCanHint, playerCanGuess),
                 ),
               ),
             ],
           ),
         ),
-        BottomBar(onToggleSheet: _toggleSheet),
       ],
     );
   }
@@ -252,7 +247,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
           children: [
             Text(
               tr('lobby'),
-              style: GoogleFonts.playfairDisplaySc(
+              style: GoogleFonts.specialElite(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: colors.onSurface,

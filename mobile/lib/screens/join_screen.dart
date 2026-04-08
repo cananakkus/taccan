@@ -128,7 +128,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'TACCAN',
-                    style: GoogleFonts.playfairDisplaySc(
+                    style: GoogleFonts.specialElite(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 4,
