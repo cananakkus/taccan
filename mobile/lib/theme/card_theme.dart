@@ -39,7 +39,7 @@ class TaccanCardTheme extends ThemeExtension<TaccanCardTheme> {
         red: TaccanColors.darkRed,
         blue: TaccanColors.darkBlue,
         neutral: Color(0xFF8A7E6A),
-        assassin: Color(0xFF2A1A1A),
+        assassin: Color(0xFF3A2020),
         redLight: Color(0x38B83838),
         blueLight: Color(0x383868A0),
         revealedText: Color(0xFFF0E8D8),

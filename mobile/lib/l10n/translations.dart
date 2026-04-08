@@ -603,12 +603,24 @@ String t(String key, {String lang = 'en', Map<String, String>? vars}) {
   return value;
 }
 
+/// Turkish-aware uppercase that handles İ/I correctly
+String _turkishUpper(String s) {
+  return s
+      .replaceAll('i', 'İ')
+      .replaceAll('ı', 'I')
+      .replaceAll('ö', 'Ö')
+      .replaceAll('ü', 'Ü')
+      .replaceAll('ş', 'Ş')
+      .replaceAll('ç', 'Ç')
+      .replaceAll('ğ', 'Ğ')
+      .toUpperCase();
+}
+
 String translateWord(String word, {String lang = 'en'}) {
   if (lang == 'tr') {
     final translated = _wordDictionary[word.toLowerCase()];
     if (translated != null) {
-      // Preserve original case: if word was uppercase, uppercase the translation
-      return word == word.toUpperCase() ? translated.toUpperCase() : translated;
+      return word == word.toUpperCase() ? _turkishUpper(translated) : translated;
     }
   }
   return word;

@@ -72,11 +72,11 @@ class _HintControlsState extends ConsumerState<HintControls> {
                   controller: _wordController,
                   decoration: InputDecoration(
                     hintText: tr('one_word_hint'),
-                    hintStyle: GoogleFonts.crimsonPro(),
+                    hintStyle: GoogleFonts.specialElite(),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   ),
-                  style: GoogleFonts.crimsonPro(fontSize: 16),
+                  style: GoogleFonts.specialElite(fontSize: 16),
                   textCapitalization: TextCapitalization.characters,
                   enabled: !_submitting,
                 ),

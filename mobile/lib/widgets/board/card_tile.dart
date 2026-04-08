@@ -45,8 +45,8 @@ class CardTile extends StatelessWidget {
     if (card.revealed) {
       final c = _revealedColor(card.color, ct);
       bg = c;
-      textColor = ct.revealedText;
-      borderColor = c;
+      textColor = card.color == CardColor.assassin ? Colors.white : ct.revealedText;
+      borderColor = card.color == CardColor.assassin ? const Color(0xFF5A3030) : c;
     } else if (showKeycard && card.color != null) {
       bg = _keycardBg(card.color!, ct);
       borderColor = _keycardBorder(card.color!, ct);

@@ -98,7 +98,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                 icon: const Icon(Icons.call, size: 18),
                 label: Text(
                   voice.joining ? '...' : 'Join Voice',
-                  style: GoogleFonts.crimsonPro(),
+                  style: GoogleFonts.specialElite(),
                 ),
               ),
             ),
@@ -109,7 +109,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                   child: OutlinedButton.icon(
                     onPressed: _toggleVoice,
                     icon: const Icon(Icons.call_end, size: 16),
-                    label: Text('Leave', style: GoogleFonts.crimsonPro()),
+                    label: Text('Leave', style: GoogleFonts.specialElite()),
                     style: OutlinedButton.styleFrom(foregroundColor: colors.error, side: BorderSide(color: colors.error)),
                   ),
                 ),
@@ -118,7 +118,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                   child: OutlinedButton.icon(
                     onPressed: _toggleMute,
                     icon: Icon(voice.muted ? Icons.mic_off : Icons.mic, size: 16),
-                    label: Text(voice.muted ? 'Unmute' : 'Mute', style: GoogleFonts.crimsonPro()),
+                    label: Text(voice.muted ? 'Unmute' : 'Mute', style: GoogleFonts.specialElite()),
                   ),
                 ),
               ],
@@ -127,7 +127,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
             if (voice.peers.isEmpty)
               Text(
                 'No one else in voice',
-                style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.4)),
+                style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.4)),
               )
             else
               ...voice.peers.map((peer) {
@@ -152,7 +152,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                       Expanded(
                         child: Text(
                           name,
-                          style: GoogleFonts.crimsonPro(
+                          style: GoogleFonts.specialElite(
                             fontSize: 13,
                             color: colors.onSurface,
                             fontWeight: isSpeaking ? FontWeight.bold : FontWeight.normal,

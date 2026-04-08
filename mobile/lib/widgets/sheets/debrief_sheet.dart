@@ -78,7 +78,7 @@ class DebriefSheet extends ConsumerWidget {
         ));
         widgets.add(Text(
           'Handler $name to ${team.toUpperCase()} operatives — ${word.toUpperCase()} $count',
-          style: GoogleFonts.crimsonPro(fontSize: 13),
+          style: GoogleFonts.specialElite(fontSize: 13),
         ));
       } else if (type == 'guess') {
         final byId = entry['by'] as String? ?? '';
@@ -94,7 +94,7 @@ class DebriefSheet extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 1),
           child: Text(
             '  ${outcome == 'correct' ? '✓' : '✗'} Agent $name investigated $word ($cardColor)',
-            style: GoogleFonts.crimsonPro(
+            style: GoogleFonts.specialElite(
               fontSize: 12,
               color: outcome == 'correct' ? const Color(0xFF50A040) : const Color(0xFFC04040),
             ),

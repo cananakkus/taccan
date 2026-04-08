@@ -37,7 +37,7 @@ class SettingsSheet extends ConsumerWidget {
           if (isHost && inLobby) ...[
             Text(
               tr('game_mode'),
-              style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
+              style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 6),
             Row(
@@ -82,7 +82,7 @@ class SettingsSheet extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             tr('language'),
-            style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
+            style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 6),
           Row(
@@ -130,7 +130,7 @@ class _ModeChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.crimsonPro(
+          style: GoogleFonts.specialElite(
             fontSize: 12,
             color: selected ? colors.primary : colors.onSurface,
             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
@@ -159,7 +159,7 @@ class _ToggleRow extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: colors.onSurface.withValues(alpha: 0.6)),
             const SizedBox(width: 10),
-            Text(label, style: GoogleFonts.crimsonPro(fontSize: 13, color: colors.onSurface)),
+            Text(label, style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface)),
           ],
         ),
       ),

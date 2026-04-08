@@ -130,7 +130,7 @@ class TeamsSheet extends ConsumerWidget {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: Text(tr('spectator'), style: GoogleFonts.crimsonPro()),
+                  child: Text(tr('spectator'), style: GoogleFonts.specialElite()),
                 ),
               ),
               if (isHost && !inGame) ...[
@@ -145,7 +145,7 @@ class TeamsSheet extends ConsumerWidget {
                       }
                     },
                     icon: const Icon(Icons.play_arrow, size: 18),
-                    label: Text(tr('start_game'), style: GoogleFonts.crimsonPro()),
+                    label: Text(tr('start_game'), style: GoogleFonts.specialElite()),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -258,7 +258,7 @@ class _RoleButton extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: GoogleFonts.crimsonPro(
+                style: GoogleFonts.specialElite(
                   fontSize: 13,
                   fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                   color: isActive ? color : colors.onSurface,
@@ -311,7 +311,7 @@ class _TeamRoster extends StatelessWidget {
           if (players.isEmpty)
             Text(
               tr('no_agents'),
-              style: GoogleFonts.crimsonPro(
+              style: GoogleFonts.specialElite(
                 fontSize: 12, color: colors.onSurface.withValues(alpha: 0.3),
               ),
             )
@@ -349,7 +349,7 @@ class _PlayerRow extends StatelessWidget {
           Expanded(
             child: Text(
               player.name + (isMe ? ' (you)' : ''),
-              style: GoogleFonts.crimsonPro(
+              style: GoogleFonts.specialElite(
                 fontSize: 13,
                 color: colors.onSurface,
                 fontWeight: isMe ? FontWeight.bold : FontWeight.normal,

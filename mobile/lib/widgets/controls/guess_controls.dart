@@ -51,7 +51,7 @@ class GuessControls extends ConsumerWidget {
                 children: [
                   Text(
                     '${tr('hint_label')}  ',
-                    style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
+                    style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
                   ),
                   Text(
                     hint.word.toUpperCase(),
@@ -70,7 +70,7 @@ class GuessControls extends ConsumerWidget {
                   if (game.guessesRemaining != null)
                     Text(
                       '${game.guessesRemaining} ${tr('left')}',
-                      style: GoogleFonts.crimsonPro(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                      style: GoogleFonts.specialElite(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
                     ),
                 ],
               ),
@@ -89,7 +89,7 @@ class GuessControls extends ConsumerWidget {
                     selectedCard != null
                         ? '${tr('selected')} ${translateWord(selectedCard.word, lang: lang)}'
                         : tr('tap_card'),
-                    style: GoogleFonts.crimsonPro(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.6)),
+                    style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.6)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -97,12 +97,12 @@ class GuessControls extends ConsumerWidget {
                   onPressed: selectedCard != null && !selectedCard.revealed
                       ? () => _submitGuess(ref, selectedCard.index)
                       : null,
-                  child: Text(tr('guess'), style: GoogleFonts.crimsonPro()),
+                  child: Text(tr('guess'), style: GoogleFonts.specialElite()),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: () => _endTurn(ref, context, tr),
-                  child: Text(tr('end_turn'), style: GoogleFonts.crimsonPro()),
+                  child: Text(tr('end_turn'), style: GoogleFonts.specialElite()),
                 ),
               ],
             ),
@@ -126,10 +126,10 @@ class GuessControls extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('end_turn') as String, style: GoogleFonts.playfairDisplaySc(fontSize: 16)),
-        content: Text(tr('end_turn_confirm') as String, style: GoogleFonts.crimsonPro()),
+        content: Text(tr('end_turn_confirm') as String, style: GoogleFonts.specialElite()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('cancel') as String, style: GoogleFonts.crimsonPro())),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('confirm') as String, style: GoogleFonts.crimsonPro())),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('cancel') as String, style: GoogleFonts.specialElite())),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('confirm') as String, style: GoogleFonts.specialElite())),
         ],
       ),
     );

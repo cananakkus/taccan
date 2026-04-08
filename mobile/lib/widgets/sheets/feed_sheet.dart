@@ -92,7 +92,7 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
               ? Center(
                   child: Text(
                     tr('no_activity'),
-                    style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.3)),
+                    style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.3)),
                   ),
                 )
               : ListView.builder(
@@ -121,7 +121,7 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     border: InputBorder.none,
                   ),
-                  style: GoogleFonts.crimsonPro(fontSize: 13),
+                  style: GoogleFonts.specialElite(fontSize: 13),
                   maxLength: 200,
                   buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                   onSubmitted: (_) => _sendChat(),
@@ -158,11 +158,11 @@ class _ChatBubble extends StatelessWidget {
         children: [
           Text(
             message.name,
-            style: GoogleFonts.crimsonPro(fontSize: 11, fontWeight: FontWeight.bold, color: teamColor),
+            style: GoogleFonts.specialElite(fontSize: 11, fontWeight: FontWeight.bold, color: teamColor),
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(message.text, style: GoogleFonts.crimsonPro(fontSize: 12, color: colors.onSurface)),
+            child: Text(message.text, style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface)),
           ),
         ],
       ),

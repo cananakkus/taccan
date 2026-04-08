@@ -39,7 +39,7 @@ ThemeData _build({
   required Color cardText,
   required Color error,
 }) {
-  final textTheme = GoogleFonts.crimsonProTextTheme(
+  final textTheme = GoogleFonts.specialEliteTextTheme(
     ThemeData(brightness: brightness).textTheme,
   ).apply(
     bodyColor: onSurface,
@@ -47,7 +47,7 @@ ThemeData _build({
   );
 
   // Single font for all buttons and inputs — CrimsonPro
-  final buttonText = GoogleFonts.crimsonPro(fontWeight: FontWeight.w600);
+  final buttonText = GoogleFonts.specialElite(fontWeight: FontWeight.w600);
 
   return ThemeData(
     brightness: brightness,
@@ -83,8 +83,8 @@ ThemeData _build({
       focusedBorder: UnderlineInputBorder(
         borderSide: BorderSide(color: primary, width: 2),
       ),
-      labelStyle: GoogleFonts.crimsonPro(color: onSurface.withValues(alpha: 0.6)),
-      hintStyle: GoogleFonts.crimsonPro(color: onSurface.withValues(alpha: 0.4)),
+      labelStyle: GoogleFonts.specialElite(color: onSurface.withValues(alpha: 0.6)),
+      hintStyle: GoogleFonts.specialElite(color: onSurface.withValues(alpha: 0.4)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(

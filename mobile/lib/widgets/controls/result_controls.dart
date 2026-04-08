@@ -44,17 +44,17 @@ class ResultControls extends ConsumerWidget {
               if (isHost)
                 ElevatedButton(
                   onPressed: () => _rematch(ref, 'same_teams'),
-                  child: Text(tr('rematch'), style: GoogleFonts.crimsonPro()),
+                  child: Text(tr('rematch'), style: GoogleFonts.specialElite()),
                 ),
               if (isHost)
                 OutlinedButton(
                   onPressed: () => _rematch(ref, 'swap_teams'),
-                  child: Text(tr('swap_rematch'), style: GoogleFonts.crimsonPro()),
+                  child: Text(tr('swap_rematch'), style: GoogleFonts.specialElite()),
                 ),
-              OutlinedButton(onPressed: () => _sendGG(ref), child: Text(tr('gg'), style: GoogleFonts.crimsonPro())),
+              OutlinedButton(onPressed: () => _sendGG(ref), child: Text(tr('gg'), style: GoogleFonts.specialElite())),
               OutlinedButton(
                 onPressed: () => ref.read(uiProvider.notifier).toggleSheet(SheetPanel.debrief),
-                child: Text(tr('debrief'), style: GoogleFonts.crimsonPro()),
+                child: Text(tr('debrief'), style: GoogleFonts.specialElite()),
               ),
             ],
           ),
