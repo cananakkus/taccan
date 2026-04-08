@@ -53,6 +53,8 @@ class TurnBanner extends ConsumerWidget {
                 color: game.phase == GamePhase.finished ? colors.onSurface : teamClr,
                 letterSpacing: 0.5,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Text('${game.remaining.red}', style: GoogleFonts.specialElite(fontSize: 13, fontWeight: FontWeight.bold, color: ct.red)),

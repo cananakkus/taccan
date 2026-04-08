@@ -59,8 +59,11 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
       }
     });
 
-    // Sync sound mute with preferences
+    // Sync sound mute — initial + listen for changes
     soundService.setMuted(ref.read(preferencesProvider).soundMuted);
+    ref.listenManual(preferencesProvider, (prev, next) {
+      soundService.setMuted(next.soundMuted);
+    });
 
     final socket = ref.read(socketServiceProvider);
     _toastSub = socket.toasts.listen((event) {
@@ -145,6 +148,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -307,9 +311,10 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
 
   Widget _buildSheetContainer(SheetPanel panel, BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.65,
+        maxHeight: MediaQuery.of(context).size.height * (isLandscape ? 0.8 : 0.65),
       ),
       decoration: BoxDecoration(
         color: colors.surface,
@@ -341,11 +346,11 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Center(
                   child: Container(
-                    width: 32,
-                    height: 4,
+                    width: 40,
+                    height: 5,
                     decoration: BoxDecoration(
-                      color: colors.outline.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
+                      color: colors.outline.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),

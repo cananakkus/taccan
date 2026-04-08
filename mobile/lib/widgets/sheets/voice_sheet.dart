@@ -162,7 +162,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                       if (isMuted) Icon(Icons.mic_off, size: 14, color: colors.onSurface.withValues(alpha: 0.4)),
                       const SizedBox(width: 8),
                       SizedBox(
-                        width: 80,
+                        width: 120,
                         child: Slider(
                           value: peer.volume.toDouble(),
                           min: 0, max: 100,

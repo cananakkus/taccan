@@ -354,6 +354,7 @@ class _PlayerRow extends StatelessWidget {
                 color: colors.onSurface,
                 fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
               ),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),

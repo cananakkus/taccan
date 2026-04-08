@@ -96,7 +96,7 @@ class DebriefSheet extends ConsumerWidget {
             '  ${outcome == 'correct' ? '✓' : '✗'} Agent $name investigated $word ($cardColor)',
             style: GoogleFonts.specialElite(
               fontSize: 12,
-              color: outcome == 'correct' ? const Color(0xFF50A040) : const Color(0xFFC04040),
+              color: outcome == 'correct' ? const Color(0xFF388E3C) : const Color(0xFFC04040),
             ),
           ),
         ));

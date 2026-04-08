@@ -15,7 +15,7 @@ class ToastOverlay extends ConsumerWidget {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutCubic,
-      top: toast != null ? MediaQuery.of(context).padding.top + 12 : -80,
+      top: toast != null ? MediaQuery.of(context).viewPadding.top + 12 : -80,
       left: 24,
       right: 24,
       child: Material(

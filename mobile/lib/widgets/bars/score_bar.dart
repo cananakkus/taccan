@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
 import '../../providers/providers.dart';
@@ -14,48 +15,71 @@ class ScoreBar extends ConsumerWidget {
     if (game == null) return const SizedBox.shrink();
 
     final ct = Theme.of(context).extension<TaccanCardTheme>()!;
+    final colors = Theme.of(context).colorScheme;
     final redTotal = game.startingTeam == Team.red ? 9 : 8;
     final blueTotal = game.startingTeam == Team.blue ? 9 : 8;
     final total = redTotal + blueTotal;
     final redFound = redTotal - game.remaining.red;
     final blueFound = blueTotal - game.remaining.blue;
 
-    return Container(
-      height: 6,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Row(
-        children: [
-          // Red progress
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            width: total > 0
-                ? (redFound / total) *
-                    (MediaQuery.of(context).size.width - 16)
-                : 0,
-            decoration: BoxDecoration(
-              color: ct.red,
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(3)),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final barWidth = constraints.maxWidth - 16; // account for horizontal margin
+        return Container(
+          height: 16,
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: colors.outline.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
           ),
-          const Spacer(),
-          // Blue progress (right-aligned)
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            width: total > 0
-                ? (blueFound / total) *
-                    (MediaQuery.of(context).size.width - 16)
-                : 0,
-            decoration: BoxDecoration(
-              color: ct.blue,
-              borderRadius: const BorderRadius.horizontal(right: Radius.circular(3)),
-            ),
+          child: Stack(
+            children: [
+              // Red from left
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  width: total > 0 ? (redFound / total) * barWidth : 0,
+                  decoration: BoxDecoration(
+                    color: ct.red,
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                  ),
+                  alignment: Alignment.center,
+                  child: redFound > 0
+                      ? Text(
+                          '$redFound',
+                          style: GoogleFonts.specialElite(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+              ),
+              // Blue from right
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  width: total > 0 ? (blueFound / total) * barWidth : 0,
+                  decoration: BoxDecoration(
+                    color: ct.blue,
+                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                  ),
+                  alignment: Alignment.center,
+                  child: blueFound > 0
+                      ? Text(
+                          '$blueFound',
+                          style: GoogleFonts.specialElite(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

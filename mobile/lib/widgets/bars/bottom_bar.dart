@@ -31,42 +31,46 @@ class BottomBar extends ConsumerWidget {
         top: false,
         child: Row(
           children: [
-            // Room code (tap to copy)
-            GestureDetector(
-              onTap: () {
-                final code = room?.code ?? '';
-                if (code.isNotEmpty) {
-                  Clipboard.setData(ClipboardData(text: code));
-                  ref.read(toastProvider.notifier).show(tr('room_code_copied'), ToastStyle.success);
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  border: Border.all(color: colors.outline.withValues(alpha: 0.5)),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: connected ? Colors.green : colors.error,
+            // Room code (tap to copy) with ripple
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(4),
+                onTap: () {
+                  final code = room?.code ?? '';
+                  if (code.isNotEmpty) {
+                    Clipboard.setData(ClipboardData(text: code));
+                    ref.read(toastProvider.notifier).show(tr('room_code_copied'), ToastStyle.success);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.outline.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: connected ? Colors.green : colors.error,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      room?.code ?? '',
-                      style: GoogleFonts.specialElite(
-                        fontSize: 11,
-                        letterSpacing: 2,
-                        color: colors.onSurface,
+                      const SizedBox(width: 6),
+                      Text(
+                        room?.code ?? '',
+                        style: GoogleFonts.specialElite(
+                          fontSize: 12,
+                          letterSpacing: 2,
+                          color: colors.onSurface,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -98,9 +102,22 @@ class BottomBar extends ConsumerWidget {
                 onTap: () => onToggleSheet(SheetPanel.debrief),
               ),
             const Spacer(),
+            // Leave with confirmation
             IconButton(
-              icon: const Icon(Icons.logout, size: 18),
+              icon: const Icon(Icons.logout, size: 20),
               onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(tr('leave'), style: GoogleFonts.specialElite(fontSize: 16)),
+                    content: Text(tr('leave_confirm'), style: GoogleFonts.specialElite()),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('cancel'))),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('confirm'))),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
                 try {
                   await ref.read(socketServiceProvider).leaveRoom();
                 } catch (_) {}
@@ -108,9 +125,8 @@ class BottomBar extends ConsumerWidget {
                 await ref.read(sessionProvider.notifier).clear();
               },
               tooltip: tr('leave'),
-              iconSize: 18,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             ),
           ],
         ),
@@ -133,12 +149,12 @@ class _TabButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Icon(
             icon,
-            size: 20,
+            size: 22,
             color: isActive ? colors.primary : colors.onSurface.withValues(alpha: 0.5),
           ),
         ),

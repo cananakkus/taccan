@@ -44,7 +44,7 @@ class PhaseTimerBar extends ConsumerWidget {
         children: [
           Icon(
             Icons.timer_outlined,
-            size: 14,
+            size: 18,
             color: isCritical ? colors.error : colors.onSurface.withValues(alpha: 0.6),
           ),
           const SizedBox(width: 6),

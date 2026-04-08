@@ -55,10 +55,10 @@ class TaccanCardTheme extends ThemeExtension<TaccanCardTheme> {
         blue: TaccanColors.lightBlue,
         neutral: Color(0xFF9A8E7C),
         assassin: Color(0xFF1A1A1A),
-        redLight: Color(0x1A9A3030),
-        blueLight: Color(0x1A284A70),
-        revealedText: Color(0xFFF0E8D8),
-        markerText: Color(0xFFF0E8D8),
+        redLight: Color(0x409A3030),
+        blueLight: Color(0x40284A70),
+        revealedText: Color(0xFFFAF4E8),
+        markerText: Color(0xFFFAF4E8),
       );
 
   @override

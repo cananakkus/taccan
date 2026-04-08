@@ -40,14 +40,15 @@ class SettingsSheet extends ConsumerWidget {
               style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _ModeChip(
                   label: tr('casual'),
                   selected: room?.mode == RoomMode.casual,
                   onTap: () => ref.read(socketServiceProvider).setMode('casual').catchError((_) => <String, dynamic>{}),
                 ),
-                const SizedBox(width: 8),
                 _ModeChip(
                   label: tr('blitz'),
                   selected: room?.mode == RoomMode.blitz,
@@ -85,14 +86,15 @@ class SettingsSheet extends ConsumerWidget {
             style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 6),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _ModeChip(
                 label: tr('english'),
                 selected: prefs.language == 'en',
                 onTap: () => ref.read(preferencesProvider.notifier).setLanguage('en'),
               ),
-              const SizedBox(width: 8),
               _ModeChip(
                 label: tr('turkish'),
                 selected: prefs.language == 'tr',

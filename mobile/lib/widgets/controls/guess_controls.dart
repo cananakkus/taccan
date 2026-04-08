@@ -53,13 +53,17 @@ class GuessControls extends ConsumerWidget {
                     '${tr('hint_label')}  ',
                     style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
                   ),
-                  Text(
-                    hint.word.toUpperCase(),
-                    style: GoogleFonts.specialElite(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: colors.onSurface,
-                      letterSpacing: 1,
+                  Flexible(
+                    child: Text(
+                      hint.word.toUpperCase(),
+                      style: GoogleFonts.specialElite(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colors.onSurface,
+                        letterSpacing: 1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Text(

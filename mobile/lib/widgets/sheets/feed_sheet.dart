@@ -122,6 +122,8 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
                     border: InputBorder.none,
                   ),
                   style: GoogleFonts.specialElite(fontSize: 13),
+                  maxLines: 3,
+                  minLines: 1,
                   maxLength: 200,
                   buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                   onSubmitted: (_) => _sendChat(),

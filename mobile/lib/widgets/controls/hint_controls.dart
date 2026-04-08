@@ -129,8 +129,8 @@ class _StepperBtn extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Icon(icon, size: 16, color: onTap != null ? null : Colors.grey),
+        padding: const EdgeInsets.all(10),
+        child: Icon(icon, size: 18, color: onTap != null ? null : Colors.grey),
       ),
     );
   }
