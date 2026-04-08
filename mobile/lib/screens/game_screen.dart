@@ -200,35 +200,39 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   }
 
   Widget _buildLandscapeLayout(dynamic game, bool playerCanHint, bool playerCanGuess, dynamic tr) {
-    return Row(
+    return Column(
       children: [
-        // Board takes left side — full height
+        // Score bar — full width
+        const ScoreBar(),
+        // Board left + controls right
         Expanded(
-          flex: 55,
-          child: Column(
+          child: Row(
             children: [
-              const ScoreBar(),
-              Expanded(child: const GameBoard()),
-              // Compact bottom bar in landscape
-              BottomBar(onToggleSheet: _toggleSheet),
-            ],
-          ),
-        ),
-        // Controls take right side
-        Expanded(
-          flex: 45,
-          child: Column(
-            children: [
-              const TurnBanner(),
-              const PhaseTimerBar(),
               Expanded(
-                child: SingleChildScrollView(
-                  child: _buildControls(game, playerCanHint, playerCanGuess),
+                flex: 55,
+                child: const GameBoard(),
+              ),
+              Expanded(
+                flex: 45,
+                child: Column(
+                  children: [
+                    const TurnBanner(),
+                    const PhaseTimerBar(),
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: _buildControls(game, playerCanHint, playerCanGuess),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
+        // Bottom bar — full width
+        BottomBar(onToggleSheet: _toggleSheet),
       ],
     );
   }

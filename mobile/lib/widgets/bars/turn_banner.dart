@@ -45,16 +45,19 @@ class TurnBanner extends ConsumerWidget {
               decoration: BoxDecoration(shape: BoxShape.circle, color: teamClr),
             ),
           Expanded(
-            child: Text(
-              phaseText,
-              style: GoogleFonts.specialElite(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: game.phase == GamePhase.finished ? colors.onSurface : teamClr,
-                letterSpacing: 0.5,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                phaseText,
+                style: GoogleFonts.specialElite(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: game.phase == GamePhase.finished ? colors.onSurface : teamClr,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           Text('${game.remaining.red}', style: GoogleFonts.specialElite(fontSize: 13, fontWeight: FontWeight.bold, color: ct.red)),

@@ -47,14 +47,17 @@ class GuessControls extends ConsumerWidget {
                 border: Border.all(color: colors.outline.withValues(alpha: 0.3)),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Row(
-                children: [
-                  Text(
-                    '${tr('hint_label')}  ',
-                    style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
-                  ),
-                  Flexible(
-                    child: Text(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${tr('hint_label')}  ',
+                      style: GoogleFonts.specialElite(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
+                    ),
+                    Text(
                       hint.word.toUpperCase(),
                       style: GoogleFonts.specialElite(
                         fontSize: 16,
@@ -62,21 +65,20 @@ class GuessControls extends ConsumerWidget {
                         color: colors.onSurface,
                         letterSpacing: 1,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    ' ${hint.count}',
-                    style: GoogleFonts.specialElite(fontSize: 14, color: colors.primary),
-                  ),
-                  const Spacer(),
-                  if (game.guessesRemaining != null)
                     Text(
-                      '${game.guessesRemaining} ${tr('left')}',
-                      style: GoogleFonts.specialElite(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                      ' ${hint.count}',
+                      style: GoogleFonts.specialElite(fontSize: 14, color: colors.primary),
                     ),
-                ],
+                    if (game.guessesRemaining != null) ...[
+                      const SizedBox(width: 12),
+                      Text(
+                        '${game.guessesRemaining} ${tr('left')}',
+                        style: GoogleFonts.specialElite(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             )
           else
@@ -89,11 +91,16 @@ class GuessControls extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    selectedCard != null
-                        ? '${tr('selected')} ${translateWord(selectedCard.word, lang: lang)}'
-                        : tr('tap_card'),
-                    style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.6)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      selectedCard != null
+                          ? '${tr('selected')} ${translateWord(selectedCard.word, lang: lang)}'
+                          : tr('tap_card'),
+                      style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.6)),
+                      maxLines: 1,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
