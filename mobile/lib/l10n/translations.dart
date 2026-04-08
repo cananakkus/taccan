@@ -605,7 +605,11 @@ String t(String key, {String lang = 'en', Map<String, String>? vars}) {
 
 String translateWord(String word, {String lang = 'en'}) {
   if (lang == 'tr') {
-    return _wordDictionary[word.toLowerCase()] ?? word;
+    final translated = _wordDictionary[word.toLowerCase()];
+    if (translated != null) {
+      // Preserve original case: if word was uppercase, uppercase the translation
+      return word == word.toUpperCase() ? translated.toUpperCase() : translated;
+    }
   }
   return word;
 }

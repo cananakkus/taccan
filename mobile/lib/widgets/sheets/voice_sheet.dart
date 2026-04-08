@@ -90,26 +90,38 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
             ),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: voice.joining ? null : _toggleVoice,
-              icon: Icon(voice.active ? Icons.call_end : Icons.call, size: 18),
-              label: Text(
-                voice.joining ? '...' : voice.active ? 'Leave Voice' : 'Join Voice',
-                style: GoogleFonts.crimsonPro(),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: voice.active ? colors.error : colors.primary,
+          if (!voice.active)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: voice.joining ? null : _toggleVoice,
+                icon: const Icon(Icons.call, size: 18),
+                label: Text(
+                  voice.joining ? '...' : 'Join Voice',
+                  style: GoogleFonts.crimsonPro(),
+                ),
               ),
             ),
-          ),
           if (voice.active) ...[
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _toggleMute,
-              icon: Icon(voice.muted ? Icons.mic_off : Icons.mic, size: 18),
-              label: Text(voice.muted ? 'Unmute' : 'Mute', style: GoogleFonts.crimsonPro()),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _toggleVoice,
+                    icon: const Icon(Icons.call_end, size: 16),
+                    label: Text('Leave', style: GoogleFonts.crimsonPro()),
+                    style: OutlinedButton.styleFrom(foregroundColor: colors.error, side: BorderSide(color: colors.error)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _toggleMute,
+                    icon: Icon(voice.muted ? Icons.mic_off : Icons.mic, size: 16),
+                    label: Text(voice.muted ? 'Unmute' : 'Mute', style: GoogleFonts.crimsonPro()),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             if (voice.peers.isEmpty)

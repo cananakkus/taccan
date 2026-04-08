@@ -20,6 +20,8 @@ class TaccanApp extends ConsumerWidget {
       themeMode: prefs.themeMode,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
+      themeAnimationDuration: const Duration(milliseconds: 200),
+      themeAnimationCurve: Curves.easeInOut,
       home: snapshot != null ? const GameScreen() : const JoinScreen(),
     );
   }

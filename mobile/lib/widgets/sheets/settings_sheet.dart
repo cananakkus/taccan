@@ -59,13 +59,13 @@ class SettingsSheet extends ConsumerWidget {
           ],
 
           _ToggleRow(
-            icon: prefs.themeMode == ThemeMode.dark
+            icon: Theme.of(context).brightness == Brightness.dark
                 ? Icons.wb_sunny_outlined
                 : Icons.nightlight_outlined,
             label: tr('theme'),
             onTap: () {
-              final next = prefs.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-              ref.read(preferencesProvider.notifier).setThemeMode(next);
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              ref.read(preferencesProvider.notifier).setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
             },
           ),
           _ToggleRow(

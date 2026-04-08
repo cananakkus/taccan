@@ -280,7 +280,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                 },
                 child: Text(
                   tr('start_game'),
-                  style: GoogleFonts.playfairDisplaySc(letterSpacing: 1),
+                  style: GoogleFonts.crimsonPro(),
                 ),
               )
             else
@@ -327,13 +327,28 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 32,
-              height: 4,
-              margin: const EdgeInsets.only(top: 8),
-              decoration: BoxDecoration(
-                color: colors.outline.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
+            // Draggable handle — swipe down to close
+            GestureDetector(
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null && details.primaryVelocity! > 200) {
+                  _closeSheet();
+                }
+              },
+              onTap: _closeSheet,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Center(
+                  child: Container(
+                    width: 32,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.outline.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
               ),
             ),
             Flexible(

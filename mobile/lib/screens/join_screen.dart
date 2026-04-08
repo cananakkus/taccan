@@ -143,7 +143,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                     maxLength: playerNameMax,
                     decoration: InputDecoration(
                       labelText: tr('agent_name'),
-                      labelStyle: GoogleFonts.specialElite(),
                       counterText: '',
                     ),
                     style: GoogleFonts.crimsonPro(fontSize: 16),
@@ -158,10 +157,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                           maxLength: 8,
                           decoration: InputDecoration(
                             labelText: tr('room_code'),
-                            labelStyle: GoogleFonts.specialElite(),
                             counterText: '',
                           ),
-                          style: GoogleFonts.specialElite(fontSize: 18, letterSpacing: 3),
+                          style: GoogleFonts.crimsonPro(fontSize: 18, letterSpacing: 2),
                           textCapitalization: TextCapitalization.characters,
                         ),
                       ),
@@ -182,11 +180,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                       ),
                       child: Text(
                         tr('create_room'),
-                        style: GoogleFonts.playfairDisplaySc(
-                          fontSize: 14,
-                          letterSpacing: 1,
-                          fontWeight: FontWeight.w700,
-                        ),
                       ),
                     ),
                   ),
@@ -222,13 +215,14 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
             children: [
               IconButton(
                 icon: Icon(
-                  prefs.themeMode == ThemeMode.dark
+                  theme.brightness == Brightness.dark
                       ? Icons.wb_sunny_outlined
                       : Icons.nightlight_outlined,
                 ),
                 onPressed: () {
-                  final next = prefs.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-                  ref.read(preferencesProvider.notifier).setThemeMode(next);
+                  // Resolve current effective brightness, then flip
+                  final isDark = theme.brightness == Brightness.dark;
+                  ref.read(preferencesProvider.notifier).setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
                 },
                 tooltip: tr('theme'),
               ),

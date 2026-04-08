@@ -70,7 +70,7 @@ class CardTile extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 350),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
             color: bg,

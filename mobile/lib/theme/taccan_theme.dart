@@ -46,6 +46,9 @@ ThemeData _build({
     displayColor: onSurface,
   );
 
+  // Single font for all buttons and inputs — CrimsonPro
+  final buttonText = GoogleFonts.crimsonPro(fontWeight: FontWeight.w600);
+
   return ThemeData(
     brightness: brightness,
     scaffoldBackgroundColor: scaffold,
@@ -80,18 +83,15 @@ ThemeData _build({
       focusedBorder: UnderlineInputBorder(
         borderSide: BorderSide(color: primary, width: 2),
       ),
-      labelStyle: TextStyle(color: onSurface.withValues(alpha: 0.6)),
-      hintStyle: TextStyle(color: onSurface.withValues(alpha: 0.4)),
+      labelStyle: GoogleFonts.crimsonPro(color: onSurface.withValues(alpha: 0.6)),
+      hintStyle: GoogleFonts.crimsonPro(color: onSurface.withValues(alpha: 0.4)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primary,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        textStyle: GoogleFonts.playfairDisplaySc(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
+        textStyle: buttonText,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -99,12 +99,12 @@ ThemeData _build({
         foregroundColor: onSurface,
         side: BorderSide(color: border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        textStyle: GoogleFonts.crimsonPro(),
+        textStyle: buttonText,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        textStyle: GoogleFonts.crimsonPro(),
+        textStyle: buttonText,
       ),
     ),
     dividerColor: border,
