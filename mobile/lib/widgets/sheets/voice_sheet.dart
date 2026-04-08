@@ -81,7 +81,7 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             'VOICE',

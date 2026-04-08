@@ -78,14 +78,14 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Text(
+          child: Center(child: Text(
             tr('feed'),
             style: GoogleFonts.specialElite(
               fontSize: 14,
               letterSpacing: 1,
               color: colors.onSurface,
             ),
-          ),
+          )),
         ),
         Flexible(
           child: messages.isEmpty

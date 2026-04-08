@@ -22,7 +22,7 @@ class SettingsSheet extends ConsumerWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             tr('settings'),

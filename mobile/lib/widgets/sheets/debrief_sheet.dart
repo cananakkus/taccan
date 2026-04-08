@@ -25,7 +25,7 @@ class DebriefSheet extends ConsumerWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Center(
             child: Text(
