@@ -46,6 +46,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
     final maxCount = game?.maxHintCount ?? 25;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.surface,
@@ -53,7 +54,7 @@ class _HintControlsState extends ConsumerState<HintControls> {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             tr('spymaster_hint'),

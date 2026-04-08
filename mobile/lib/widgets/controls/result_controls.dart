@@ -21,6 +21,7 @@ class ResultControls extends ConsumerWidget {
     final resultText = _buildResultText(game, tr);
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.surface,

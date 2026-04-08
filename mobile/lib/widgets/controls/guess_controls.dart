@@ -28,6 +28,7 @@ class GuessControls extends ConsumerWidget {
         : null;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.surface,
@@ -35,6 +36,7 @@ class GuessControls extends ConsumerWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (hint != null)
             Container(
