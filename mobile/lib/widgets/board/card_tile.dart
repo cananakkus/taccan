@@ -79,8 +79,13 @@ class CardTile extends StatelessWidget {
             final wordSize = (cardWidth * 0.15).clamp(8.0, 14.0);
             final markerSize = (cardWidth * 0.09).clamp(6.0, 10.0);
 
+            // Use short duration for selection changes; theme color changes
+            // are handled by MaterialApp's themeAnimationDuration (200ms).
+            // Using 0ms for the container avoids double-animation on theme switch.
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: isSelected
+                  ? const Duration(milliseconds: 200)
+                  : Duration.zero,
               curve: Curves.easeInOut,
               decoration: BoxDecoration(
                 color: bg,
