@@ -1029,6 +1029,17 @@ onBeforeUnmount(() => {
                 </div>
               </section>
 
+              <!-- Inline feed — fills remaining space in controls strip (desktop only) -->
+              <div v-if="game" class="inline-feed">
+                <div class="inline-feed-entries">
+                  <div v-for="item in feedItems" :key="item.key" :class="item.className">{{ item.text }}</div>
+                </div>
+                <form class="inline-feed-form" autocomplete="off" @submit.prevent="sendChat">
+                  <input v-model="chatInput" type="text" maxlength="200" :placeholder="t('chat_placeholder')" />
+                  <button class="btn btn-ghost btn-sm" type="submit">{{ t('send') }}</button>
+                </form>
+              </div>
+
               <section id="result-section" class="ctrl-panel result-ctrl" :class="{ hidden: game?.phase !== 'finished' }">
                 <p id="result-text" class="result-text">{{ resultText() }}</p>
                 <div class="result-actions">
