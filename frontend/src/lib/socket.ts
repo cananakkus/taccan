@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import type { AckResponse, TurnCredentialsResponse } from '../types';
 
 export const socket = io({
-  path: '/socket.io',
+  path: '/taccan/socket.io',
 });
 
 export function emitWithAck<T extends Record<string, unknown>>(
@@ -40,7 +40,7 @@ export function emitWithAck<T extends Record<string, unknown>>(
 }
 
 export async function fetchTurnCredentials(): Promise<TurnCredentialsResponse> {
-  const response = await fetch('/api/turn-credentials');
+  const response = await fetch('/taccan/api/turn-credentials');
   if (!response.ok) {
     throw new Error(`TURN credentials request failed (${response.status}).`);
   }
