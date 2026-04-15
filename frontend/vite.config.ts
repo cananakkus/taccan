@@ -5,6 +5,7 @@ export default defineConfig({
   root: __dirname,
   publicDir: 'public',
   plugins: [vue()],
+  base: '/taccan/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
