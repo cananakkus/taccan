@@ -1105,7 +1105,7 @@ onBeforeUnmount(() => {
                 </span>
               </button>
 
-              <div class="voice-dropdown">
+              <div class="voice-dropdown" :class="{ 'voice-active': voice.active }">
                 <button id="voice-join-btn" class="bar-tab bar-tab-voice" type="button" :class="{ 'in-voice': voice.active }" @click="() => void joinVoice()">
                   <span class="bar-tab-icon" aria-hidden="true">♪</span>
                   <span class="bar-tab-label">{{ voice.active ? t('voice_leave') : t('voice_join') }}</span>
