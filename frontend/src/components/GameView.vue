@@ -1094,7 +1094,7 @@ onBeforeUnmount(() => {
                 v-for="panel in PANEL_KEYS"
                 :key="panel"
                 class="bar-tab"
-                :class="{ active: ui.openPanel === panel, hidden: panel === 'debrief' && game?.phase !== 'finished' }"
+                :class="{ active: ui.openPanel === panel, hidden: panel === 'feed' || (panel === 'debrief' && game?.phase !== 'finished') }"
                 type="button"
                 @click="ui.togglePanel(panel)"
               >
