@@ -506,6 +506,7 @@ socket.on('game:gg_received', (payload: { name?: string }) => {
 socket.on('chat:message', (message: ChatMessage) => {
   if (!app.snapshot) return;
   app.snapshot.room.chatMessages.push(message);
+  if (ui.openPanel !== 'feed') ui.unreadChat++;
 });
 
 socket.on('turn:mark_update', (payload: { index: number; marks: CardMark[] }) => {
@@ -1013,8 +1014,9 @@ onBeforeUnmount(() => {
                 </form>
               </section>
 
+              <p v-if="game && game.hint && game.phase !== 'finished'" id="hint-display" class="hint-display-bar">{{ hintDisplayText() }}</p>
+
               <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !game || canHintNow || game.phase === 'finished' }">
-                <p id="hint-display" class="hint-display-bar">{{ hintDisplayText() }}</p>
                 <p id="guess-note" class="ctrl-status">{{ guessNoteText() }}</p>
                 <div v-if="canGuessNow" class="guess-row">
                   <span id="selected-guess" class="selected-label">{{ guessLabel }}</span>
@@ -1086,6 +1088,7 @@ onBeforeUnmount(() => {
                 @click="ui.togglePanel(panel)"
               >
                 <span class="bar-tab-icon" aria-hidden="true">{{ panel === 'teams' ? '⚐' : panel === 'feed' ? '☰' : panel === 'settings' ? '⚙' : '☷' }}</span>
+                <span v-if="panel === 'feed' && ui.unreadChat > 0" class="chat-badge">{{ ui.unreadChat > 9 ? '9+' : ui.unreadChat }}</span>
                 <span class="bar-tab-label">
                   {{ panel === 'teams' ? t('panel_teams') : panel === 'feed' ? t('panel_feed') : panel === 'settings' ? t('panel_settings') : t('debrief') }}
                 </span>

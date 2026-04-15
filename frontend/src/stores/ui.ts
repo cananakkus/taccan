@@ -17,6 +17,7 @@ export const useUiStore = defineStore('ui', {
     confirmMessage: '',
     confirmId: 0,
     confirmResolver: null as null | ((value: boolean) => void),
+    unreadChat: 0,
   }),
   actions: {
     showToast(message: string, type: ToastState['type'] = '') {
@@ -42,6 +43,7 @@ export const useUiStore = defineStore('ui', {
     },
     togglePanel(panel: 'teams' | 'feed' | 'settings' | 'debrief') {
       this.openPanel = this.openPanel === panel ? null : panel;
+      if (this.openPanel === 'feed') this.unreadChat = 0;
     },
     closePanel() {
       this.openPanel = null;
