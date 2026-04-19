@@ -172,6 +172,9 @@ function resolveGuess(game, player, card) {
   if (game.marksByCard[card.index]) {
     game.marksByCard[card.index].clear();
   }
+  if (game.confidenceByCard && game.confidenceByCard[card.index]) {
+    game.confidenceByCard[card.index] = {};
+  }
 
   const opponentTeam = getOtherTeam(player.team);
   const result = {
@@ -266,6 +269,12 @@ function clearAllCardMarks(game) {
 
   for (const marks of game.marksByCard) {
     marks.clear();
+  }
+
+  if (Array.isArray(game.confidenceByCard)) {
+    for (let i = 0; i < game.confidenceByCard.length; i += 1) {
+      game.confidenceByCard[i] = {};
+    }
   }
 }
 

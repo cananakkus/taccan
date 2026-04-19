@@ -29,9 +29,11 @@ class _HintControlsState extends ConsumerState<HintControls> {
     setState(() => _submitting = true);
     try {
       await ref.read(socketServiceProvider).submitHint(word, _count);
+      if (!mounted) return;
       _wordController.clear();
       setState(() => _count = 1);
     } catch (e) {
+      if (!mounted) return;
       ref.read(toastProvider.notifier).show(e.toString(), ToastStyle.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -80,6 +82,8 @@ class _HintControlsState extends ConsumerState<HintControls> {
                   style: GoogleFonts.specialElite(fontSize: 16),
                   textCapitalization: TextCapitalization.characters,
                   enabled: !_submitting,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _submitting ? null : _submit(),
                 ),
               ),
               const SizedBox(width: 8),

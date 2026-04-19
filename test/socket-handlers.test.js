@@ -273,6 +273,52 @@ test('mark toggle during wrong phase rejected', async () => {
   }
 });
 
+test('confidence resets to firm after a turn boundary', async () => {
+  const ctx = await boot();
+  const { spy, op, spyState } = await setupGame(ctx);
+  try {
+    const startingTeam = spyState.game.currentTeam;
+    const opposingTeam = startingTeam === 'red' ? 'blue' : 'red';
+
+    const neutral = spyState.game.board.find((c) => c.color === 'neutral');
+    assert.ok(neutral, 'board should include a neutral card');
+    const markIndex = spyState.game.board.findIndex((c) => !c.revealed && c.index !== neutral.index);
+    assert.ok(markIndex >= 0, 'should find a second unrevealed card to mark');
+
+    await emit(spy, 'turn:hint_submit', { word: 'onewordhint', count: 1 });
+
+    const firstMarkP = waitFor(op, 'turn:mark_update');
+    await emit(op, 'turn:mark_toggle', { index: markIndex });
+    const firstMark = await firstMarkP;
+    assert.equal(firstMark.marks.length, 1);
+    assert.equal(firstMark.marks[0].confidence, 'firm');
+
+    const confidenceMarkP = waitFor(op, 'turn:mark_update');
+    await emit(op, 'turn:mark_confidence', { index: markIndex, confidence: 'tentative' });
+    const confidenceMark = await confidenceMarkP;
+    assert.equal(confidenceMark.marks[0].confidence, 'tentative');
+
+    const turnAdvancedP = waitForState(op, (s) => s.game?.currentTeam === opposingTeam && s.game?.phase === 'hint');
+    await emit(op, 'turn:guess', { index: neutral.index });
+    await turnAdvancedP;
+
+    await emit(spy, 'team:set', { team: opposingTeam });
+    await emit(spy, 'role:set', { role: 'spymaster' });
+    await emit(op, 'team:set', { team: opposingTeam });
+    await emit(op, 'role:set', { role: 'operative' });
+
+    await emit(spy, 'turn:hint_submit', { word: 'twowordhint', count: 1 });
+
+    const remarkP = waitFor(op, 'turn:mark_update');
+    await emit(op, 'turn:mark_toggle', { index: markIndex });
+    const remark = await remarkP;
+    assert.equal(remark.marks.length, 1, 'the card should have exactly one marker after re-marking');
+    assert.equal(remark.marks[0].confidence, 'firm', 'confidence should default to firm, not carry over from previous turn');
+  } finally {
+    await shutdown(ctx, spy, op);
+  }
+});
+
 test('rate limiting triggers on burst', async () => {
   const ctx = await boot();
   const c1 = connect(ctx.port);

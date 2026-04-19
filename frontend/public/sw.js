@@ -32,7 +32,7 @@ self.addEventListener('fetch', (event) => {
         const cached = await caches.match(event.request);
         if (cached) return cached;
         if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match(new URL('index.html', self.registration.scope).pathname);
         }
         throw new Error('Request failed and no cached response was found.');
       })

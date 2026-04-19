@@ -56,7 +56,9 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
         voiceNotifier.setPeer(peerId);
       }
     } catch (e) {
-      ref.read(toastProvider.notifier).show(e.toString(), ToastStyle.error);
+      if (mounted) {
+        ref.read(toastProvider.notifier).show(e.toString(), ToastStyle.error);
+      }
       voiceSvc.leave();
       voiceNotifier.reset();
     } finally {
@@ -160,17 +162,6 @@ class _VoiceSheetState extends ConsumerState<VoiceSheet> {
                         ),
                       ),
                       if (isMuted) Icon(Icons.mic_off, size: 14, color: colors.onSurface.withValues(alpha: 0.4)),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 120,
-                        child: Slider(
-                          value: peer.volume.toDouble(),
-                          min: 0, max: 100,
-                          onChanged: (v) {
-                            ref.read(voiceProvider.notifier).setPeerVolume(peer.sessionId, v.round());
-                          },
-                        ),
-                      ),
                     ],
                   ),
                 );

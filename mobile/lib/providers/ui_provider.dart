@@ -93,21 +93,38 @@ class ToastMessage {
 
 enum ToastStyle { info, success, error }
 
-final toastProvider = StateNotifierProvider<ToastNotifier, ToastMessage?>((ref) {
+const _toastDisplayDuration = Duration(milliseconds: 2400);
+const _toastMaxQueue = 4;
+
+final toastProvider =
+    StateNotifierProvider<ToastNotifier, List<ToastMessage>>((ref) {
   return ToastNotifier();
 });
 
-class ToastNotifier extends StateNotifier<ToastMessage?> {
+class ToastNotifier extends StateNotifier<List<ToastMessage>> {
   Timer? _timer;
 
-  ToastNotifier() : super(null);
+  ToastNotifier() : super(const []);
 
   void show(String message, [ToastStyle style = ToastStyle.info]) {
-    _timer?.cancel();
-    state = ToastMessage(message: message, style: style);
-    _timer = Timer(const Duration(milliseconds: 2400), () {
-      state = null;
-    });
+    final next = [...state, ToastMessage(message: message, style: style)];
+    // Drop oldest if the queue grows past the cap (e.g. error flood).
+    state = next.length > _toastMaxQueue
+        ? next.sublist(next.length - _toastMaxQueue)
+        : next;
+    _ensureTimer();
+  }
+
+  void _ensureTimer() {
+    if (_timer != null || state.isEmpty) return;
+    _timer = Timer(_toastDisplayDuration, _advance);
+  }
+
+  void _advance() {
+    _timer = null;
+    if (state.isEmpty) return;
+    state = state.sublist(1);
+    _ensureTimer();
   }
 
   @override

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { normalizeHint, createGameState, createDuetGameState, resolveGuess, mulberry32, toggleCardMark, setCardConfidence, BOARD_SIZE } = require('../backend/game-engine');
+const { normalizeHint, createGameState, createDuetGameState, resolveGuess, advanceTurn, mulberry32, toggleCardMark, setCardConfidence, BOARD_SIZE } = require('../backend/game-engine');
 
 test('normalizeHint trims input and rejects empty strings', () => {
   assert.equal(normalizeHint('  Galaxy  '), 'Galaxy');
@@ -206,4 +206,26 @@ test('setCardConfidence initializes and sets confidence', () => {
 
   setCardConfidence(game, 'player-1', 3, 'firm');
   assert.equal(game.confidenceByCard[3]['player-1'], 'firm');
+});
+
+test('advanceTurn clears confidenceByCard alongside marks', () => {
+  const game = createGameState();
+  setCardConfidence(game, 'player-1', 3, 'tentative');
+  toggleCardMark(game, 'player-1', 3);
+
+  advanceTurn(game, 'player_ended');
+
+  assert.deepEqual(game.confidenceByCard[3], {});
+  assert.equal(game.marksByCard[3].size, 0);
+});
+
+test('resolveGuess clears confidenceByCard at the revealed index', () => {
+  const game = createGameState();
+  const card = game.board[0];
+  setCardConfidence(game, 'player-1', card.index, 'tentative');
+  toggleCardMark(game, 'player-1', card.index);
+
+  resolveGuess(game, { team: card.color === 'red' ? 'red' : 'blue', sessionId: 'player-1' }, card);
+
+  assert.deepEqual(game.confidenceByCard[card.index], {});
 });

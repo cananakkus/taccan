@@ -39,6 +39,8 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   late final Animation<Offset> _sheetSlide;
   late final Animation<double> _backdropOpacity;
   SheetPanel? _animatingPanel;
+  double _sheetDragOffset = 0;
+  double _sheetMaxHeight = 0;
 
   @override
   void initState() {
@@ -55,7 +57,10 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
 
     _sheetController.addStatusListener((status) {
       if (status == AnimationStatus.dismissed) {
-        setState(() => _animatingPanel = null);
+        setState(() {
+          _animatingPanel = null;
+          _sheetDragOffset = 0;
+        });
       }
     });
 
@@ -78,13 +83,18 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
       switch (event.name) {
         case 'turn:guess_resolved':
           final color = event.data['color'] as String? ?? '';
-          if (color == 'assassin') {
-            soundService.play('assassin');
-          } else if (color == (event.data['team'] ?? '')) {
-            soundService.play('correct');
-          } else {
-            soundService.play('reveal');
-          }
+          final team = event.data['team'];
+          // Delay so the haptic lands near the midpoint of the 260ms card
+          // reveal animation in card_tile.dart rather than ahead of it.
+          Future.delayed(const Duration(milliseconds: 130), () {
+            if (color == 'assassin') {
+              soundService.play('assassin');
+            } else if (color == team) {
+              soundService.play('correct');
+            } else {
+              soundService.play('reveal');
+            }
+          });
         case 'game:gg_received':
           final name = event.data['name'] as String? ?? 'Someone';
           soundService.play('gg');
@@ -308,60 +318,74 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   Widget _buildSheetContainer(SheetPanel panel, BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * (isLandscape ? 0.8 : 0.65),
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Draggable handle — swipe down to close
-            GestureDetector(
-              onVerticalDragEnd: (details) {
-                if (details.primaryVelocity != null && details.primaryVelocity! > 200) {
-                  _closeSheet();
-                }
-              },
-              onTap: _closeSheet,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Center(
-                  child: Container(
-                    width: 40,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: colors.outline.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(3),
+    _sheetMaxHeight = MediaQuery.of(context).size.height * (isLandscape ? 0.8 : 0.65);
+    return Transform.translate(
+      offset: Offset(0, _sheetDragOffset),
+      child: Container(
+        constraints: BoxConstraints(maxHeight: _sheetMaxHeight),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Draggable handle — drag down >40% of sheet height OR flick to close.
+              GestureDetector(
+                onVerticalDragUpdate: (details) {
+                  setState(() {
+                    _sheetDragOffset = (_sheetDragOffset + details.delta.dy).clamp(0.0, _sheetMaxHeight);
+                  });
+                },
+                onVerticalDragEnd: (details) {
+                  final velocity = details.primaryVelocity ?? 0;
+                  final dragRatio = _sheetMaxHeight > 0 ? _sheetDragOffset / _sheetMaxHeight : 0;
+                  if (dragRatio > 0.4 || velocity > 200) {
+                    // Let the slide-out carry through from the current dragged
+                    // position — status listener resets _sheetDragOffset when
+                    // the animation reaches the dismissed state.
+                    _closeSheet();
+                  } else {
+                    setState(() => _sheetDragOffset = 0);
+                  }
+                },
+                onTap: _closeSheet,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: colors.outline.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Flexible(
-              child: switch (panel) {
-                SheetPanel.teams => const TeamsSheet(),
-                SheetPanel.feed => const FeedSheet(),
-                SheetPanel.settings => const SettingsSheet(),
-                SheetPanel.debrief => const DebriefSheet(),
-                SheetPanel.voice => const VoiceSheet(),
-              },
-            ),
-          ],
+              Flexible(
+                child: switch (panel) {
+                  SheetPanel.teams => const TeamsSheet(),
+                  SheetPanel.feed => const FeedSheet(),
+                  SheetPanel.settings => const SettingsSheet(),
+                  SheetPanel.debrief => const DebriefSheet(),
+                  SheetPanel.voice => const VoiceSheet(),
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

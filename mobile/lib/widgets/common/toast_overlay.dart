@@ -9,7 +9,8 @@ class ToastOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final toast = ref.watch(toastProvider);
+    final queue = ref.watch(toastProvider);
+    final toast = queue.isEmpty ? null : queue.first;
     final colors = Theme.of(context).colorScheme;
 
     return AnimatedPositioned(
@@ -20,30 +21,34 @@ class ToastOverlay extends ConsumerWidget {
       right: 24,
       child: Material(
         color: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            border: Border.all(
-              color: switch (toast?.style) {
-                ToastStyle.error => colors.error,
-                ToastStyle.success => Colors.green,
-                _ => colors.outline,
-              },
-            ),
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: Container(
+            key: ValueKey<DateTime?>(toast?.createdAt),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              border: Border.all(
+                color: switch (toast?.style) {
+                  ToastStyle.error => colors.error,
+                  ToastStyle.success => Colors.green,
+                  _ => colors.outline,
+                },
               ),
-            ],
-          ),
-          child: Text(
-            toast?.message ?? '',
-            style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface),
-            textAlign: TextAlign.center,
+              borderRadius: BorderRadius.circular(4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              toast?.message ?? '',
+              style: GoogleFonts.specialElite(fontSize: 13, color: colors.onSurface),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       ),

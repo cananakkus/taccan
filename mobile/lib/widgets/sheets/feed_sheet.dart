@@ -59,8 +59,10 @@ class _FeedSheetState extends ConsumerState<FeedSheet> {
     if (text.isEmpty) return;
     try {
       await ref.read(socketServiceProvider).sendChat(text);
+      if (!mounted) return;
       _chatController.clear();
     } catch (e) {
+      if (!mounted) return;
       ref.read(toastProvider.notifier).show(e.toString(), ToastStyle.error);
     }
   }

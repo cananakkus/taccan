@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -124,6 +125,7 @@ class GuessControls extends ConsumerWidget {
   }
 
   Future<void> _submitGuess(WidgetRef ref, int index) async {
+    HapticFeedback.mediumImpact();
     try {
       await ref.read(socketServiceProvider).submitGuess(index);
       ref.read(uiProvider.notifier).clearGuessSelection();

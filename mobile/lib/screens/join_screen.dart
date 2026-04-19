@@ -16,6 +16,7 @@ class JoinScreen extends ConsumerStatefulWidget {
 class _JoinScreenState extends ConsumerState<JoinScreen> {
   final _nameController = TextEditingController();
   final _codeController = TextEditingController();
+  final _codeFocusNode = FocusNode();
   bool _loading = false;
   String? _error;
 
@@ -33,6 +34,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   void dispose() {
     _nameController.dispose();
     _codeController.dispose();
+    _codeFocusNode.dispose();
     super.dispose();
   }
 
@@ -147,6 +149,8 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                     ),
                     style: GoogleFonts.specialElite(fontSize: 16),
                     textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => _codeFocusNode.requestFocus(),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -154,13 +158,16 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                       Expanded(
                         child: TextField(
                           controller: _codeController,
-                          maxLength: 8,
+                          focusNode: _codeFocusNode,
+                          maxLength: 4,
                           decoration: InputDecoration(
                             labelText: tr('room_code'),
                             counterText: '',
                           ),
                           style: GoogleFonts.specialElite(fontSize: 18, letterSpacing: 2),
                           textCapitalization: TextCapitalization.characters,
+                          textInputAction: TextInputAction.go,
+                          onSubmitted: (_) => _loading ? null : _joinRoom(),
                         ),
                       ),
                       const SizedBox(width: 12),

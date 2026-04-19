@@ -2,12 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class VoicePeer {
   final String sessionId;
-  final int volume;
 
-  const VoicePeer({required this.sessionId, this.volume = 100});
-
-  VoicePeer copyWith({int? volume}) =>
-      VoicePeer(sessionId: sessionId, volume: volume ?? this.volume);
+  const VoicePeer({required this.sessionId});
 }
 
 class VoiceState {
@@ -56,15 +52,9 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
   void setMuted(bool value) => state = state.copyWith(muted: value);
   void setJoining(bool value) => state = state.copyWith(joining: value);
 
-  void setPeer(String sessionId, [int volume = 100]) {
-    final existing = state.peers.indexWhere((p) => p.sessionId == sessionId);
-    if (existing >= 0) {
-      final updated = [...state.peers];
-      updated[existing] = updated[existing].copyWith(volume: volume);
-      state = state.copyWith(peers: updated);
-    } else {
-      state = state.copyWith(peers: [...state.peers, VoicePeer(sessionId: sessionId, volume: volume)]);
-    }
+  void setPeer(String sessionId) {
+    if (state.peers.any((p) => p.sessionId == sessionId)) return;
+    state = state.copyWith(peers: [...state.peers, VoicePeer(sessionId: sessionId)]);
   }
 
   void removePeer(String sessionId) {
@@ -73,14 +63,6 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
       speakingIds: {...state.speakingIds}..remove(sessionId),
       mutedPeerIds: {...state.mutedPeerIds}..remove(sessionId),
     );
-  }
-
-  void setPeerVolume(String sessionId, int volume) {
-    final updated = state.peers.map((p) {
-      if (p.sessionId == sessionId) return p.copyWith(volume: volume);
-      return p;
-    }).toList();
-    state = state.copyWith(peers: updated);
   }
 
   void setSpeaking(String sessionId, bool speaking) {

@@ -114,6 +114,7 @@ class GameBoard extends ConsumerWidget {
   }
 
   Future<void> _submitGuess(WidgetRef ref, int index) async {
+    HapticFeedback.mediumImpact();
     try {
       await ref.read(socketServiceProvider).submitGuess(index);
       ref.read(uiProvider.notifier).clearGuessSelection();

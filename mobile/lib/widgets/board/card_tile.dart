@@ -65,6 +65,10 @@ class CardTile extends StatelessWidget {
       borderColor = colors.primary.withValues(alpha: 0.6);
     }
 
+    final revealDuration = Duration(
+      milliseconds: card.revealed && card.color == CardColor.assassin ? 300 : 260,
+    );
+
     return GestureDetector(
       onTap: canInteract || isSpymaster ? onTap : null,
       onLongPress: isSpymaster ? onLongPress : null,
@@ -79,30 +83,40 @@ class CardTile extends StatelessWidget {
             final wordSize = (cardWidth * 0.15).clamp(8.0, 14.0);
             final markerSize = (cardWidth * 0.09).clamp(6.0, 10.0);
 
-            // Use short duration for selection changes; theme color changes
-            // are handled by MaterialApp's themeAnimationDuration (200ms).
-            // Using 0ms for the container avoids double-animation on theme switch.
-            return AnimatedContainer(
-              duration: isSelected
-                  ? const Duration(milliseconds: 200)
-                  : Duration.zero,
-              curve: Curves.easeInOut,
-              decoration: BoxDecoration(
-                color: bg,
-                border: Border.all(
-                  color: borderColor,
-                  width: isSelected ? 2 : (card.revealed && card.color == CardColor.assassin ? 2 : 1),
-                ),
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isSelected ? 0.2 : 0.1),
-                    blurRadius: isSelected ? 6 : 3,
-                    offset: const Offset(1, 2),
+            return AnimatedSwitcher(
+              duration: revealDuration,
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.92, end: 1.0).animate(animation),
+                    child: child,
                   ),
-                ],
-              ),
-              child: Stack(
+                );
+              },
+              // Key on revealed + color so the transition fires once per reveal.
+              child: Container(
+                key: ValueKey<String>(
+                  '${card.revealed}:${card.color?.name ?? "none"}',
+                ),
+                decoration: BoxDecoration(
+                  color: bg,
+                  border: Border.all(
+                    color: borderColor,
+                    width: isSelected ? 2 : (card.revealed && card.color == CardColor.assassin ? 2 : 1),
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isSelected ? 0.2 : 0.1),
+                      blurRadius: isSelected ? 6 : 3,
+                      offset: const Offset(1, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
                 children: [
                   // Word
                   Center(
@@ -188,6 +202,7 @@ class CardTile extends StatelessWidget {
                       ),
                     ),
                 ],
+              ),
               ),
             );
           },

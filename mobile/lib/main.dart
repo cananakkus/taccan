@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
 import 'providers/providers.dart';
-import 'services/socket_service.dart';
 import 'services/storage_service.dart';
 
 void main() async {
@@ -45,7 +44,6 @@ class _AppBootstrap extends ConsumerStatefulWidget {
 }
 
 class _AppBootstrapState extends ConsumerState<_AppBootstrap> {
-  StreamSubscription<SocketEvent>? _eventSub;
   StreamSubscription<bool>? _connectionSub;
 
   @override
@@ -60,22 +58,8 @@ class _AppBootstrapState extends ConsumerState<_AppBootstrap> {
     final socket = ref.read(socketServiceProvider);
     socket.connect();
 
-    // Listen for server:ready → auto-rejoin
-    _eventSub = socket.events.listen((event) {
-      if (event.name == 'server:ready') {
-        _tryAutoRejoin();
-      }
-    });
-
-    // Track connection state for reconnection
-    bool wasDisconnected = false;
     _connectionSub = socket.connectionState.listen((connected) {
-      if (!connected) {
-        wasDisconnected = true;
-      } else if (wasDisconnected) {
-        wasDisconnected = false;
-        _tryAutoRejoin();
-      }
+      if (connected) _tryAutoRejoin();
     });
   }
 
@@ -92,7 +76,6 @@ class _AppBootstrapState extends ConsumerState<_AppBootstrap> {
 
   @override
   void dispose() {
-    _eventSub?.cancel();
     _connectionSub?.cancel();
     super.dispose();
   }
