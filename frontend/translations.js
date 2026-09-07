@@ -3,6 +3,13 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
   supportedLanguages: ['en', 'tr'],
   strings: Object.freeze({
     en: Object.freeze({
+      copy_room_code: 'Copy room code',
+      copy_invite: 'Copy invite link',
+      invite_copied: 'Invite link copied',
+      audio_options: 'Audio options',
+      volume: 'Volume',
+      close_panel: 'Close',
+
       brand_eyebrow: 'Guild Cipher Desk',
       brand_title: 'Taccan Codex',
       brand_tagline: 'Uncover your agents before your rivals read the page.',
@@ -240,11 +247,11 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mobile_chat: 'Chat',
       // Panel tabs
       panel_teams: 'Teams',
-      panel_feed: 'Feed',
+      panel_feed: 'Chat & activity',
       panel_voice: 'Voice',
       panel_settings: 'Settings',
       // Voice panel
-      voice_join: 'Voice',
+      voice_join: 'Join voice',
       voice_leave: 'Leave Voice',
       voice_mute: 'Mute',
       voice_unmute: 'Unmute',
@@ -264,6 +271,13 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       leave: 'Leave',
     }),
     tr: Object.freeze({
+      copy_room_code: 'Oda kodunu kopyala',
+      copy_invite: 'Davet bağlantısını kopyala',
+      invite_copied: 'Davet bağlantısı kopyalandı',
+      audio_options: 'Ses ayarları',
+      volume: 'Ses seviyesi',
+      close_panel: 'Kapat',
+
       brand_eyebrow: 'Şifre Loncası Masası',
       brand_title: 'Taccan Kodeksi',
       brand_tagline: 'Rakiplerinizden önce ajanlarınızı ortaya çıkarın.',
@@ -499,11 +513,11 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mobile_chat: 'Sohbet',
       // Panel sekmeleri
       panel_teams: 'Takımlar',
-      panel_feed: 'Akış',
+      panel_feed: 'Sohbet ve oyun akışı',
       panel_voice: 'Ses',
       panel_settings: 'Ayarlar',
       // Ses paneli
-      voice_join: 'Ses',
+      voice_join: 'Sese katıl',
       voice_leave: 'Sesten Ayrıl',
       voice_mute: 'Sessize Al',
       voice_unmute: 'Sesi Aç',

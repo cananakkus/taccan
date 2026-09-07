@@ -80,7 +80,7 @@ test('voice sends audio both ways, respects mute, and can rejoin after disconnec
       }), { timeout: 15000 }).toBeGreaterThan(0);
       await expect.poll(() => page.locator('#voice-audio-container audio').evaluateAll(elements => elements.length > 0 && elements.every(audio => !audio.paused))).toBe(true);
     }
-    await host.locator('#voice-controls-btn').click();
+    await expect(host.locator('#voice-mute-btn')).toBeVisible();
     await host.locator('#voice-mute-btn').click();
     await expect.poll(() => host.evaluate(() => {
       const connected = window.voiceConnections.filter(pc => pc.connectionState === 'connected');
@@ -115,22 +115,23 @@ for (const width of [390, 1280]) {
     const room = ctx.rooms.get(hostSession.code);
     // Assign roles through the visible team controls.
     async function role(page, team) {
-      await page.locator('[data-panel="teams"]').click();
       await page.locator(`.team-${team} .btn-role`).first().click();
-      await page.locator('#sheet-backdrop').click({ position: { x: 5, y: 5 } });
     }
     try {
-      if (width === 390) {
-        await expect(host.locator('[data-panel="feed"]')).toBeVisible();
-        await host.locator('[data-panel="feed"]').click();
-        await expect(host.locator('#sheet-feed')).toBeVisible();
-        await host.locator('#sheet-backdrop').click({ position: { x: 5, y: 5 } });
-      }
+      await host.locator('[data-panel="settings"]').click();
+      await expect(host.locator('#sheet-settings')).toBeVisible();
+      await host.locator('#sheet-settings .panel-close').click();
+      await expect(host.locator('#sheet-settings')).not.toBeVisible();
+      await expect(host.locator('#start-game-btn')).toBeVisible();
+      await expect(host.locator('#sheet-feed')).toBeVisible();
+      await expect(host.locator('#board')).toHaveCount(0);
+      await host.locator('#chat-input').fill('Ready to play');
+      await host.locator('#chat-form button').click();
+      await expect(guest.locator('#feed-entries')).toContainText('Ready to play');
+      expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await role(host, 'red');
       await role(guest, 'blue');
-      await host.locator('[data-panel="teams"]').click();
       await host.locator('#start-game-btn').click();
-      await host.locator('#sheet-backdrop').click({ position: { x: 5, y: 5 } });
       await expect.poll(() => room.game?.phase).toBe('hint');
       const first = room.game.currentTeam === 'red' ? host : guest;
       const second = first === host ? guest : host;
@@ -151,6 +152,9 @@ for (const width of [390, 1280]) {
       for (const page of [host, guest]) {
         await expect(page.locator('#hint-display')).toContainText('GALACTIC');
         await expect(page.locator('#hint-display')).toContainText('OCEANIC');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.locator('#chat-input').scrollIntoViewIfNeeded();
+        await expect(page.locator('#voice-join-btn')).toBeInViewport();
       }
     } finally {
       await host.close();
@@ -158,3 +162,24 @@ for (const width of [390, 1280]) {
     }
   });
 }
+
+test('small phone keeps Turkish labels, lobby actions, and voice controls accessible', async ({ browser }) => {
+  const page = await openPlayer(browser);
+  try {
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.locator('[data-panel="settings"]').click();
+    await page.locator('#sheet-settings .language-switch button').last().click();
+    await page.locator('#sheet-settings .panel-close').click();
+    await expect(page.locator('#start-game-btn')).toBeVisible();
+    await expect(page.locator('[data-panel="settings"] .bar-tab-label')).toBeVisible();
+    await page.locator('#voice-join-btn').click();
+    await expect(page.locator('#voice-mute-btn')).toBeVisible();
+    await page.locator('#voice-mute-btn').click();
+    await expect(page.locator('#voice-mute-btn')).toHaveClass(/muted/);
+    await page.locator('#chat-input').scrollIntoViewIfNeeded();
+    await expect(page.locator('#voice-mute-btn')).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally {
+    await page.close();
+  }
+});

@@ -59,7 +59,7 @@ const SERVER_ERROR_MAP: Record<string, string> = {
   'Room not found.': 'room_not_found',
 };
 
-const PANEL_KEYS = ['teams', 'feed', 'settings', 'debrief'] as const;
+const PANEL_KEYS = ['settings', 'debrief'] as const;
 
 const app = useAppStore();
 const preferences = usePreferencesStore();
@@ -517,7 +517,6 @@ socket.on('game:gg_received', (payload: { name?: string }) => {
 socket.on('chat:message', (message: ChatMessage) => {
   if (!app.snapshot) return;
   app.snapshot.room.chatMessages.push(message);
-  if (ui.openPanel !== 'feed') ui.unreadChat++;
 });
 
 socket.on('turn:mark_update', (payload: { index: number; marks: CardMark[] }) => {
@@ -755,6 +754,13 @@ async function sendChat() {
   }
 }
 
+function copyInviteLink() {
+  if (!room.value) return;
+  void navigator.clipboard.writeText(getRoomUrl(room.value.code))
+    .then(() => ui.showToast(t('invite_copied'), 'success'))
+    .catch(() => ui.showToast(t('copy_failed'), 'error'));
+}
+
 function copyRoomCode() {
   if (!room.value) return;
   void navigator.clipboard
@@ -930,7 +936,80 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <section id="room-panel" class="room-screen" :class="{ hidden: !snapshot }">
+      <section id="room-panel" class="room-screen" :class="{ hidden: !snapshot, 'is-lobby': !game }">
+        <div class="bottom-bar">
+          <nav class="bar-tabs" aria-label="Panels">
+            <div class="bar-util">
+              <button id="room-code" class="room-code-val" type="button" :aria-label="t('copy_room_code')" @click="copyRoomCode">{{ room?.code || '----' }}</button>
+              <button class="btn btn-ghost btn-sm" type="button" @click="copyInviteLink">{{ t('copy_invite') }}</button>
+              <span id="mode-badge" class="mode-tag" :class="{ blitz: roomMode === 'blitz' }">{{ roomMode === 'blitz' ? t('mode_blitz') : t('mode_casual') }}</span>
+              <span id="connection-dot" class="conn-status" :class="{ online: app.connected, offline: !app.connected }">
+                <span class="conn-dot"></span>
+                <span class="conn-text">{{ app.connectionLabel }}</span>
+              </span>
+            </div>
+
+            <div class="bar-tabs-center">
+              <button
+                v-for="panel in PANEL_KEYS"
+                :key="panel"
+                :data-panel="panel"
+                :aria-label="panel === 'debrief' ? t('debrief') : t('panel_settings')"
+                class="bar-tab"
+                :class="{ active: ui.openPanel === panel, hidden: panel === 'debrief' && game?.phase !== 'finished' }"
+                type="button"
+                @click="ui.togglePanel(panel)"
+              >
+                <span class="bar-tab-icon" aria-hidden="true">{{ panel === 'settings' ? '⚙' : '☷' }}</span>
+                <span class="bar-tab-label">
+                  {{ panel === 'settings' ? t('panel_settings') : t('debrief') }}
+                </span>
+              </button>
+
+              <div class="voice-dropdown" :class="{ 'voice-active': voice.active, open: voice.active && voiceMenuOpen }">
+                <button id="voice-join-btn" :aria-label="voice.active ? t('voice_leave') : t('voice_join')" :disabled="joining" class="bar-tab bar-tab-voice" type="button" :class="{ 'in-voice': voice.active }" @click="() => void joinVoice()">
+                  <span class="bar-tab-icon" aria-hidden="true">♪</span>
+                  <span class="bar-tab-label">{{ voice.active ? t('voice_leave') : t('voice_join') }}</span>
+                </button>
+                  <button id="voice-mute-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !voice.active, muted: voice.muted }" @click="toggleMute">
+                    {{ voice.muted ? t('voice_unmute') : t('voice_mute') }}
+                  </button>
+                <button v-if="voice.active" id="voice-controls-btn" class="bar-tab" type="button"
+                  :aria-label="t('panel_voice')" :aria-expanded="voiceMenuOpen" aria-controls="voice-menu"
+                  @click="voiceMenuOpen = !voiceMenuOpen">{{ t('audio_options') }}</button>
+                <div id="voice-menu" class="voice-dropdown-menu">
+                  <button id="voice-noise-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !voice.active }" @click="() => void toggleNoiseSuppression()">
+                    {{ preferences.noiseSuppression ? t('voice_noise_off') : t('voice_noise_on') }}
+                  </button>
+                  <div id="voice-peer-list" class="voice-peer-list">
+                    <div v-for="peer in voicePeerRows" :key="peer.sessionId" class="voice-peer" :class="{ speaking: playerIsSpeaking(peer.sessionId) }">
+                      <span class="voice-peer-name">{{ peer.name }}</span>
+                      <span v-if="peer.muted" class="voice-peer-muted">{{ t('voice_muted_badge') }}</span>
+                      <input
+                        v-if="!peer.isSelf"
+                        class="voice-volume-slider"
+                        type="range"
+                        min="0"
+                        max="100"
+                        :aria-label="`${peer.name} — ${t('volume')}`"
+                        :value="peer.volume"
+                        @input="(event) => setPeerVolume(peer.sessionId, Number((event.target as HTMLInputElement).value))"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bar-tabs-right">
+              <button id="leave-room-btn" class="bar-tab bar-tab-leave" type="button" @click="() => void leaveRoom()">
+                <span class="bar-tab-icon" aria-hidden="true">✕</span>
+                <span class="bar-tab-label">{{ t('leave') }}</span>
+              </button>
+            </div>
+          </nav>
+        </div>
+
         <div class="top-bar">
           <div id="score-bar" class="score-bar">
             <div id="score-bar-red" class="score-bar-red" :style="{ width: scoreBarWidth('red') }"></div>
@@ -939,9 +1018,40 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <div class="bottom-bar-status">
+          <div id="turn-banner" class="turn-banner" :class="{ red: game?.phase !== 'finished' && game?.currentTeam === 'red', blue: game?.phase !== 'finished' && game?.currentTeam === 'blue', finished: game?.phase === 'finished' }">
+            {{ turnBannerText }}
+          </div>
+          <div
+            id="phase-timer"
+            class="phase-timer"
+            :class="{
+              hidden: !game?.phaseTimer || game?.phase === 'finished',
+              'warning-10': phaseTimerRemainingMs <= 10000 && phaseTimerRemainingMs > 5000,
+              'warning-5': phaseTimerRemainingMs <= 5000,
+              hint: game?.phaseTimer?.phase === 'hint',
+              guess: game?.phaseTimer?.phase === 'guess',
+            }"
+          >
+            <span id="phase-timer-label" class="timer-label">{{ phaseTimerLabel }}</span>
+            <span id="phase-timer-value" class="timer-value">{{ formatTimerRemaining(phaseTimerRemainingMs) }}</span>
+          </div>
+        </div>
+
         <div class="game-stage">
           <div class="stage-layout">
-            <div class="board-area">
+            <div v-if="game" class="board-area">
+              <div class="team-summary">
+                <span class="summary-red">{{ t('red_team') }} · {{ game.remaining.red }}</span>
+                <span class="summary-blue">{{ t('blue_team') }} · {{ game.remaining.blue }}</span>
+              </div>
+              <div v-if="latestHints.length" id="hint-display" aria-live="polite">
+                <p v-for="hint in latestHints" :key="hint.team" class="hint-display-bar" :data-team="hint.team">
+                  <strong>{{ formatTeam(hint.team) }}:</strong> {{ hintDisplayText(hint) }}
+                </p>
+              </div>
+
+
               <div class="board-wrap">
                 <div id="board" class="board" role="grid" aria-label="Game board">
                   <button
@@ -984,7 +1094,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="controls-strip">
+            <div v-if="game" class="controls-strip">
               <div id="ctrl-placeholder" class="ctrl-panel ctrl-placeholder" :class="{ hidden: !!game }">{{ t('ctrl_placeholder') }}</div>
 
               <section id="hint-section" class="ctrl-panel hint-ctrl" :class="{ hidden: !canHintNow }">
@@ -1025,12 +1135,6 @@ onBeforeUnmount(() => {
                 </form>
               </section>
 
-              <div v-if="latestHints.length" id="hint-display" aria-live="polite">
-                <p v-for="hint in latestHints" :key="hint.team" class="hint-display-bar" :data-team="hint.team">
-                  <strong>{{ formatTeam(hint.team) }}:</strong> {{ hintDisplayText(hint) }}
-                </p>
-              </div>
-
               <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !game || canHintNow || game.phase === 'finished' }">
                 <p id="guess-note" class="ctrl-status">{{ guessNoteText() }}</p>
                 <div v-if="canGuessNow" class="guess-row">
@@ -1043,17 +1147,6 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </section>
-
-              <!-- Inline feed — fills remaining space in controls strip (desktop only) -->
-              <div v-if="game" class="inline-feed">
-                <div class="inline-feed-entries">
-                  <div v-for="item in feedItems" :key="item.key" :class="item.className">{{ item.text }}</div>
-                </div>
-                <form class="inline-feed-form" autocomplete="off" @submit.prevent="sendChat">
-                  <input v-model="chatInput" type="text" maxlength="200" :placeholder="t('chat_placeholder')" />
-                  <button class="btn btn-ghost btn-sm" type="submit">{{ t('send') }}</button>
-                </form>
-              </div>
 
               <section id="result-section" class="ctrl-panel result-ctrl" :class="{ hidden: game?.phase !== 'finished' }">
                 <p id="result-text" class="result-text">{{ resultText() }}</p>
@@ -1070,106 +1163,8 @@ onBeforeUnmount(() => {
                 <div id="mvp-section" class="mvp-section hidden"></div>
               </section>
             </div>
-          </div>
-        </div>
-
-        <div class="bottom-bar-status">
-          <div id="turn-banner" class="turn-banner" :class="{ red: game?.phase !== 'finished' && game?.currentTeam === 'red', blue: game?.phase !== 'finished' && game?.currentTeam === 'blue', finished: game?.phase === 'finished' }">
-            {{ turnBannerText }}
-          </div>
-          <div
-            id="phase-timer"
-            class="phase-timer"
-            :class="{
-              hidden: !game?.phaseTimer || game?.phase === 'finished',
-              'warning-10': phaseTimerRemainingMs <= 10000 && phaseTimerRemainingMs > 5000,
-              'warning-5': phaseTimerRemainingMs <= 5000,
-              hint: game?.phaseTimer?.phase === 'hint',
-              guess: game?.phaseTimer?.phase === 'guess',
-            }"
-          >
-            <span id="phase-timer-label" class="timer-label">{{ phaseTimerLabel }}</span>
-            <span id="phase-timer-value" class="timer-value">{{ formatTimerRemaining(phaseTimerRemainingMs) }}</span>
-          </div>
-        </div>
-
-        <div class="bottom-bar">
-          <nav class="bar-tabs" aria-label="Panels">
-            <div class="bar-util">
-              <span id="room-code" class="room-code-val" title="Click to copy" @click="copyRoomCode">{{ room?.code || '----' }}</span>
-              <span id="mode-badge" class="mode-tag" :class="{ blitz: roomMode === 'blitz' }">{{ roomMode === 'blitz' ? t('mode_blitz') : t('mode_casual') }}</span>
-              <span id="connection-dot" class="conn-status" :class="{ online: app.connected, offline: !app.connected }">
-                <span class="conn-dot"></span>
-                <span class="conn-text">{{ app.connectionLabel }}</span>
-              </span>
-            </div>
-
-            <div class="bar-tabs-center">
-              <button
-                v-for="panel in PANEL_KEYS"
-                :key="panel"
-                :data-panel="panel"
-                :aria-label="panel === 'debrief' ? t('debrief') : t(`panel_${panel}`)"
-                class="bar-tab"
-                :class="{ active: ui.openPanel === panel, hidden: panel === 'debrief' && game?.phase !== 'finished' }"
-                type="button"
-                @click="ui.togglePanel(panel)"
-              >
-                <span class="bar-tab-icon" aria-hidden="true">{{ panel === 'teams' ? '⚐' : panel === 'feed' ? '☰' : panel === 'settings' ? '⚙' : '☷' }}</span>
-                <span v-if="panel === 'feed' && ui.unreadChat > 0" class="chat-badge">{{ ui.unreadChat > 9 ? '9+' : ui.unreadChat }}</span>
-                <span class="bar-tab-label">
-                  {{ panel === 'teams' ? t('panel_teams') : panel === 'feed' ? t('panel_feed') : panel === 'settings' ? t('panel_settings') : t('debrief') }}
-                </span>
-              </button>
-
-              <div class="voice-dropdown" :class="{ 'voice-active': voice.active, open: voice.active && voiceMenuOpen }">
-                <button id="voice-join-btn" :aria-label="voice.active ? t('voice_leave') : t('voice_join')" :disabled="joining" class="bar-tab bar-tab-voice" type="button" :class="{ 'in-voice': voice.active }" @click="() => void joinVoice()">
-                  <span class="bar-tab-icon" aria-hidden="true">♪</span>
-                  <span class="bar-tab-label">{{ voice.active ? t('voice_leave') : t('voice_join') }}</span>
-                </button>
-                <button v-if="voice.active" id="voice-controls-btn" class="bar-tab" type="button"
-                  :aria-label="t('panel_voice')" :aria-expanded="voiceMenuOpen" aria-controls="voice-menu"
-                  @click="voiceMenuOpen = !voiceMenuOpen">⌃</button>
-                <div id="voice-menu" class="voice-dropdown-menu">
-                  <button id="voice-mute-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !voice.active, muted: voice.muted }" @click="toggleMute">
-                    {{ voice.muted ? t('voice_unmute') : t('voice_mute') }}
-                  </button>
-                  <button id="voice-noise-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !voice.active }" @click="() => void toggleNoiseSuppression()">
-                    {{ preferences.noiseSuppression ? t('voice_noise_off') : t('voice_noise_on') }}
-                  </button>
-                  <div id="voice-peer-list" class="voice-peer-list">
-                    <div v-for="peer in voicePeerRows" :key="peer.sessionId" class="voice-peer" :class="{ speaking: playerIsSpeaking(peer.sessionId) }">
-                      <span class="voice-peer-name">{{ peer.name }}</span>
-                      <span v-if="peer.muted" class="voice-peer-muted">{{ t('voice_muted_badge') }}</span>
-                      <input
-                        v-if="!peer.isSelf"
-                        class="voice-volume-slider"
-                        type="range"
-                        min="0"
-                        max="100"
-                        :value="peer.volume"
-                        @input="(event) => setPeerVolume(peer.sessionId, Number((event.target as HTMLInputElement).value))"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="bar-tabs-right">
-              <button id="leave-room-btn" class="bar-tab bar-tab-leave" type="button" @click="() => void leaveRoom()">
-                <span class="bar-tab-icon" aria-hidden="true">✕</span>
-                <span class="bar-tab-label">{{ t('leave') }}</span>
-              </button>
-            </div>
-          </nav>
-        </div>
-
-        <div id="sheet-container" class="sheet-container">
-          <div id="sheet-backdrop" class="sheet-backdrop" :class="{ visible: !!ui.openPanel }" @click="ui.closePanel()"></div>
-
-          <div class="sheet-panel" id="sheet-teams" data-sheet="teams" :class="{ 'sheet-open': ui.openPanel === 'teams' }">
-            <div class="sheet-handle"></div>
+            <aside class="room-sidebar">
+          <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
               <h3 class="sheet-title">{{ t('panel_teams') }}</h3>
 
@@ -1234,7 +1229,8 @@ onBeforeUnmount(() => {
               </div>
 
               <div class="sidebar-actions">
-                <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
+                <p v-if="!game && readinessIssue" class="readiness-note">{{ readinessIssue }}</p>
+                <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
                   {{ t('start_game') }}
                 </button>
                 <button class="btn btn-ghost spectator-btn" type="button" @click="() => void setRole('spectator')">{{ t('spectator') }}</button>
@@ -1245,8 +1241,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="sheet-panel" id="sheet-feed" data-sheet="feed" :class="{ 'sheet-open': ui.openPanel === 'feed' }">
-            <div class="sheet-handle"></div>
+          <div class="persistent-panel" id="sheet-feed">
             <div class="sheet-body">
               <h3 class="sheet-title">{{ t('panel_feed') }}</h3>
               <div id="feed-entries" class="feed-entries">
@@ -1254,16 +1249,23 @@ onBeforeUnmount(() => {
                 <div v-for="item in feedItems" :key="item.key" :class="item.className">{{ item.text }}</div>
               </div>
               <form id="chat-form" class="chat-form" autocomplete="off" @submit.prevent="sendChat">
-                <input id="chat-input" v-model="chatInput" type="text" maxlength="200" :placeholder="t('chat_placeholder')" />
+                <input id="chat-input" :aria-label="t('chat_placeholder')" v-model="chatInput" type="text" maxlength="200" :placeholder="t('chat_placeholder')" />
                 <button class="btn btn-ghost btn-sm" type="submit">{{ t('send') }}</button>
               </form>
             </div>
           </div>
 
+            </aside>
+          </div>
+        </div>
+
+        <div id="sheet-container" class="sheet-container" @keydown.esc="ui.closePanel()">
+          <div id="sheet-backdrop" class="sheet-backdrop" :class="{ visible: !!ui.openPanel }" @click="ui.closePanel()"></div>
+
           <div class="sheet-panel" id="sheet-settings" data-sheet="settings" :class="{ 'sheet-open': ui.openPanel === 'settings' }">
             <div class="sheet-handle"></div>
             <div class="sheet-body">
-              <h3 class="sheet-title">{{ t('panel_settings') }}</h3>
+              <h3 class="sheet-title">{{ t('panel_settings') }} <button class="btn btn-ghost btn-sm panel-close" type="button" @click="ui.closePanel()">{{ t('close_panel') }}</button></h3>
 
               <div class="settings-block settings-block-meta">
                 <div class="room-meta">
@@ -1340,7 +1342,7 @@ onBeforeUnmount(() => {
           <div class="sheet-panel" id="sheet-debrief" data-sheet="debrief" :class="{ 'sheet-open': ui.openPanel === 'debrief' }">
             <div class="sheet-handle"></div>
             <div class="sheet-body">
-              <h3 class="sheet-title">{{ t('debrief') }}</h3>
+              <h3 class="sheet-title">{{ t('debrief') }} <button class="btn btn-ghost btn-sm panel-close" type="button" @click="ui.closePanel()">{{ t('close_panel') }}</button></h3>
               <div id="debrief-content" class="overlay-content" v-html="debriefHtml"></div>
             </div>
           </div>

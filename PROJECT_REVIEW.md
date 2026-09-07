@@ -81,3 +81,9 @@ Conclusion: the relay has a documented Taccan history, rather than merely an inf
 ## Native app removal — 2026-09-08
 
 At the user's request, the mobile directory was removed from the repository. Earlier mobile findings above are historical. The complete local mobile working tree, including uncommitted changes and generated files, was moved to a sibling backup directory before removal. The browser app and backend remain the supported project. Browser test artifacts are ignored, and deployment excludes environment files, saved room state, and local generated artifacts.
+
+## Browser layout accessibility — 2026-09-08
+
+Replaced the empty lobby board and Teams/Feed overlays with visible team selection, readiness guidance, Start Game, and chat. During games, the board has team counts and both latest clues above it, actions below it, and persistent team/chat panels beside it on desktop or below it on phones. The header keeps labeled room, invite, settings, and voice controls accessible while scrolling; mute no longer requires opening audio options. Settings and debrief retain separate panels with explicit close buttons. Both English and Turkish labels are supported.
+
+Browser coverage checks direct lobby actions, chat delivery, settings dismissal, clue visibility across turns, phone scrolling, and voice mute without opening a menu. A 320px Turkish case checks long labels and horizontal overflow in addition to the 390px and 1280px game cases.

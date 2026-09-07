@@ -467,7 +467,7 @@ html {
 
 body {
   min-height: 100dvh;
-  overflow: hidden;
+  overflow-x: hidden;
   background:
     repeating-linear-gradient(2deg, transparent 0px, transparent 2px, var(--body-stripe) 2px, var(--body-stripe) 3px),
     radial-gradient(ellipse at 30% 20%, var(--body-vignette-a) 0%, transparent 50%),
@@ -2627,3 +2627,79 @@ html.theme-transitioning .voice-peer {
   padding: 24px 12px;
   text-align: center;
 }
+
+/* Keep everyday room controls and information in the document flow. */
+.room-screen { height: auto; min-height: 100dvh; overflow: visible; }
+.room-screen .bottom-bar { order: -3; position: sticky; top: 0; z-index: 20; }
+.room-screen .top-bar { order: -2; }
+.room-screen .bottom-bar-status { order: -1; padding: 8px 12px; }
+.room-screen .game-stage { flex: 1; justify-content: flex-start; overflow: visible; padding: 20px; }
+.room-screen .stage-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: auto 1fr; align-items: start; gap: 16px 24px;
+  max-width: 1160px; flex: none;
+}
+.room-screen .board-area { grid-column: 1; grid-row: 1; flex-direction: column; gap: 12px; }
+.room-screen .board-wrap { max-width: none; }
+.room-screen .controls-strip { grid-column: 1; grid-row: 2; width: auto; overflow: visible; }
+.room-sidebar { grid-column: 2; grid-row: 1 / 3; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.persistent-panel {
+  min-width: 0; background: var(--paper-light); border: 1px solid var(--border-dark);
+  border-radius: 10px; box-shadow: var(--shadow-elevated); overflow: hidden;
+}
+.persistent-panel .sheet-body { padding: 16px; overflow: visible; }
+.persistent-panel .sheet-title { margin-bottom: 4px; color: var(--ink); }
+#sheet-teams.persistent-panel .sheet-body { grid-template-columns: minmax(0, 1fr); }
+#sheet-teams.persistent-panel .team-panel { min-width: 0; }
+#sheet-feed.persistent-panel .sheet-body { max-height: none; }
+#sheet-feed .feed-entries { max-height: 300px; min-height: 100px; overflow-y: auto; overflow-wrap: anywhere; }
+#sheet-feed .chat-form { display: flex; gap: 8px; margin-top: 12px; }
+#sheet-feed .chat-form input { min-width: 0; flex: 1; }
+.readiness-note { flex-basis: 100%; font-size: .9rem; color: var(--ink-light); }
+.room-screen.is-lobby .stage-layout { display: block; max-width: 1100px; }
+.is-lobby .room-sidebar { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+.is-lobby #sheet-teams.persistent-panel .sheet-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.is-lobby #start-game-btn { flex: 1 1 100%; }
+.team-summary { display: flex; justify-content: space-between; gap: 12px; font-weight: bold; font-size: 1rem; }
+.summary-red { color: var(--red); }
+.summary-blue { color: var(--blue); }
+#hint-display { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#hint-display .hint-display-bar { margin: 0; font-size: .95rem; overflow-wrap: anywhere; }
+.room-screen .bar-tabs { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.room-screen .bar-tabs-center { display: flex; flex-wrap: wrap; flex: 1; justify-content: flex-end; gap: 8px; }
+.room-screen .bar-tab { width: auto; min-height: 44px; padding: 8px 12px; font-size: .85rem; }
+.room-screen .bar-tab-label { display: inline; }
+.room-screen .bar-util { flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; flex-shrink: 1; }
+.room-screen .room-code-val { cursor: pointer; min-height: 44px; color: var(--ink); }
+.room-screen .voice-dropdown { flex-wrap: wrap; align-items: center; gap: 8px; }
+.room-screen #voice-mute-btn { min-height: 44px; border: 1px solid var(--border-dark); }
+.room-screen .voice-dropdown-menu { top: 100%; bottom: auto; max-width: calc(100vw - 24px); max-height: 65dvh; overflow-y: auto; }
+.room-screen .voice-dropdown.voice-active:hover .voice-dropdown-menu { display: none; }
+.room-screen .voice-dropdown.open .voice-dropdown-menu { display: flex; }
+.room-screen .team-empty, .room-screen .player-meta .tag, .room-screen .ctrl-status { color: var(--ink-light); }
+.room-screen .btn-role { min-height: 44px; white-space: normal; }
+.panel-close { float: right; }
+.sheet-panel:not(.sheet-open) { visibility: hidden; }
+.sheet-panel.sheet-open { visibility: visible; }
+@media (max-width: 900px) {
+  .room-screen .stage-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .room-screen .room-sidebar { grid-column: 1; grid-row: 3; }
+  .room-screen .game-stage { padding: 12px; }
+  .is-lobby .room-sidebar { display: flex; }
+  .room-screen .bar-tabs-center { justify-content: flex-start; }
+  .room-screen .bottom-bar { position: sticky; }
+  .room-screen .bar-tabs-right { margin-left: auto; }
+  .room-screen .conn-text { display: inline; }
+  .room-screen .bar-tab { padding: 8px; }
+  .room-screen .board .card { aspect-ratio: 1.3; }
+  #sheet-teams.persistent-panel .sheet-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 400px) {
+  .persistent-panel .sheet-body { padding: 12px; }
+  .room-screen .team-panel { padding: 8px; }
+  .room-screen .role-row { flex-direction: column; }
+  .room-screen .bar-tabs { gap: 6px; }
+  .room-screen .bar-tab { font-size: .78rem; }
+}
+
+.room-screen .persistent-panel input, .room-screen .ctrl-panel input { min-height: 44px; }
