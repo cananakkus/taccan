@@ -2729,3 +2729,84 @@ html.theme-transitioning .voice-peer {
   .room-screen:not(.is-lobby) .game-stage { padding: 8px; }
   .room-screen:not(.is-lobby) .stage-layout { gap: 10px; }
 }
+
+/* Compact, legible controls with stable space for both clues. */
+.room-screen {
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-typewriter: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-red: #ffaaaa;
+  --text-blue: #9bcaff;
+  font-family: var(--font-body);
+}
+html[data-theme="light"] .room-screen { --text-red: #a51d29; --text-blue: #1254a0; }
+.room-screen .bottom-bar { padding: 3px 10px; }
+.room-screen .bar-tabs, .room-screen .bar-tabs-center, .room-screen .voice-dropdown { gap: 6px; }
+.room-screen .bar-tab, .room-screen #voice-mute-btn { min-height: 34px; padding: 5px 9px; font-size: 14px; letter-spacing: 0; text-transform: none; }
+.room-screen .room-code-val { min-height: 34px; padding: 4px 9px; font: 700 17px ui-monospace, monospace; letter-spacing: .08em; }
+.room-screen .bar-util .btn, .room-screen .mode-tag, .room-screen .conn-text { font-size: 13px; letter-spacing: 0; text-transform: none; }
+.room-screen .bottom-bar-status { padding: 3px 8px; }
+.room-screen .turn-banner { font-size: 14px; padding: 0; letter-spacing: 0; }
+.room-screen .sheet-title, .room-screen .team-head h3 { font-size: 14px; letter-spacing: .02em; }
+.room-screen .btn-role { min-height: 32px; padding: 5px 7px; font-size: 13px; letter-spacing: 0; text-transform: none; }
+.room-screen .role-row { flex-direction: row; }
+.room-screen .team-panel { gap: 5px; }
+.room-screen .team-player-name { font-size: 14px; }
+.room-screen .player-meta .tag { font-size: 11px; letter-spacing: 0; }
+.room-screen .sidebar-actions { gap: 5px; }
+.room-screen .sidebar-actions .btn:not(#start-game-btn) { padding: 5px 7px; font-size: 13px; text-transform: none; letter-spacing: 0; }
+.room-screen #hint-display { flex: 0 0 56px; height: 56px; min-height: 56px; gap: 8px; }
+.clue-slot { min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 4px 8px; border-left: 3px solid currentColor; background: var(--paper-light); }
+.clue-slot[data-team="red"] { color: var(--text-red); }
+.clue-slot[data-team="blue"] { color: var(--text-blue); }
+.clue-slot strong { font-size: 12px; line-height: 16px; }
+.clue-slot span { font-size: 14px; font-weight: 600; line-height: 20px; overflow: auto; white-space: nowrap; }
+.room-screen .feed-item { font-size: 14px; line-height: 1.5; flex-shrink: 0; }
+.room-screen .feed-chat { display: block; }
+.room-screen .feed-name { font-weight: 800; color: var(--ink); padding: 1px 4px; border-radius: 3px; background: var(--paper-dark); }
+.room-screen .feed-name.red { color: var(--text-red); background: color-mix(in srgb, var(--text-red) 12%, var(--paper-light)); }
+.room-screen .feed-name.blue { color: var(--text-blue); background: color-mix(in srgb, var(--text-blue) 12%, var(--paper-light)); }
+.room-screen .sheet-body label, .room-screen .settings-block, .room-screen .settings-block .btn, .room-screen .settings-block .toggle-btn, .room-screen .settings-block .mode-btn { font-family: var(--font-body); font-size: 14px; letter-spacing: 0; color: var(--ink); }
+.room-screen input, .room-screen select, .room-screen textarea { font-family: var(--font-body); font-size: 15px; color: var(--ink); }
+.room-screen input::placeholder { color: var(--ink-faded); opacity: 1; font-style: normal; }
+.room-screen .settings-block small, .room-screen .settings-hint, .room-screen .feed-empty { color: var(--ink-light); font-size: 13px; }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) .controls-strip { min-height: 110px; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .room-screen:not(.is-lobby) #sheet-teams .role-row { flex-direction: column; }
+  .room-screen:not(.is-lobby) #sheet-teams .sheet-title { margin: 0; }
+}
+@media (max-width: 900px) {
+  .room-screen .bar-tab, .room-screen #voice-mute-btn, .room-screen .btn-role { min-height: 40px; }
+  .room-screen .bar-tab { font-size: 13px; padding: 4px 6px; }
+  .room-screen .room-code-val { min-height: 40px; }
+  .room-screen .bar-util { gap: 5px; }
+  .room-screen input { font-size: 16px; }
+}
+
+.room-screen .team-player-name { white-space: normal; overflow-wrap: anywhere; }
+.room-screen .settings-label, .room-screen .mode-note { font-size: 14px; color: var(--ink-light); letter-spacing: 0; }
+.room-screen .ctrl-status, .room-screen .selected-label { font-size: 14px; font-family: var(--font-body); font-style: normal; }
+.room-screen .ctrl-panel { animation: none; }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) #sheet-teams { flex: 0 1 auto; max-height: 55%; }
+  .room-screen:not(.is-lobby) #sheet-feed { flex: 1; height: auto; min-height: 200px; }
+}
+.room-screen .team-red .team-head h3, .room-screen .btn-role.red { color: var(--text-red); }
+.room-screen .team-blue .team-head h3, .room-screen .btn-role.blue { color: var(--text-blue); }
+.room-screen .btn-role.red.active { background: #a51d29; color: #fff; }
+.room-screen .btn-role.blue.active { background: #1254a0; color: #fff; }
+html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-blue-text: #b0d8ff; }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) .controls-strip { height: 110px; overflow-y: auto; }
+  .room-screen .hint-form input[type="text"] { flex: 1 1 0; min-width: 0; }
+  .room-screen .hint-form { flex-wrap: nowrap; }
+}
+.room-screen #sheet-settings { width: 480px; max-width: 100vw; }
+.room-screen #sheet-settings .sheet-title { color: var(--ink); font-size: 16px; }
+.room-screen #sheet-settings .lang-btn, .room-screen #sheet-settings .panel-close { color: var(--ink); font-size: 14px; }
+.room-screen #sheet-settings .mode-btn:disabled { opacity: 1; color: var(--ink-faded); border-style: dashed; }
+.room-screen #sheet-settings .toggle-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.room-screen #sheet-settings .toggle-btn { min-height: 40px; }
+.room-screen #sheet-settings .mode-note { font-style: normal; }
+.room-screen #sheet-settings .qr-wrap svg { width: 88px; height: 88px; }

@@ -1043,16 +1043,12 @@ onBeforeUnmount(() => {
         <div class="game-stage">
           <div class="stage-layout">
             <div v-if="game" class="board-area">
-              <div class="team-summary">
-                <span class="summary-red">{{ t('red_team') }} · {{ game.remaining.red }}</span>
-                <span class="summary-blue">{{ t('blue_team') }} · {{ game.remaining.blue }}</span>
+              <div id="hint-display" class="clue-summary" aria-live="polite">
+                <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :data-team="team">
+                  <strong>{{ formatTeam(team) }} · {{ game.remaining[team] }}</strong>
+                  <span>{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
+                </div>
               </div>
-              <div v-if="latestHints.length" id="hint-display" aria-live="polite">
-                <p v-for="hint in latestHints" :key="hint.team" class="hint-display-bar" :data-team="hint.team">
-                  <strong>{{ formatTeam(hint.team) }}:</strong> {{ hintDisplayText(hint) }}
-                </p>
-              </div>
-
 
               <div class="board-wrap">
                 <div id="board" class="board" role="grid" aria-label="Game board">
@@ -1310,7 +1306,7 @@ onBeforeUnmount(() => {
               <div class="settings-block">
                 <div class="toggle-row">
                   <button class="toggle-btn" type="button" @click="preferences.toggleTheme()">
-                    <span>{{ preferences.resolvedTheme === 'dark' ? '☀' : '☾' }}</span>
+                    <span>{{ preferences.resolvedTheme === 'dark' ? t('theme_light') : t('theme_dark') }}</span>
                   </button>
                   <button id="sound-toggle-btn" class="toggle-btn" type="button" @click="toggleSoundMute()">
                     <span>{{ preferences.soundMuted ? t('sound_off') : t('sound_on') }}</span>

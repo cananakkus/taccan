@@ -108,10 +108,10 @@ async function emit(client, event, payload) {
 for (const width of [390, 1280]) {
   test(`both spymasters see clues across turns at width ${width}`, async ({ browser }) => {
     const host = await openPlayer(browser);
-    await host.setViewportSize({ width, height: 844 });
+    await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
     const hostSession = await session(host);
     const guest = await openPlayer(browser, hostSession.code);
-    await guest.setViewportSize({ width, height: 844 });
+    await guest.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
     const room = ctx.rooms.get(hostSession.code);
     // Assign roles through the visible team controls.
     async function role(page, team) {
@@ -141,6 +141,8 @@ for (const width of [390, 1280]) {
 
       await host.locator('#start-game-btn').click();
       await expect.poll(() => room.game?.phase).toBe('hint');
+      const boardHeights = await Promise.all([host, guest].map(page => page.locator('#board').evaluate(el => el.getBoundingClientRect().height)));
+
       const first = room.game.currentTeam === 'red' ? host : guest;
       const second = first === host ? guest : host;
       await first.locator('#hint-word-input').fill('galactic');
@@ -160,6 +162,8 @@ for (const width of [390, 1280]) {
       for (const page of [host, guest]) {
         await expect(page.locator('#hint-display')).toContainText('GALACTIC');
         await expect(page.locator('#hint-display')).toContainText('OCEANIC');
+        expect(Math.abs(await page.locator('#board').evaluate(el => el.getBoundingClientRect().height) - boardHeights[page === host ? 0 : 1])).toBeLessThanOrEqual(1);
+
         await page.evaluate(() => window.scrollTo(0, 0));
         await expect(page.locator('#board')).toBeInViewport({ ratio: 1 });
         if (width === 1280) {
