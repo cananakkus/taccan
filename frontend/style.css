@@ -2732,9 +2732,6 @@ html.theme-transitioning .voice-peer {
 
 /* Compact, legible controls with stable space for both clues. */
 .room-screen {
-  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-typewriter: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
   --text-red: #ffaaaa;
   --text-blue: #9bcaff;
   font-family: var(--font-body);
@@ -2743,7 +2740,7 @@ html[data-theme="light"] .room-screen { --text-red: #a51d29; --text-blue: #1254a
 .room-screen .bottom-bar { padding: 3px 10px; }
 .room-screen .bar-tabs, .room-screen .bar-tabs-center, .room-screen .voice-dropdown { gap: 6px; }
 .room-screen .bar-tab, .room-screen #voice-mute-btn { min-height: 34px; padding: 5px 9px; font-size: 14px; letter-spacing: 0; text-transform: none; }
-.room-screen .room-code-val { min-height: 34px; padding: 4px 9px; font: 700 17px ui-monospace, monospace; letter-spacing: .08em; }
+.room-screen .room-code-val { min-height: 34px; padding: 4px 9px; font: 700 18px var(--font-typewriter); letter-spacing: .08em; }
 .room-screen .bar-util .btn, .room-screen .mode-tag, .room-screen .conn-text { font-size: 13px; letter-spacing: 0; text-transform: none; }
 .room-screen .bottom-bar-status { padding: 3px 8px; }
 .room-screen .turn-banner { font-size: 14px; padding: 0; letter-spacing: 0; }
@@ -2810,3 +2807,41 @@ html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-bl
 .room-screen #sheet-settings .toggle-btn { min-height: 40px; }
 .room-screen #sheet-settings .mode-note { font-style: normal; }
 .room-screen #sheet-settings .qr-wrap svg { width: 88px; height: 88px; }
+
+/* Preserve the original typography, with quieter grouping and readable text. */
+.room-screen .bar-tab, .room-screen .btn-role { font-size: 14px; }
+.room-screen .team-player-name, .room-screen .feed-item, .room-screen .ctrl-status,
+.room-screen .selected-label, .room-screen .mode-note { font-size: 16px; }
+.room-screen .feed-name { font-weight: 700; }
+.room-screen .sheet-title { font-family: var(--font-display); font-weight: 700; }
+.room-screen .settings-block .btn, .room-screen .settings-block .toggle-btn,
+.room-screen .settings-block .mode-btn, .room-screen .settings-label { font-family: var(--font-typewriter); }
+.room-screen .bar-tab { background: transparent; border-color: transparent; box-shadow: none; }
+.room-screen .bar-tab:hover, .room-screen .bar-tab:focus-visible { border-color: var(--border-dark); background: var(--paper-light); }
+.room-screen .bar-tab.in-voice { border-color: var(--voice-active-border); }
+.room-screen .bottom-bar { background: var(--paper); border: 0; border-bottom: 1px solid var(--border); }
+.room-screen .top-bar { background: transparent; border: 0; padding: 0 12px; }
+.room-screen .score-bar { height: 3px; }
+.room-screen .bottom-bar-status { background: transparent; padding: 5px 12px; }
+.room-screen .turn-banner { color: var(--ink); font-size: 15px; }
+.room-screen .persistent-panel { box-shadow: none; border-color: var(--border-light); border-radius: 4px; }
+.room-screen .team-panel { background: transparent; border: 0; border-top: 2px solid var(--border); box-shadow: none; }
+.room-screen .team-red { border-top-color: var(--text-red); }
+.room-screen .team-blue { border-top-color: var(--text-blue); }
+.room-screen .btn-role { border-color: transparent; background: transparent; border-radius: 3px; }
+.room-screen .btn-role:hover, .room-screen .btn-role:focus-visible { border-color: currentColor; }
+.room-screen .btn-role.red.active { color: var(--text-red); background: color-mix(in srgb, var(--text-red) 12%, var(--paper-light)); border-color: var(--text-red); }
+.room-screen .btn-role.blue.active { color: var(--text-blue); background: color-mix(in srgb, var(--text-blue) 12%, var(--paper-light)); border-color: var(--text-blue); }
+.room-screen .sidebar-actions { border-top-color: var(--border-light); }
+.room-screen .clue-slot { background: transparent; border-left: 0; border-bottom: 2px solid currentColor; padding: 4px; }
+.room-screen .clue-slot strong { font-size: 14px; }
+.room-screen .clue-slot span { font-size: 16px; }
+.room-screen .ctrl-panel { box-shadow: none; background: transparent; border-color: var(--border-light); }
+.room-screen .ctrl-panel::before { display: none; }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) .room-sidebar { gap: 16px; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body { gap: 12px; }
+}
+@media (max-width: 400px) {
+  .room-screen .bar-tab, .room-screen .btn-role { font-size: 13px; }
+}
