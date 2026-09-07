@@ -6,7 +6,7 @@ module.exports = function register(socket, deps) {
     bindSocketToPlayer, clearSocketBinding,
     emitStateToRoom, removePlayerFromRoom,
     clearPhaseTimerState, clearMarksForSession,
-    handleVoiceLeave, sanitizeName,
+    handleVoiceLeave, sanitizeName, syncPhaseTimerForCurrentPhase,
   } = helpers;
   const { ROOM_CONNECTED_LIMIT, DISCONNECTED_PLAYER_TTL_MS } = constants;
   const { getConnectedPlayerCount, ensureHostSession, pruneDisconnectedPlayers } = require('../room-utils');
@@ -109,8 +109,11 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    leaveBoundRoom(socket);
-    room.players.set(player.sessionId, player);
+    // A repeated rejoin on the current socket must not remove its own player
+    // (and delete the room when that player is the only member).
+    if (socket.data.roomCode !== code || socket.data.sessionId !== sessionId) {
+      leaveBoundRoom(socket);
+    }
 
     if (validatedPayload.name) {
       player.name = sanitizeName(validatedPayload.name);
@@ -129,6 +132,11 @@ module.exports = function register(socket, deps) {
 
     bindSocketToPlayer(socket, room, player);
     ensureHostSession(room);
+    // Saved rooms intentionally have no running timers. Resume the phase when
+    // a player returns, but never extend an already-running deadline.
+    if (room.game && room.game.phase !== 'finished' && !room.game.phaseTimer) {
+      syncPhaseTimerForCurrentPhase(room, room.game.phase, 'player_rejoined');
+    }
     emitStateToRoom(room);
     metrics.roomRejoin += 1;
     logEvent('room_rejoined', { roomCode: room.code, sessionId: player.sessionId });

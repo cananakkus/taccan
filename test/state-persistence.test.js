@@ -136,3 +136,14 @@ test('marksByCard Sets survive serialization', () => {
 test.afterEach(() => {
   try { fs.unlinkSync(STATE_FILE); } catch (_e) {}
 });
+
+test('shutdown starts the disconnect grace period for connected players', () => {
+  const room = createMockRoom();
+  const oldSeenAt = Date.now() - 60 * 60 * 1000;
+  for (const player of room.players.values()) player.lastSeenAt = oldSeenAt;
+  const beforeSave = Date.now();
+  assert.equal(saveState(new Map([[room.code, room]])), true);
+  const restored = restoreRooms(loadState()).get(room.code);
+  assert.ok(restored.players.get('session-1').lastSeenAt >= beforeSave);
+  assert.equal(restored.players.get('session-2').lastSeenAt, oldSeenAt);
+});

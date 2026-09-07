@@ -18,6 +18,11 @@ Taccan includes peer-to-peer voice chat built on WebRTC. Since Discord is blocke
 
 Background noise is handled by RNNoise, a recurrent neural network for noise suppression, running as a WebAudio worklet inside the browser. No server-side processing, no latency penalty.
 
+For voice between different networks, configure a reachable TURN relay on the deployed backend with `TURN_HOST`, `TURN_USERNAME`, and `TURN_CREDENTIAL`. The host must serve TURN on port 3478 (UDP and TCP), with its relay port range open. For an existing Coturn relay using `use-auth-secret`, set `TURN_HOST` and `TURN_SHARED_SECRET` instead; the backend issues 24-hour signed credentials and never sends the shared secret to clients. The browser client fetches the configuration from `/taccan/api/turn-credentials`. STUN-only configuration cannot connect every pair of networks. A disconnect releases the microphone and resets voice; rejoin voice after the room reconnects.
+
+`npm run test:e2e` builds the web client and runs Chromium tests for two-way audio, mute, voice rejoining, and spymaster clue visibility on desktop and phone layouts. Install the test browser with `npx playwright install chromium` first.
+
+
 ## Game modes
 
 **Casual** is the standard format with no time pressure. **Blitz** adds configurable timers to both the hint and guess phases, forcing faster decisions.
@@ -52,10 +57,11 @@ The server starts at `http://127.0.0.1:3000`. To bind to all interfaces:
 HOST=0.0.0.0 npm start
 ```
 
-For development with auto-restart on file changes:
+For development, run the API server and Vite client in separate terminals:
 
-```
-npm run dev
+```sh
+npm run dev:server
+npm run dev:client
 ```
 
 ## Tests
@@ -64,11 +70,11 @@ npm run dev
 npm test
 ```
 
-41 tests covering the game engine, payload validation, room utilities, socket handlers, state persistence, full game flows, and the room lock mechanism. Uses the Node.js native test runner.
+The Node.js suite covers game rules, room/session lifecycle, payload validation, state persistence, voice signaling, and TURN credentials. Run `npm run test:unit` for frontend unit tests and `npm run test:e2e` for browser gameplay and voice tests.
 
 ## Architecture
 
-The backend is Node.js with Express and Socket.IO. The frontend is vanilla JavaScript with ES modules, no framework, no build-time dependencies beyond esbuild for production bundling. Two production dependencies total.
+The backend is Node.js with Express and Socket.IO. The browser client uses Vue 3, Pinia, TypeScript, and Vite. The former Flutter app was removed; it remains available in Git history before the removal commit.
 
 All game state lives in memory on the server. Clients receive per-player state snapshots on every change. Spymasters see the keycard, operatives do not. The game engine uses a seeded Mulberry32 PRNG for deterministic, reproducible boards.
 
@@ -89,24 +95,16 @@ backend/
 
 frontend/
   index.html           Application shell
-  style.css            Cold War dossier theme
-  app.js               Entry point
-  translations.js      All UI strings and word translations (EN/TR)
-  modules/
-    render.js           Render orchestrator
-    render-board.js     Board and card rendering with diff optimization
-    render-teams.js     Team roster rendering
-    render-controls.js  Game controls and mode selection
-    render-timer.js     Phase timer and guess selection
-    actions.js          User interaction handlers
-    socket.js           Socket.IO client and reconnect logic
-    voice.js            WebRTC voice chat with RNNoise noise suppression
-    feed.js             Game log and chat feed
-    sound.js            Synthesized sound effects
-    i18n.js             Language switching and word translation
-    panels.js           Bottom sheet panel system
-    state.js            Shared client state
-    helpers.js          UI utilities
+  style.css            Cold War dossier theme and responsive layouts
+  translations.js      UI strings and word translations (EN/TR)
+  public/              PWA assets and RNNoise worklet/WASM
+  src/
+    main.ts            Vue application entry point
+    components/        Game view, controls, and room panels
+    composables/       WebRTC voice lifecycle and audio processing
+    stores/            Game snapshots, preferences, UI, and voice state
+    lib/               Socket transport, storage, translations, and helpers
+  dist/                Generated production bundle (not committed)
 ```
 
 ## Environment variables
@@ -119,13 +117,14 @@ frontend/
 | BLITZ_HINT_TIMER_MS | 25000 | Blitz hint phase duration |
 | BLITZ_GUESS_TIMER_MS | 35000 | Blitz guess phase duration |
 | TURN_HOST | | TURN server hostname for voice relay |
-| TURN_USERNAME | | TURN server username |
+| TURN_SHARED_SECRET | | Coturn REST shared secret; takes precedence over static credentials |
+| TURN_USERNAME | | TURN server username (static authentication) |
 | TURN_CREDENTIAL | | TURN server credential |
 | ANTHROPIC_API_KEY | | Optional, for AI hint analysis |
 
 ## Deployment
 
-The included Dockerfile builds a production image with Node 20 Alpine. The frontend is bundled and minified with esbuild during the build stage, and dev dependencies are pruned from the final image.
+The included Dockerfile builds a production image with Node 20 Alpine. Vite builds the frontend during the build stage. The final image contains the backend, compiled browser assets, and production dependencies.
 
 ```
 docker build -t taccan .

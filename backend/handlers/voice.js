@@ -17,6 +17,10 @@ module.exports = function register(socket, deps) {
     if (!room.voicePeers) room.voicePeers = new Set();
 
     const existingPeers = [...room.voicePeers].filter((id) => id !== player.sessionId);
+    if (room.voicePeers.has(player.sessionId)) {
+      ackOk(callback, { peers: existingPeers });
+      return;
+    }
     room.voicePeers.add(player.sessionId);
 
     for (const peerId of existingPeers) {
@@ -56,6 +60,10 @@ module.exports = function register(socket, deps) {
     }
 
     const { room, player } = context;
+    if (!room.voicePeers?.has(player.sessionId) || !room.voicePeers.has(validatedPayload.targetSessionId)) {
+      ackError(callback, 'Both players must be in voice chat.');
+      return;
+    }
     const targetPlayer = room.players.get(validatedPayload.targetSessionId);
     if (!targetPlayer || !targetPlayer.connected || !targetPlayer.socketId) {
       ackError(callback, 'Target peer not found.');

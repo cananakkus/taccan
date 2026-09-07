@@ -1,4 +1,4 @@
-import { onBeforeUnmount, ref, type Ref } from 'vue';
+import { onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 import { fetchTurnCredentials, emitWithAck, socket } from '../lib/socket';
 import { getAssetPath } from '../lib/runtime';
@@ -11,6 +11,7 @@ interface PeerEntry {
   pc: RTCPeerConnection;
   stream: MediaStream | null;
   analyser: AnalyserNode | null;
+  pendingCandidates: RTCIceCandidateInit[];
 }
 
 interface NoiseNodes {
@@ -46,16 +47,23 @@ export function useVoice(
   let processedStream: MediaStream | null = null;
   let noiseNodes: NoiseNodes | null = null;
   let rnnoiseWasmBinary: ArrayBuffer | null = null;
-  let rnnoiseWorkletReady = false;
+  let rnnoiseWorkletContext: AudioContext | null = null;
   let rtcConfig: RTCConfiguration | null = null;
   let speakingInterval: number | null = null;
   let audioCtx: AudioContext | null = null;
   let initialized = false;
   const joining = ref(false);
+  let joinGeneration = 0;
+  const subscriptions: Array<[string, (...args: any[]) => void]> = [];
+
+  function listen(event: string, handler: (...args: any[]) => void) {
+    socket.on(event, handler);
+    subscriptions.push([event, handler]);
+  }
 
   function ensureAudioContext(): AudioContext {
     if (!audioCtx) {
-      audioCtx = new AudioContext();
+      audioCtx = new AudioContext({ sampleRate: 48000 });
     }
     if (audioCtx.state === 'suspended') {
       void audioCtx.resume();
@@ -79,12 +87,13 @@ export function useVoice(
   async function createRnnoiseNode(): Promise<AudioWorkletNode> {
     const ctx = ensureAudioContext();
 
-    if (!rnnoiseWorkletReady) {
+    if (rnnoiseWorkletContext !== ctx) {
       await ctx.audioWorklet.addModule(getAssetPath('rnnoise-worklet.js'));
-      rnnoiseWorkletReady = true;
+      rnnoiseWorkletContext = ctx;
     }
     if (!rnnoiseWasmBinary) {
       const resp = await fetch(getAssetPath('rnnoise.wasm'));
+      if (!resp.ok) throw new Error('Noise suppression could not be loaded.');
       rnnoiseWasmBinary = await resp.arrayBuffer();
     }
 
@@ -97,7 +106,8 @@ export function useVoice(
     if (!localStream) return;
     const ctx = ensureAudioContext();
 
-    const source = ctx.createMediaStreamSource(localStream);
+    const stream = localStream;
+    const source = ctx.createMediaStreamSource(stream);
     const dest = ctx.createMediaStreamDestination();
     let worklet: AudioWorkletNode | null = null;
 
@@ -112,6 +122,13 @@ export function useVoice(
       source.connect(dest);
     }
 
+    if (localStream !== stream) {
+      source.disconnect();
+      worklet?.disconnect();
+      worklet?.port.postMessage('destroy');
+      dest.stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     noiseNodes = { source, worklet, dest };
     processedStream = dest.stream;
   }
@@ -124,6 +141,7 @@ export function useVoice(
         noiseNodes.worklet.port.postMessage('destroy');
       }
     }
+    processedStream?.getTracks().forEach((track) => track.stop());
     noiseNodes = null;
     processedStream = null;
   }
@@ -138,17 +156,17 @@ export function useVoice(
     if (initialized) return;
     initialized = true;
 
-    socket.on('voice:peer_joined', ({ sessionId }: { sessionId: string }) => {
+    listen('voice:peer_joined', ({ sessionId }: { sessionId: string }) => {
       if (!voice.active) return;
-      createPeerConnection(sessionId, true);
+      createPeerConnection(sessionId, false);
     });
 
-    socket.on('voice:peer_left', ({ sessionId }: { sessionId: string }) => {
+    listen('voice:peer_left', ({ sessionId }: { sessionId: string }) => {
       closePeer(sessionId);
       voice.removePeer(sessionId);
     });
 
-    socket.on(
+    listen(
       'voice:signal',
       async ({
         fromSessionId,
@@ -163,44 +181,58 @@ export function useVoice(
       }) => {
         if (!voice.active) return;
 
-        let entry = peers.get(fromSessionId);
-        if (type === 'offer') {
-          if (!entry) {
+        try {
+          let entry = peers.get(fromSessionId);
+          // ICE can arrive before the offer or while setRemoteDescription awaits.
+          if (!entry && (type === 'candidate' || type === 'offer')) {
             createPeerConnection(fromSessionId, false);
             entry = peers.get(fromSessionId);
           }
-          if (!entry || !sdp) return;
-          await entry.pc.setRemoteDescription({ type: 'offer', sdp });
-          const answer = await entry.pc.createAnswer();
-          await entry.pc.setLocalDescription(answer);
-          await emitWithAck('voice:signal', {
-            targetSessionId: fromSessionId,
-            type: 'answer',
-            sdp: entry.pc.localDescription?.sdp || '',
-          }).catch(() => {});
-          return;
-        }
+          if (type === 'offer') {
+            if (!entry) {
+              createPeerConnection(fromSessionId, false);
+              entry = peers.get(fromSessionId);
+            }
+            if (!entry || !sdp) return;
+            await entry.pc.setRemoteDescription({ type: 'offer', sdp });
+            await flushCandidates(entry);
+            const answer = await entry.pc.createAnswer();
+            await entry.pc.setLocalDescription(answer);
+            await emitWithAck('voice:signal', {
+              targetSessionId: fromSessionId,
+              type: 'answer',
+              sdp: entry.pc.localDescription?.sdp || '',
+            }).catch(() => {});
+            return;
+          }
 
-        if (!entry) return;
+          if (!entry) return;
 
-        if (type === 'answer' && sdp) {
-          await entry.pc.setRemoteDescription({ type: 'answer', sdp });
-        }
+          if (type === 'answer' && sdp) {
+            await entry.pc.setRemoteDescription({ type: 'answer', sdp });
+            await flushCandidates(entry);
+          }
 
-        if (type === 'candidate' && candidate) {
-          try {
-            await entry.pc.addIceCandidate(JSON.parse(candidate));
-          } catch (_error) {}
+          if (type === 'candidate' && candidate) {
+            try {
+              const ice = JSON.parse(candidate) as RTCIceCandidateInit;
+              if (entry.pc.remoteDescription) await entry.pc.addIceCandidate(ice);
+              else entry.pendingCandidates.push(ice);
+            } catch (_error) {}
+          }
+        } catch (_error) {
+          closePeer(fromSessionId);
+          ui.showToast(t('voice_join_failed'), 'error');
         }
       }
     );
 
-    socket.on('voice:mute_changed', ({ sessionId, muted }: { sessionId: string; muted: boolean }) => {
+    listen('voice:mute_changed', ({ sessionId, muted }: { sessionId: string; muted: boolean }) => {
       voice.setPeerMuted(sessionId, muted);
     });
 
-    socket.on('disconnect', () => {
-      destroyAllPeers();
+    listen('disconnect', () => {
+      leaveVoice(false);
     });
   }
 
@@ -215,46 +247,49 @@ export function useVoice(
     if (joining.value) return;
     joining.value = true;
 
+    const generation = ++joinGeneration;
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          noiseSuppression: true,
-          echoCancellation: true,
-          autoGainControl: true,
-        },
+      // Resume during the button gesture, before permission/network awaits.
+      ensureAudioContext();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true },
         video: false,
       });
-    } catch (error) {
-      joining.value = false;
-      ui.showToast(t('voice_mic_error', { error: error instanceof Error ? error.name : 'UnknownError' }), 'error');
-      return;
-    }
-
-    await Promise.all([setupNoisePipeline(), getRtcConfig()]);
-
-    voice.setActive(true);
-    voice.setMuted(false);
-    startSpeakingDetection();
-
-    try {
+      if (generation !== joinGeneration) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      localStream = stream;
+      await Promise.all([setupNoisePipeline(), getRtcConfig()]);
+      if (generation !== joinGeneration) return;
+      voice.setActive(true);
+      voice.setMuted(false);
+      startSpeakingDetection();
       const response = await emitWithAck<{ peers?: string[] }>('voice:join', {});
+      if (generation !== joinGeneration) return;
       for (const peerId of response.peers || []) {
-        voice.setPeer(peerId);
         createPeerConnection(peerId, true);
       }
     } catch (error) {
-      leaveVoice(false);
+      if (generation !== joinGeneration) return;
+      leaveVoice(socket.connected);
       ui.showToast(error instanceof Error ? error.message : t('voice_join_failed'), 'error');
     } finally {
-      joining.value = false;
+      if (generation === joinGeneration) joining.value = false;
     }
   }
 
   function leaveVoice(notify = true) {
+    joinGeneration++;
+    joining.value = false;
     stopSpeakingDetection();
     destroyAllPeers();
     cleanupNoisePipeline();
     stopLocalStream();
+    void audioCtx?.close();
+    audioCtx = null;
+    rnnoiseWorkletContext = null;
+    rtcConfig = null;
     voice.reset();
     if (notify) {
       void emitWithAck('voice:leave', {}).catch(() => {});
@@ -265,7 +300,7 @@ export function useVoice(
     if (!voice.active || !localStream) return;
     const nextValue = !voice.muted;
     voice.setMuted(nextValue);
-    for (const track of localStream.getAudioTracks()) {
+    for (const track of [...localStream.getAudioTracks(), ...(processedStream?.getAudioTracks() || [])]) {
       track.enabled = !nextValue;
     }
     void emitWithAck('voice:mute', { muted: nextValue }).catch(() => {});
@@ -278,6 +313,7 @@ export function useVoice(
     if (!voice.active || !localStream || !noiseNodes) return;
 
     // Rewire the pipeline live without rejoining
+    const pipeline = noiseNodes;
     noiseNodes.source.disconnect();
     if (noiseNodes.worklet) {
       noiseNodes.worklet.disconnect();
@@ -288,10 +324,15 @@ export function useVoice(
     if (nextValue) {
       try {
         const worklet = await createRnnoiseNode();
+        if (noiseNodes !== pipeline) {
+          worklet.disconnect();
+          worklet.port.postMessage('destroy');
+          return;
+        }
         noiseNodes.source.connect(worklet).connect(noiseNodes.dest);
         noiseNodes.worklet = worklet;
       } catch (_error) {
-        noiseNodes.source.connect(noiseNodes.dest);
+        if (noiseNodes === pipeline) noiseNodes.source.connect(noiseNodes.dest);
       }
     } else {
       noiseNodes.source.connect(noiseNodes.dest);
@@ -304,9 +345,9 @@ export function useVoice(
     if (peers.has(sessionId)) return;
 
     const pc = new RTCPeerConnection(rtcConfig || STUN_ONLY_CONFIG);
-    const entry: PeerEntry = { pc, stream: null, analyser: null };
+    const entry: PeerEntry = { pc, stream: null, analyser: null, pendingCandidates: [] };
     peers.set(sessionId, entry);
-    voice.setPeer(sessionId, voice.peers.find((peer) => peer.sessionId === sessionId)?.volume || 100);
+    voice.setPeer(sessionId, voice.peers.find((peer) => peer.sessionId === sessionId)?.volume ?? 100);
 
     const outbound = getOutboundStream();
     if (outbound) {
@@ -314,6 +355,15 @@ export function useVoice(
         pc.addTrack(track, outbound);
       }
     }
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed') {
+        closePeer(sessionId);
+        ui.showToast(t('voice_connect_failed', {
+          name: players.value.find((player) => player.sessionId === sessionId)?.name || sessionId,
+        }), 'error');
+      }
+    };
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
@@ -330,7 +380,7 @@ export function useVoice(
       const audio = audioElements.get(sessionId) || document.createElement('audio');
       audio.autoplay = true;
       audio.srcObject = remoteStream;
-      audio.volume = (voice.peers.find((peer) => peer.sessionId === sessionId)?.volume || 100) / 100;
+      audio.volume = (voice.peers.find((peer) => peer.sessionId === sessionId)?.volume ?? 100) / 100;
       if (!audioElements.has(sessionId)) {
         audioElements.set(sessionId, audio);
         audioContainer.value?.appendChild(audio);
@@ -354,6 +404,12 @@ export function useVoice(
     }
   }
 
+  async function flushCandidates(entry: PeerEntry) {
+    for (const candidate of entry.pendingCandidates.splice(0)) {
+      await entry.pc.addIceCandidate(candidate);
+    }
+  }
+
   function setupAnalyser(sessionId: string, stream: MediaStream, entry: PeerEntry) {
     try {
       const context = ensureAudioContext();
@@ -371,6 +427,7 @@ export function useVoice(
     if (entry) {
       entry.pc.close();
       peers.delete(sessionId);
+      voice.removePeer(sessionId);
     }
     const audio = audioElements.get(sessionId);
     if (audio) {
@@ -447,7 +504,13 @@ export function useVoice(
   }
 
   onBeforeUnmount(() => {
-    leaveVoice(false);
+    leaveVoice(socket.connected);
+    for (const [event, handler] of subscriptions) socket.off(event, handler);
+    void audioCtx?.close();
+  });
+
+  watch(meSessionId, (next, previous) => {
+    if (previous && next !== previous) leaveVoice(false);
   });
 
   return {

@@ -71,7 +71,8 @@ module.exports = function createStateView(ctx) {
       phase: game.phase, currentTeam: game.currentTeam,
       startingTeam: game.startingTeam, turnNumber: game.turnNumber,
       mode: game.mode || getRoomMode(room),
-      seed: game.seed || null,
+      // The seed reconstructs the keycard, even when board colors are hidden.
+      seed: showKeycard ? (game.seed ?? null) : null,
       maxHintCount: game.maxHintCount ?? getModeConfig(game.mode || getRoomMode(room), room).maxHintCount,
       phaseTimer: game.phaseTimer
         ? { phase: game.phaseTimer.phase, startedAt: game.phaseTimer.startedAt, endsAt: game.phaseTimer.endsAt, durationMs: game.phaseTimer.durationMs }

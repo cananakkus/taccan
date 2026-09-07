@@ -1088,6 +1088,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* ── Voice Dropdown ── */
 .voice-dropdown {
+  display: flex;
   position: relative;
 }
 .bar-tab-voice {}
@@ -2163,6 +2164,8 @@ input[type="number"]::-webkit-outer-spin-button {
   .board { gap: 5px; }
 }
 
+.bar-tab[data-panel="feed"] { display: none; }
+
 /* ── Phone (≤600px) ── */
 @media (max-width: 600px) {
 
@@ -2170,6 +2173,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .top-bar { padding: 3px 8px; }
   .bottom-bar { padding: 4px 6px; }
   .bar-tab-label { display: none; }
+  .bar-tab[data-panel="feed"] { display: flex; }
   .bar-tab { width: 44px; padding: 6px 0; min-height: 40px; }
   .bar-tabs-center { gap: 3px; }
   .score-bar { height: 5px; }
@@ -2180,26 +2184,26 @@ input[type="number"]::-webkit-outer-spin-button {
   .conn-text { display: none; }
   .bottom-bar-status { padding: 2px 0; }
 
-  /* Hide controls-strip — hint/guess become fixed overlays */
-  .controls-strip { display: none; }
+  /* Keep clues and actions in flow; hiding their parent also hid fixed children. */
+  .controls-strip { display: flex; width: 100%; flex-shrink: 0; overflow: visible; }
+  .inline-feed { display: none; }
 
   /* Board fills available space */
-  .game-stage { padding: 4px 6px; gap: 4px; justify-content: start; }
-  .stage-layout { flex-direction: column; }
+  .game-stage { padding: 4px 6px; gap: 4px; justify-content: start; overflow-y: auto; }
+  .stage-layout { flex-direction: column; flex: none; }
+  .board-area { flex: none; }
   .board-wrap { max-width: 100%; }
   .board { gap: 4px; }
   .card { aspect-ratio: 1.3; }
   .card-word { font-size: clamp(0.65rem, 3.2vw, 0.95rem); }
 
-  /* Hint/guess/result panels: fixed overlay at bottom */
+  /* Actions follow the board and remain reachable on short screens. */
   #hint-section,
   #guess-section,
   #result-section {
     display: none;
-    position: fixed;
-    bottom: calc(var(--bar-h) + 32px + env(safe-area-inset-bottom, 0px));
-    left: calc(6px + env(safe-area-inset-left, 0px));
-    right: calc(6px + env(safe-area-inset-right, 0px));
+    position: relative;
+    flex-shrink: 0;
     z-index: 15;
     border-radius: 6px;
     box-shadow: var(--shadow-elevated);

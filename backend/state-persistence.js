@@ -30,6 +30,7 @@ function saveState(rooms) {
           ...p,
           connected: false,
           socketId: null,
+          lastSeenAt: p.connected ? Date.now() : p.lastSeenAt,
         })),
         game: room.game ? serializeGame(room.game) : null,
       });

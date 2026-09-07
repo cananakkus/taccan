@@ -151,7 +151,8 @@ module.exports = function createRoomLifecycle(ctx) {
     const safeLookup = (hostname, opts, cb) => {
       dns.lookup(hostname, opts, (err, address, family) => {
         if (err) return cb(err);
-        if (isPrivateIP(address)) return cb(new Error('URL resolves to a private/internal address.'));
+        const addresses = Array.isArray(address) ? address.map((entry) => entry.address) : [address];
+        if (addresses.some(isPrivateIP)) return cb(new Error('URL resolves to a private/internal address.'));
         cb(null, address, family);
       });
     };
@@ -159,7 +160,19 @@ module.exports = function createRoomLifecycle(ctx) {
       const req = https.get(url, { timeout: 10_000, lookup: safeLookup }, (res) => {
         if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); res.resume(); return; }
         let data = '';
-        res.on('data', (chunk) => { data += chunk; });
+        let bytes = 0;
+        res.on('error', reject);
+        res.on('data', (chunk) => {
+          bytes += Buffer.byteLength(chunk);
+          if (bytes > 1024 * 1024) {
+            const error = new Error('Word pack exceeds the 1 MiB limit.');
+            reject(error);
+            res.destroy();
+            req.destroy();
+            return;
+          }
+          data += chunk;
+        });
         res.on('end', () => {
           try {
             const words = JSON.parse(data);

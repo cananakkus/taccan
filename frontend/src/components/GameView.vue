@@ -71,6 +71,8 @@ const codeInput = ref(getInitialRoomCode() || app.session?.code || '');
 const hintWordInput = ref('');
 const hintCountInput = ref(1);
 const chatInput = ref('');
+const voiceMenuOpen = ref(false);
+watch(() => voice.active, (active) => { if (!active) voiceMenuOpen.value = false; });
 const blitzHintSec = ref(25);
 const blitzGuessSec = ref(35);
 const nowTick = ref(Date.now());
@@ -277,12 +279,21 @@ function guessNoteText() {
   return t('guess_note_restricted');
 }
 
-function hintDisplayText() {
-  if (!game.value?.hint) return t('awaiting_hint');
+const latestHints = computed(() => {
+  const hints = new Map<string, { team: Team; word: string; count: number }>();
+  for (const entry of game.value?.history || []) {
+    if (entry.type === 'hint' && (entry.team === 'red' || entry.team === 'blue')) {
+      hints.set(entry.team, { team: entry.team, word: String(entry.word), count: Number(entry.count) });
+    }
+  }
+  if (game.value?.hint) hints.set(game.value.hint.team, game.value.hint);
+  return ['red', 'blue'].flatMap((team) => hints.has(team) ? [hints.get(team)!] : []);
+});
+
+function hintDisplayText(hint: { word: string; count: number }) {
   return t('hint_display', {
-    word: String(game.value.hint.word || '').toLocaleUpperCase(getLocaleTag(preferences.language)),
-    count: game.value.hint.count,
-    remaining: game.value.guessesRemaining === null ? t('unlimited') : String(Math.max(game.value.guessesRemaining, 0)),
+    word: hint.word.toLocaleUpperCase(getLocaleTag(preferences.language)),
+    count: hint.count,
   });
 }
 
@@ -1014,7 +1025,11 @@ onBeforeUnmount(() => {
                 </form>
               </section>
 
-              <p v-if="game && game.hint && game.phase !== 'finished'" id="hint-display" class="hint-display-bar">{{ hintDisplayText() }}</p>
+              <div v-if="latestHints.length" id="hint-display" aria-live="polite">
+                <p v-for="hint in latestHints" :key="hint.team" class="hint-display-bar" :data-team="hint.team">
+                  <strong>{{ formatTeam(hint.team) }}:</strong> {{ hintDisplayText(hint) }}
+                </p>
+              </div>
 
               <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !game || canHintNow || game.phase === 'finished' }">
                 <p id="guess-note" class="ctrl-status">{{ guessNoteText() }}</p>
@@ -1093,8 +1108,10 @@ onBeforeUnmount(() => {
               <button
                 v-for="panel in PANEL_KEYS"
                 :key="panel"
+                :data-panel="panel"
+                :aria-label="panel === 'debrief' ? t('debrief') : t(`panel_${panel}`)"
                 class="bar-tab"
-                :class="{ active: ui.openPanel === panel, hidden: panel === 'feed' || (panel === 'debrief' && game?.phase !== 'finished') }"
+                :class="{ active: ui.openPanel === panel, hidden: panel === 'debrief' && game?.phase !== 'finished' }"
                 type="button"
                 @click="ui.togglePanel(panel)"
               >
@@ -1105,12 +1122,15 @@ onBeforeUnmount(() => {
                 </span>
               </button>
 
-              <div class="voice-dropdown" :class="{ 'voice-active': voice.active }">
-                <button id="voice-join-btn" class="bar-tab bar-tab-voice" type="button" :class="{ 'in-voice': voice.active }" @click="() => void joinVoice()">
+              <div class="voice-dropdown" :class="{ 'voice-active': voice.active, open: voice.active && voiceMenuOpen }">
+                <button id="voice-join-btn" :aria-label="voice.active ? t('voice_leave') : t('voice_join')" :disabled="joining" class="bar-tab bar-tab-voice" type="button" :class="{ 'in-voice': voice.active }" @click="() => void joinVoice()">
                   <span class="bar-tab-icon" aria-hidden="true">♪</span>
                   <span class="bar-tab-label">{{ voice.active ? t('voice_leave') : t('voice_join') }}</span>
                 </button>
-                <div class="voice-dropdown-menu">
+                <button v-if="voice.active" id="voice-controls-btn" class="bar-tab" type="button"
+                  :aria-label="t('panel_voice')" :aria-expanded="voiceMenuOpen" aria-controls="voice-menu"
+                  @click="voiceMenuOpen = !voiceMenuOpen">⌃</button>
+                <div id="voice-menu" class="voice-dropdown-menu">
                   <button id="voice-mute-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !voice.active, muted: voice.muted }" @click="toggleMute">
                     {{ voice.muted ? t('voice_unmute') : t('voice_mute') }}
                   </button>

@@ -15,6 +15,7 @@ const createStateView = require('./state-view');
 const createTimers = require('./timers');
 const createRoomLifecycle = require('./room-lifecycle');
 const { withRoomLock } = require('./room-lock');
+const { getIceServers } = require('./turn-config');
 
 const registerRoomHandlers = require('./handlers/room');
 const registerRoomConfigHandlers = require('./handlers/room-config');
@@ -55,6 +56,16 @@ function createApp(options = {}) {
   const io = new Server(httpServer, {
     cors: { origin: corsOrigin === '*' ? true : corsOrigin.split(','), methods: ['GET', 'POST'] },
   });
+
+  // Accept both direct subpath requests and requests whose proxy stripped it.
+  // This must run before Socket.IO inspects HTTP and WebSocket upgrade URLs.
+  function normalizeApiPath(req) {
+    if (/^\/taccan\/(?:api|socket\.io)(?:[/?]|$)/.test(req.url)) {
+      req.url = req.url.slice('/taccan'.length);
+    }
+  }
+  httpServer.prependListener('request', normalizeApiPath);
+  httpServer.prependListener('upgrade', normalizeApiPath);
 
   const metrics = {
     roomCreate: 0, roomJoin: 0, roomRejoin: 0, roomLeave: 0, roomPrune: 0,
@@ -126,24 +137,8 @@ function createApp(options = {}) {
   });
 
   app.get('/api/turn-credentials', (_req, res) => {
-    const iceServers = [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-    ];
-    const turnHost = process.env.TURN_HOST;
-    const turnUsername = process.env.TURN_USERNAME;
-    const turnCredential = process.env.TURN_CREDENTIAL;
-    if (turnHost && turnUsername && turnCredential) {
-      iceServers.push(
-        { urls: `stun:${turnHost}:3478` },
-        {
-          urls: [`turn:${turnHost}:3478`, `turn:${turnHost}:3478?transport=tcp`],
-          username: turnUsername,
-          credential: turnCredential,
-        },
-      );
-    }
-    res.json({ iceServers });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ iceServers: getIceServers() });
   });
 
   app.get('/api/rooms/:code', (req, res) => {

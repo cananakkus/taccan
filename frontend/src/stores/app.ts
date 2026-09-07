@@ -35,6 +35,7 @@ export const useAppStore = defineStore('app', {
     setConnection(connected: boolean, label: string) {
       this.connected = connected;
       this.connectionLabel = label;
+      if (!connected) this.rejoinAttempted = false;
     },
   },
 });

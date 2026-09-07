@@ -9,9 +9,9 @@
     "dev": "node --watch backend/server.js",
     "dev:server": "node --watch backend/server.js",
     "dev:client": "vite --config frontend/vite.config.ts",
-    "test": "node --test --test-force-exit",
+    "test": "node --test --test-force-exit test/*.test.js",
     "test:unit": "vitest run --config frontend/vitest.config.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run build && playwright test",
     "build": "vite build --config frontend/vite.config.ts"
   },
   "keywords": [

@@ -365,3 +365,119 @@ test('rematch preserves matchId and increments roundNumber', async () => {
     await shutdown(ctx, spy, op);
   }
 });
+
+
+test('rejoining on the same socket preserves a one-player room', async () => {
+  const ctx = await boot();
+  const client = connect(ctx.port);
+  try {
+    await waitFor(client, 'server:ready');
+    const created = await emit(client, 'room:create', { name: 'Host' });
+    await emit(client, 'team:set', { team: 'red' });
+    await emit(client, 'game:start', {});
+    const room = ctx.rooms.get(created.roomCode);
+    const game = room.game;
+    const result = await emit(client, 'room:rejoin', {
+      code: created.roomCode, sessionId: created.sessionId,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(ctx.rooms.get(created.roomCode), room);
+    assert.equal(room.game, game);
+    assert.equal((await emit(client, 'team:set', { team: 'blue' })).ok, true);
+  } finally {
+    await shutdown(ctx, client);
+  }
+});
+
+test('active operative snapshots hide the seed; finished snapshots disclose it', async () => {
+  const ctx = await boot();
+  const { spy, op, roomCode } = await setupGame(ctx);
+  try {
+    const stateP = waitForState(op, (s) => s.game?.phase === 'guess');
+    await emit(spy, 'turn:hint_submit', { word: 'secret', count: 1 });
+    const state = await stateP;
+    assert.equal(state.game.seed, null);
+    assert.ok(state.game.board.every((card) => card.color === null));
+    const room = ctx.rooms.get(roomCode);
+    const finishedP = waitForState(op, (s) => s.game?.phase === 'finished');
+    const assassin = room.game.board.find((card) => card.color === 'assassin');
+    await emit(op, 'turn:guess', { index: assassin.index });
+    assert.equal((await finishedP).game.seed, room.game.seed);
+  } finally {
+    await shutdown(ctx, spy, op);
+  }
+});
+
+for (const transport of ['polling', 'websocket']) {
+  test(`subpath supports API and Socket.IO ${transport}`, async () => {
+    const ctx = await boot();
+    const client = ioClient(`http://127.0.0.1:${ctx.port}`, {
+      path: '/taccan/socket.io', transports: [transport],
+      forceNew: true, reconnection: false,
+    });
+    try {
+      await waitFor(client, 'server:ready');
+      assert.equal((await emit(client, 'room:create', {})).ok, true);
+      const response = await fetch(`http://127.0.0.1:${ctx.port}/taccan/api/turn-credentials`);
+      assert.equal(response.status, 200);
+      assert.ok(Array.isArray((await response.json()).iceServers));
+    } finally {
+      await shutdown(ctx, client);
+    }
+  });
+}
+
+test('rejoining a restored blitz game resumes its timer only once', async () => {
+  const ctx = await boot();
+  const client = connect(ctx.port);
+  try {
+    await waitFor(client, 'server:ready');
+    const created = await emit(client, 'room:create', {});
+    await emit(client, 'team:set', { team: 'red' });
+    await emit(client, 'room:mode_set', { mode: 'blitz' });
+    await emit(client, 'game:start', {});
+    const room = ctx.rooms.get(created.roomCode);
+    // Persistence clears the deadline and cannot restore a JS timeout handle.
+    clearTimeout(ctx.phaseTimers.get(room.code));
+    ctx.phaseTimers.delete(room.code);
+    room.game.phaseTimer = null;
+    const payload = { code: room.code, sessionId: created.sessionId };
+    assert.equal((await emit(client, 'room:rejoin', payload)).ok, true);
+    assert.ok(ctx.phaseTimers.has(room.code));
+    const timer = room.game.phaseTimer;
+    assert.ok(timer);
+    assert.equal((await emit(client, 'room:rejoin', payload)).ok, true);
+    assert.equal(room.game.phaseTimer, timer);
+  } finally {
+    for (const timer of ctx.phaseTimers.values()) clearTimeout(timer);
+    await shutdown(ctx, client);
+  }
+});
+
+test('voice joins notify once and signals stop after a peer leaves', async () => {
+  const ctx = await boot();
+  const { spy, op } = await setupRoom(ctx);
+  try {
+    assert.deepEqual((await emit(spy, 'voice:join', {})).peers, []);
+    let notifications = 0;
+    spy.on('voice:peer_joined', () => notifications++);
+    const joinedP = waitFor(spy, 'voice:peer_joined');
+    const joined = await emit(op, 'voice:join', {});
+    const peer = await joinedP;
+    assert.equal(joined.peers.length, 1);
+    await emit(op, 'voice:join', {});
+    // The ack on this same socket confirms prior notifications were delivered.
+    await emit(spy, 'voice:join', {});
+    assert.equal(notifications, 1);
+    const signalP = waitFor(op, 'voice:signal');
+    const signal = { targetSessionId: peer.sessionId, type: 'offer', sdp: 'test-offer' };
+    assert.equal((await emit(spy, 'voice:signal', signal)).ok, true);
+    assert.equal((await signalP).sdp, 'test-offer');
+    const leftP = waitFor(spy, 'voice:peer_left');
+    await emit(op, 'voice:leave', {});
+    await leftP;
+    assert.equal((await emit(spy, 'voice:signal', signal)).ok, false);
+  } finally {
+    await shutdown(ctx, spy, op);
+  }
+});

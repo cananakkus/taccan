@@ -2,3 +2,7 @@ node_modules
 .git
 test
 .taccan-state.json
+.env
+.env.*
+test-results
+playwright-report
