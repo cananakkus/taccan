@@ -131,6 +131,14 @@ for (const width of [390, 1280]) {
       expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await role(host, 'red');
       await role(guest, 'blue');
+      const chatHeight = await host.locator('#sheet-feed').evaluate(el => el.getBoundingClientRect().height);
+      for (let i = 0; i < 8; i++) {
+        await host.locator('#chat-input').fill(`Message ${i}: ${'A longer message to exercise scrolling. '.repeat(3)}`);
+        await host.locator('#chat-form button').click();
+      }
+      await expect(guest.locator('#feed-entries .feed-name.red').last()).toHaveText('Host:');
+      expect(await host.locator('#sheet-feed').evaluate(el => el.getBoundingClientRect().height)).toBe(chatHeight);
+
       await host.locator('#start-game-btn').click();
       await expect.poll(() => room.game?.phase).toBe('hint');
       const first = room.game.currentTeam === 'red' ? host : guest;
@@ -152,6 +160,13 @@ for (const width of [390, 1280]) {
       for (const page of [host, guest]) {
         await expect(page.locator('#hint-display')).toContainText('GALACTIC');
         await expect(page.locator('#hint-display')).toContainText('OCEANIC');
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await expect(page.locator('#board')).toBeInViewport({ ratio: 1 });
+        if (width === 1280) {
+          expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+          await expect(page.locator('#chat-input')).toBeInViewport({ ratio: 1 });
+        }
+
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.locator('#chat-input').scrollIntoViewIfNeeded();
         await expect(page.locator('#voice-join-btn')).toBeInViewport();

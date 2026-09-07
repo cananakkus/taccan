@@ -2652,7 +2652,7 @@ html.theme-transitioning .voice-peer {
 #sheet-teams.persistent-panel .sheet-body { grid-template-columns: minmax(0, 1fr); }
 #sheet-teams.persistent-panel .team-panel { min-width: 0; }
 #sheet-feed.persistent-panel .sheet-body { max-height: none; }
-#sheet-feed .feed-entries { max-height: 300px; min-height: 100px; overflow-y: auto; overflow-wrap: anywhere; }
+#sheet-feed .feed-entries { height: 220px; min-height: 0; flex: none; overflow-y: auto; overflow-wrap: anywhere; }
 #sheet-feed .chat-form { display: flex; gap: 8px; margin-top: 12px; }
 #sheet-feed .chat-form input { min-width: 0; flex: 1; }
 .readiness-note { flex-basis: 100%; font-size: .9rem; color: var(--ink-light); }
@@ -2703,3 +2703,29 @@ html.theme-transitioning .voice-peer {
 }
 
 .room-screen .persistent-panel input, .room-screen .ctrl-panel input { min-height: 44px; }
+
+/* Size the board from the available screen height, not just its width. */
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) { height: 100dvh; min-height: 0; overflow: hidden; }
+  .room-screen:not(.is-lobby) .game-stage { min-height: 0; padding: 12px 20px; }
+  .room-screen:not(.is-lobby) .stage-layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; gap: 10px 20px; }
+  .room-screen:not(.is-lobby) .board-area { height: 100%; min-height: 0; gap: 6px; }
+  .room-screen:not(.is-lobby) .board-wrap { flex: 1; min-height: 0; }
+  .room-screen:not(.is-lobby) .board { height: 100%; grid-template-rows: repeat(5, minmax(0, 1fr)); }
+  .room-screen:not(.is-lobby) .board .card { aspect-ratio: auto; min-height: 0; }
+  .room-screen:not(.is-lobby) .room-sidebar { height: 100%; min-height: 0; gap: 10px; }
+  .room-screen:not(.is-lobby) #sheet-teams { flex: 1; min-height: 0; overflow-y: auto; }
+  .room-screen:not(.is-lobby) #sheet-feed { height: clamp(200px, 36dvh, 340px); flex: none; }
+  .room-screen:not(.is-lobby) #sheet-feed .sheet-body { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; padding: 12px; }
+  .room-screen:not(.is-lobby) #sheet-feed .feed-entries { height: 100%; }
+  .room-screen:not(.is-lobby) #sheet-feed .chat-form { margin-top: 0; }
+  .room-screen:not(.is-lobby) .persistent-panel .sheet-body { padding: 12px; }
+  .room-screen:not(.is-lobby) .team-panel { padding: 8px; }
+}
+@media (max-width: 900px) {
+  .room-screen:not(.is-lobby) .board { height: clamp(180px, calc(100dvh - 360px), 400px); grid-template-rows: repeat(5, minmax(0, 1fr)); }
+  .room-screen:not(.is-lobby) .board .card { aspect-ratio: auto; min-height: 0; }
+  .room-screen:not(.is-lobby) .board-area { gap: 6px; }
+  .room-screen:not(.is-lobby) .game-stage { padding: 8px; }
+  .room-screen:not(.is-lobby) .stage-layout { gap: 10px; }
+}

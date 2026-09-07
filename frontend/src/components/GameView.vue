@@ -171,7 +171,7 @@ const voicePeerRows = computed(() => {
   return rows;
 });
 const feedItems = computed(() => {
-  const items: Array<{ key: string; className: string; text: string }> = [];
+  const items: Array<{ key: string; className: string; text: string; sender?: string; team?: string }> = [];
   const merged: Array<{ ts: number; kind: 'chat' | 'game'; entry: ChatMessage | GameHistoryEntry }> = [];
   for (const message of room.value?.chatMessages || []) {
     merged.push({ ts: message.ts || 0, kind: 'chat', entry: message });
@@ -193,7 +193,9 @@ const feedItems = computed(() => {
       items.push({
         key: `chat-${message.ts}-${message.sessionId}`,
         className: `feed-item feed-chat ${message.team || ''}`,
-        text: `${message.name}: ${message.text}`,
+        text: message.text,
+        sender: message.name,
+        team: message.team || '',
       });
       continue;
     }
@@ -1246,7 +1248,7 @@ onBeforeUnmount(() => {
               <h3 class="sheet-title">{{ t('panel_feed') }}</h3>
               <div id="feed-entries" class="feed-entries">
                 <div v-if="feedItems.length === 0" class="feed-empty">{{ t('feed_empty') }}</div>
-                <div v-for="item in feedItems" :key="item.key" :class="item.className">{{ item.text }}</div>
+                <div v-for="item in feedItems" :key="item.key" :class="item.className"><template v-if="item.sender"><span class="feed-name" :class="item.team">{{ item.sender }}:</span> </template><span class="feed-text">{{ item.text }}</span></div>
               </div>
               <form id="chat-form" class="chat-form" autocomplete="off" @submit.prevent="sendChat">
                 <input id="chat-input" :aria-label="t('chat_placeholder')" v-model="chatInput" type="text" maxlength="200" :placeholder="t('chat_placeholder')" />
