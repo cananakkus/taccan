@@ -124,8 +124,12 @@ const canGuessNow = computed(() => canGuess(snapshot.value));
 const currentMaxHintCount = computed(() => getCurrentMaxHintCount(snapshot.value));
 const readinessIssue = computed(() => getReadinessIssue(snapshot.value, (key) => t(key)));
 const sortRoster = (list: PlayerView[]) => [...list].sort((a, b) => Number(b.role === 'spymaster') - Number(a.role === 'spymaster') || Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name));
-const redPlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'red')));
-const bluePlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'blue')));
+const redPlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'red').filter(player => !game.value || player.role === 'operative')));
+const bluePlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'blue').filter(player => !game.value || player.role === 'operative')));
+const spymasters = computed(() => ({
+  red: sortRoster(getTeamPlayers(players.value, 'red').filter(player => player.role === 'spymaster')),
+  blue: sortRoster(getTeamPlayers(players.value, 'blue').filter(player => player.role === 'spymaster')),
+}));
 const spectatorPlayers = computed(() => players.value.filter(player => player.team === 'none' || player.role === 'spectator'));
 const roomMode = computed(() => room.value?.mode || 'casual');
 const displayBoard = computed<BoardCard[]>(() => {
@@ -245,7 +249,7 @@ const feedItems = computed(() => {
       const icon = entry.color === entry.team ? '\u2713' : '\u2717';
       items.push({
         key: `guess-${entry.at}-${entry.index}`,
-        className: `feed-item feed-guess ${String(entry.team || '')}`,
+        className: `feed-item feed-guess ${String(entry.color || '')}`,
         text: `${icon} ${word}`,
       });
     } else if (type === 'turn_end') {
@@ -295,6 +299,7 @@ function formatRole(role: string): string {
 }
 
 function teamListEmptyLabel(team: 'red' | 'blue') {
+  if (game.value) return t('no_operatives');
   return team === 'red' ? t('no_red_agents') : t('no_blue_agents');
 }
 
@@ -305,16 +310,7 @@ function hintStatusText() {
   return t('hint_status_spymaster_locked', { team: formatTeam(game.value?.currentTeam) });
 }
 
-const latestHints = computed(() => {
-  const hints = new Map<string, { team: Team; word: string; count: number }>();
-  for (const entry of game.value?.history || []) {
-    if (entry.type === 'hint' && (entry.team === 'red' || entry.team === 'blue')) {
-      hints.set(entry.team, { team: entry.team, word: String(entry.word), count: Number(entry.count) });
-    }
-  }
-  if (game.value?.hint) hints.set(game.value.hint.team, game.value.hint);
-  return ['red', 'blue'].flatMap((team) => hints.has(team) ? [hints.get(team)!] : []);
-});
+const activeHint = computed(() => game.value?.phase === 'guess' && game.value.hint?.team === game.value.currentTeam ? game.value.hint : null);
 
 function hintDisplayText(hint: { word: string; count: number }) {
   return `${hint.word.toLocaleUpperCase(getLocaleTag(preferences.language))} · ${hint.count}`;
@@ -1067,9 +1063,16 @@ onBeforeUnmount(() => {
           <div class="stage-layout">
             <div v-if="game" class="board-area">
               <div id="hint-display" class="clue-summary" aria-live="polite">
-                <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :class="{ current: game.currentTeam === team, empty: !latestHints.some(hint => hint.team === team) }" :data-team="team">
+                <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :class="{ current: game.currentTeam === team, empty: activeHint?.team !== team }" :data-team="team">
                   <strong class="words-remaining" :aria-label="`${formatTeam(team)}: ${t('words_left', { count: game.remaining[team] })}`">{{ t('words_left', { count: game.remaining[team] }) }}</strong>
-                  <span class="clue-word" :data-team-label="formatTeam(team)">{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
+                  <div class="spymaster-roster" :aria-label="`${formatTeam(team)} · ${t('spymaster')}`">
+                    <span class="spymaster-label">{{ t('spymaster') }}</span>
+                    <ul v-if="spymasters[team].length">
+                      <li v-for="player in spymasters[team]" :key="player.sessionId" :class="{ 'is-offline': !player.connected, speaking: playerIsSpeaking(player.sessionId) }">{{ player.name }}<small v-if="!player.connected"> · {{ t('tag_offline') }}</small></li>
+                    </ul>
+                    <span v-else class="spymaster-vacancy">—</span>
+                  </div>
+                  <span class="clue-word" :data-team-label="formatTeam(team)">{{ activeHint?.team === team ? hintDisplayText(activeHint) : '—' }}</span>
                   <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t(game.guessesRemaining === 1 ? 'guess_left' : 'guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
                 </div>
               </div>
@@ -1184,12 +1187,12 @@ onBeforeUnmount(() => {
             <aside class="room-sidebar">
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
-              <h3 class="sheet-title roster-title">{{ t('panel_teams') }} <button v-if="game" id="manage-roles-btn" class="btn btn-ghost btn-sm" type="button" :aria-expanded="manageRoles" @click="manageRoles = !manageRoles">{{ manageRoles ? t('close_panel') : t('change_team') }}</button></h3>
+              <h3 class="sheet-title roster-title">{{ t(game ? 'panel_operatives' : 'panel_teams') }} <button v-if="game" id="manage-roles-btn" class="btn btn-ghost btn-sm" type="button" :aria-expanded="manageRoles" @click="manageRoles = !manageRoles">{{ manageRoles ? t('close_panel') : t('change_team') }}</button></h3>
 
               <div class="team-panel team-red">
                 <div class="team-head">
                   <span class="team-dot red"></span>
-                  <h3 :aria-label="t('red_team')">{{ game && !manageRoles ? t('player_count', { count: redPlayers.length }) : t('red_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ redPlayers.length }}</span>
+                  <h3 :aria-label="t('red_team')">{{ game && !manageRoles ? t('operative_count', { count: redPlayers.length }) : t('red_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ redPlayers.length }}</span>
                 </div>
                 <ul id="red-team-list" class="player-list" :aria-label="t('red_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, redPlayers.length)) }">
                   <li v-if="redPlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('red') }}</li>
@@ -1220,7 +1223,7 @@ onBeforeUnmount(() => {
               <div class="team-panel team-blue">
                 <div class="team-head">
                   <span class="team-dot blue"></span>
-                  <h3 :aria-label="t('blue_team')">{{ game && !manageRoles ? t('player_count', { count: bluePlayers.length }) : t('blue_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ bluePlayers.length }}</span>
+                  <h3 :aria-label="t('blue_team')">{{ game && !manageRoles ? t('operative_count', { count: bluePlayers.length }) : t('blue_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ bluePlayers.length }}</span>
                 </div>
                 <ul id="blue-team-list" class="player-list" :aria-label="t('blue_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, bluePlayers.length)) }">
                   <li v-if="bluePlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('blue') }}</li>

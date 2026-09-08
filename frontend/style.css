@@ -3068,3 +3068,51 @@ html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-bl
  .invite-short { display: inline; }
  .room-screen .clue-slot.current small::before { content: '· '; }
 }
+
+/* Turn summary: leaders stay with their team's score; clues belong to one turn. */
+.room-screen #hint-display {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto; gap: 12px; height: auto; min-height: 100px; flex: 0 0 auto;
+}
+.room-screen #hint-display .clue-slot {
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 24px minmax(24px, auto) minmax(24px, auto) 20px;
+  align-content: start; align-items: start; gap: 2px; padding: 2px 4px;
+}
+.room-screen #hint-display .clue-slot > * { grid-column: auto; grid-row: auto; text-align: left; min-width: 0; }
+.room-screen #hint-display .words-remaining { font-size: 20px; line-height: 24px; white-space: nowrap; }
+.room-screen #hint-display .spymaster-roster { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.room-screen #hint-display .spymaster-label { font: 13px/22px var(--font-body); color: var(--ink-light); overflow: visible; white-space: normal; }
+.spymaster-roster ul { display: flex; flex-wrap: wrap; gap: 0 10px; list-style: none; padding: 0; margin: 0; min-width: 0; }
+.spymaster-roster li { font: 700 17px/22px var(--font-body); overflow-wrap: anywhere; max-width: 100%; }
+.spymaster-roster li.is-offline { opacity: .7; }
+.spymaster-roster li.speaking { text-decoration: underline; text-decoration-thickness: 2px; }
+.room-screen #hint-display .spymaster-roster small { font: 13px/20px var(--font-body); }
+.room-screen #hint-display .spymaster-roster small::before { content: none; }
+.room-screen #hint-display .clue-word { font-size: 18px; line-height: 24px; overflow: visible; white-space: normal; }
+.room-screen #hint-display .clue-slot > small { font: 14px/20px var(--font-body); }
+.room-screen #hint-display .clue-slot > small::before { content: none; }
+.room-screen #hint-display .clue-slot.empty .clue-word { visibility: hidden; }
+
+/* Controls take the space they need, without an inner scrolling viewport. */
+.room-screen:not(.is-lobby) .controls-strip { height: auto; min-height: 96px; overflow: visible; align-self: start; }
+.room-screen #hint-section { min-width: 0; }
+.room-screen #hint-section .ctrl-head { flex-wrap: wrap; gap: 2px 12px; }
+.room-screen #hint-section .ctrl-status { margin: 0; }
+.room-screen #hint-section .hint-form { align-items: center; }
+.room-screen .feed-guess.red { color: var(--text-red); border-left-color: var(--text-red); }
+.room-screen .feed-guess.blue { color: var(--text-blue); border-left-color: var(--text-blue); }
+.room-screen .feed-guess.neutral { color: #d6c7a9; border-left-color: var(--neutral-color); }
+html[data-theme="light"] .room-screen .feed-guess.neutral { color: #75644b; }
+.room-screen .feed-guess.assassin { color: #171419; border-left-color: #171419; }
+.room-screen .feed-guess.assassin .feed-text { background: #e8dcc0; padding: 1px 4px; border-radius: 2px; }
+@media (max-width: 900px) {
+  .room-screen #hint-display { gap: 8px; }
+  .room-screen #hint-display .words-remaining { font-size: 18px; }
+  .room-screen #hint-display .spymaster-label { flex-basis: 100%; line-height: 16px; }
+  .spymaster-roster li { font-size: 16px; line-height: 20px; }
+  .room-screen:not(.is-lobby) .controls-strip { min-height: 0; }
+}
+.room-screen .feed-guess .feed-text, .room-screen .feed-hint .feed-text { color: inherit; }
+.room-screen .feed-hint.red { color: var(--text-red); }
+.room-screen .feed-hint.blue { color: var(--text-blue); }

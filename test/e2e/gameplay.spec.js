@@ -108,7 +108,7 @@ async function emit(client, event, payload) {
 }
 
 for (const width of [390, 1280]) {
-  test(`both spymasters see clues across turns at width ${width}`, async ({ browser }) => {
+  test(`both spymasters see only the active turn clue at width ${width}`, async ({ browser }) => {
     const host = await openPlayer(browser);
     await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
     const hostSession = await session(host);
@@ -145,8 +145,14 @@ for (const width of [390, 1280]) {
       await expect.poll(() => room.game?.phase).toBe('hint');
       const boardHeights = await Promise.all([host, guest].map(page => page.locator('#board').evaluate(el => el.getBoundingClientRect().height)));
 
+      for (const page of [host, guest]) {
+        await expect(page.locator('.spymaster-roster')).toContainText(['Host', 'Guest']);
+        await expect(page.locator('#sheet-teams .team-player-name')).toHaveCount(0);
+      }
       const first = room.game.currentTeam === 'red' ? host : guest;
       const second = first === host ? guest : host;
+      expect(await first.locator('.controls-strip').evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+      expect(await first.locator('#hint-section').evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
       await first.locator('#hint-word-input').fill('galactic');
       await first.locator('#hint-form button[type="submit"]').click();
       await expect(second.locator('#hint-display')).toBeVisible();
@@ -162,11 +168,12 @@ for (const width of [390, 1280]) {
       await emit(operative, 'team:set', { team: room.game.currentTeam });
       await emit(operative, 'turn:end', {});
       await expect(second.locator('#hint-word-input')).toBeVisible();
-      await expect(second.locator('#hint-display')).toContainText('GALACTIC');
+      await expect(second.locator('#hint-display')).not.toContainText('GALACTIC');
+      await expect(second.locator('#feed-entries')).toContainText('GALACTIC');
       await second.locator('#hint-word-input').fill('oceanic');
       await second.locator('#hint-form button[type="submit"]').click();
       for (const page of [host, guest]) {
-        await expect(page.locator('#hint-display')).toContainText('GALACTIC');
+        await expect(page.locator('#hint-display')).not.toContainText('GALACTIC');
         await expect(page.locator('#hint-display')).toContainText('OCEANIC');
         expect(Math.abs(await page.locator('#board').evaluate(el => el.getBoundingClientRect().height) - boardHeights[page === host ? 0 : 1])).toBeLessThanOrEqual(1);
 
@@ -206,6 +213,7 @@ for (const width of [390, 1280]) {
       await tile.click();
       await second.locator('#submit-guess-btn').click();
       await expect(tile).toHaveClass(/revealed/);
+      await expect(second.locator('.feed-guess').last()).toHaveClass(new RegExp(team));
       await expect(tile.locator('.card-word')).toHaveCount(1);
       await expect(tile.locator('.card-inner')).toHaveCSS('transform', 'none');
       await expect(second.locator(`.clue-slot[data-team="${team}"] .words-remaining`)).toHaveText(`${remaining - 1} words left`);
@@ -276,8 +284,8 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
     await host.locator('#start-game-btn').click();
     await expect(host.locator('#manage-roles-btn')).toBeInViewport({ ratio: 1 });
     await expect(host.locator('#chat-input')).toBeInViewport({ ratio: 1 });
-    await expect(host.locator('.team-red .team-head')).toContainText('10 players');
-    await expect(host.locator('.team-blue .team-head')).toContainText('4 players');
+    await expect(host.locator('.team-red .team-head')).toContainText('9 operatives');
+    await expect(host.locator('.team-blue .team-head')).toContainText('3 operatives');
     await host.locator('[data-panel="settings"]').click();
     await host.locator('#sheet-settings .language-switch button').last().click();
     await host.locator('#sheet-settings .panel-close').click();
@@ -292,5 +300,44 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
   } finally {
     for (const client of crowd) { if (client.connected) await emit(client, 'room:leave', {}); client.disconnect(); }
     await host.close();
+  }
+});
+
+test('revealed words use their card colours and finished turns clear the summary', async ({ browser }) => {
+  const page = await openPlayer(browser);
+  const { code } = await session(page);
+  const room = ctx.rooms.get(code);
+  const peers = [];
+  try {
+    for (const [name, team, role] of [['Clue giver', 'red', 'spymaster'], ['Guesser', 'blue', 'operative']]) {
+      const peer = io(origin, { transports: ['websocket'], reconnection: false });
+      peers.push(peer); clients.push(peer);
+      await new Promise(resolve => peer.on('connect', resolve));
+      await emit(peer, 'room:join', { code, name });
+      await emit(peer, 'team:set', { team });
+      await emit(peer, 'role:set', { role });
+    }
+    await page.locator('#start-game-btn').click();
+    await expect.poll(() => room.game?.phase).toBe('hint');
+    for (const color of ['red', 'blue', 'neutral', 'assassin']) {
+      if (room.game.phase === 'guess') await emit(peers[1], 'turn:end', {});
+      for (const peer of peers) await emit(peer, 'team:set', { team: room.game.currentTeam });
+      await emit(peers[0], 'turn:hint_submit', { word: 'testclueabcd', count: 3 });
+      await expect(page.locator('#hint-display')).toContainText('TESTCLUEABCD');
+      const card = room.game.board.find(card => card.color === color && !card.revealed);
+      await emit(peers[1], 'turn:guess', { index: card.index });
+      const entry = page.locator('.feed-guess').last();
+      await expect(entry).toHaveClass(new RegExp(`\\b${color}\\b`));
+      if (color === 'red' || color === 'blue') {
+        const expected = await page.locator(`.clue-slot[data-team="${color}"]`).evaluate(el => getComputedStyle(el).color);
+        await expect(entry.locator('.feed-text')).toHaveCSS('color', expected);
+      }
+      if (room.game.phase !== 'guess') await expect(page.locator('#hint-display')).not.toContainText('TESTCLUEABCD');
+    }
+    await expect.poll(() => room.game.phase).toBe('finished');
+    await expect(page.locator('#feed-entries')).toContainText('TESTCLUEABCD');
+  } finally {
+    for (const peer of peers) peer.disconnect();
+    await page.close();
   }
 });
