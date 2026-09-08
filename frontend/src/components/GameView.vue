@@ -965,7 +965,7 @@ onBeforeUnmount(() => {
           <nav class="bar-tabs" aria-label="Panels">
             <div class="bar-util">
               <button id="room-code" class="room-code-val" type="button" :aria-label="t('copy_room_code')" @click="copyRoomCode">{{ room?.code || '----' }}</button>
-              <button class="btn btn-ghost btn-sm" type="button" @click="copyInviteLink">{{ t('copy_invite') }}</button>
+              <button class="btn btn-ghost btn-sm invite-link-btn" type="button" :aria-label="t('copy_invite')" @click="copyInviteLink"><span class="invite-full">{{ t('copy_invite') }}</span><span class="invite-short">{{ t('invite_short') }}</span></button>
               <span id="mode-badge" class="mode-tag" :class="{ blitz: roomMode === 'blitz' }">{{ roomMode === 'blitz' ? t('mode_blitz') : t('mode_casual') }}</span>
               <span id="connection-dot" class="conn-status" :class="{ online: app.connected, offline: !app.connected }">
                 <span class="conn-dot"></span>
@@ -1070,7 +1070,7 @@ onBeforeUnmount(() => {
                 <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :class="{ current: game.currentTeam === team, empty: !latestHints.some(hint => hint.team === team) }" :data-team="team">
                   <strong class="words-remaining" :aria-label="`${formatTeam(team)}: ${t('words_left', { count: game.remaining[team] })}`">{{ t('words_left', { count: game.remaining[team] }) }}</strong>
                   <span class="clue-word" :data-team-label="formatTeam(team)">{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
-                  <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t('guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
+                  <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t(game.guessesRemaining === 1 ? 'guess_left' : 'guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
                 </div>
               </div>
 

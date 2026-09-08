@@ -3039,3 +3039,10 @@ html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-bl
 }
 .room-screen #sheet-teams .team-player-item:focus { height: auto; flex-basis: auto; }
 .room-screen #sheet-teams .team-player-item:focus .team-player-name { white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+.invite-short { display: none; }
+.room-screen .clue-slot.current small { color: inherit; }
+@media (max-width: 900px) {
+ .invite-full { display: none; }
+ .invite-short { display: inline; }
+ .room-screen .clue-slot.current small::before { content: '· '; }
+}

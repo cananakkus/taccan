@@ -213,6 +213,7 @@ test('small phone keeps Turkish labels, lobby actions, and voice controls access
     await page.locator('[data-panel="settings"]').click();
     await page.locator('#sheet-settings .language-switch button').last().click();
     await page.locator('#sheet-settings .panel-close').click();
+    expect(await page.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height)).toBeLessThanOrEqual(90);
     await expect(page.locator('#start-game-btn')).toBeVisible();
     await expect(page.locator('[data-panel="settings"] .bar-tab-label')).toBeVisible();
     await page.locator('#voice-join-btn').click();
