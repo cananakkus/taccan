@@ -149,6 +149,10 @@ for (const width of [390, 1280]) {
       await first.locator('#hint-form button[type="submit"]').click();
       await expect(second.locator('#hint-display')).toBeVisible();
       await expect(second.locator('#hint-display')).toContainText('GALACTIC');
+      await expect(second.locator('#hint-display')).toContainText('guesses left');
+      expect(await second.locator('.clue-word').evaluateAll(els => els.every(el => el.scrollWidth <= el.clientWidth))).toBe(true);
+      expect(await second.locator('.card-front .card-word').evaluateAll(els => els.every(el => el.scrollWidth <= el.clientWidth))).toBe(true);
+
       const operative = io(origin, { transports: ['websocket'], reconnection: false });
       clients.push(operative);
       await new Promise(resolve => operative.on('connect', resolve));

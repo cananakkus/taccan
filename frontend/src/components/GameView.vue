@@ -15,13 +15,11 @@ import {
   getTeamPlayers,
   truncateMarkerName,
 } from '../lib/game-helpers';
-import { renderQRCode } from '../lib/qrcode';
 import { getAssetPath, getInitialRoomCode, getRoomUrl, getServiceWorkerPath } from '../lib/runtime';
 import { emitWithAck, socket } from '../lib/socket';
 import { playSound, toggleSoundMute } from '../lib/sound';
 import { DEFAULT_LANGUAGE, formatCardWord, getLocaleTag, translate } from '../lib/translations';
 import { clearSession } from '../lib/storage';
-import { renderRoomSeal } from '../lib/room-seal';
 import { useVoice } from '../composables/useVoice';
 import { useAppStore } from '../stores/app';
 import { usePreferencesStore } from '../stores/preferences';
@@ -59,6 +57,38 @@ const SERVER_ERROR_MAP: Record<string, string> = {
   'Room not found.': 'room_not_found',
 };
 
+const wordObservers = new WeakMap<HTMLElement, ResizeObserver>();
+const wordValues = new WeakMap<HTMLElement, string>();
+function fitWord(el: HTMLElement) {
+  if (!el.isConnected) return;
+  const word = wordValues.get(el) || '';
+  el.textContent = word;
+  el.style.whiteSpace = 'pre';
+  const preferred = window.innerWidth <= 600 ? 14 : 18;
+  let size = preferred;
+  el.style.fontSize = `${size}px`;
+  while (el.scrollWidth > el.clientWidth && size > 12) el.style.fontSize = `${--size}px`;
+  if (el.scrollWidth > el.clientWidth && word.length > 5) {
+    const middle = Math.ceil(word.length / 2);
+    el.textContent = `${word.slice(0, middle)}\n${word.slice(middle)}`;
+    size = preferred;
+    el.style.fontSize = `${size}px`;
+    while (el.scrollWidth > el.clientWidth && size > 10) el.style.fontSize = `${--size}px`;
+  }
+}
+const vFitWord = {
+  mounted(el: HTMLElement, binding: { value: string }) {
+    wordValues.set(el, binding.value);
+    const observer = new ResizeObserver(() => fitWord(el));
+    observer.observe(el.parentElement!);
+    wordObservers.set(el, observer);
+    fitWord(el);
+    void document.fonts.ready.then(() => fitWord(el));
+  },
+  updated(el: HTMLElement, binding: { value: string }) { wordValues.set(el, binding.value); fitWord(el); },
+  unmounted(el: HTMLElement) { wordObservers.get(el)?.disconnect(); wordObservers.delete(el); wordValues.delete(el); },
+};
+
 const PANEL_KEYS = ['settings', 'debrief'] as const;
 
 const app = useAppStore();
@@ -72,6 +102,7 @@ const hintWordInput = ref('');
 const hintCountInput = ref(1);
 const chatInput = ref('');
 const voiceMenuOpen = ref(false);
+const manageRoles = ref(false);
 watch(() => voice.active, (active) => { if (!active) voiceMenuOpen.value = false; });
 const blitzHintSec = ref(25);
 const blitzGuessSec = ref(35);
@@ -146,8 +177,6 @@ const debriefHtml = computed(() => {
   if (!game.value) return `<p>${t('debrief_no_data')}</p>`;
   return generateDebriefNarrative((key, vars) => t(key, vars), game.value.history, players.value, game.value.board);
 });
-const qrCodeSvg = computed(() => (room.value ? renderQRCode(getRoomUrl(room.value.code)) : ''));
-const roomSealSvg = computed(() => (room.value ? renderRoomSeal(room.value.code) : ''));
 const voicePeerRows = computed(() => {
   const rows: Array<{ sessionId: string; name: string; isSelf: boolean; volume: number; muted: boolean }> = [];
   if (me.value) {
@@ -293,10 +322,7 @@ const latestHints = computed(() => {
 });
 
 function hintDisplayText(hint: { word: string; count: number }) {
-  return t('hint_display', {
-    word: hint.word.toLocaleUpperCase(getLocaleTag(preferences.language)),
-    count: hint.count,
-  });
+  return `${hint.word.toLocaleUpperCase(getLocaleTag(preferences.language))} · ${hint.count}`;
 }
 
 function resultText() {
@@ -938,7 +964,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <section id="room-panel" class="room-screen" :class="{ hidden: !snapshot, 'is-lobby': !game }">
+      <section id="room-panel" class="room-screen" :class="{ hidden: !snapshot, 'is-lobby': !game, 'managing-roles': manageRoles }">
         <div class="bottom-bar">
           <nav class="bar-tabs" aria-label="Panels">
             <div class="bar-util">
@@ -1046,7 +1072,8 @@ onBeforeUnmount(() => {
               <div id="hint-display" class="clue-summary" aria-live="polite">
                 <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :data-team="team">
                   <strong>{{ formatTeam(team) }} · {{ game.remaining[team] }}</strong>
-                  <span>{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
+                  <span class="clue-word">{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
+                  <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t('guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
                 </div>
               </div>
 
@@ -1068,10 +1095,10 @@ onBeforeUnmount(() => {
                   >
                     <div class="card-inner">
                       <div class="card-front">
-                        <span class="card-word">{{ boardWord(card) }}</span>
+                        <span class="card-word" v-fit-word="boardWord(card)"></span>
                       </div>
                       <div class="card-back">
-                        <span class="card-word">{{ boardWord(card) }}</span>
+                        <span class="card-word" v-fit-word="boardWord(card)"></span>
                         <span class="card-stamp-slot" v-html="card.revealed ? stampSvg(card.color) : ''"></span>
                       </div>
                     </div>
@@ -1164,7 +1191,7 @@ onBeforeUnmount(() => {
             <aside class="room-sidebar">
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
-              <h3 class="sheet-title">{{ t('panel_teams') }}</h3>
+              <h3 class="sheet-title roster-title">{{ t('panel_teams') }} <button v-if="game" id="manage-roles-btn" class="btn btn-ghost btn-sm" type="button" :aria-expanded="manageRoles" @click="manageRoles = !manageRoles">{{ manageRoles ? t('close_panel') : t('change_role') }}</button></h3>
 
               <div class="team-panel team-red">
                 <div class="team-head">
@@ -1188,7 +1215,7 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
-                <div class="team-actions">
+                <div v-if="!game || manageRoles" class="team-actions">
                   <div class="role-row">
                     <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'spymaster') }" @click="() => void setRole('spymaster', 'red')">{{ t('spymaster') }}</button>
                     <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'operative') }" @click="() => void setRole('operative', 'red')">{{ t('operative') }}</button>
@@ -1218,7 +1245,7 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
-                <div class="team-actions">
+                <div v-if="!game || manageRoles" class="team-actions">
                   <div class="role-row">
                     <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'spymaster') }" @click="() => void setRole('spymaster', 'blue')">{{ t('spymaster') }}</button>
                     <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'operative') }" @click="() => void setRole('operative', 'blue')">{{ t('operative') }}</button>
@@ -1226,7 +1253,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div class="sidebar-actions">
+              <div v-if="!game || manageRoles || game.phase === 'finished'" class="sidebar-actions">
                 <p v-if="!game && readinessIssue" class="readiness-note">{{ readinessIssue }}</p>
                 <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
                   {{ t('start_game') }}
@@ -1265,75 +1292,39 @@ onBeforeUnmount(() => {
             <div class="sheet-body">
               <h3 class="sheet-title">{{ t('panel_settings') }} <button class="btn btn-ghost btn-sm panel-close" type="button" @click="ui.closePanel()">{{ t('close_panel') }}</button></h3>
 
-              <div class="settings-block settings-block-meta">
-                <div class="room-meta">
-                  <div id="qr-code-container" class="qr-wrap" v-html="qrCodeSvg"></div>
-                  <div id="room-seal-container" class="seal-wrap" v-html="roomSealSvg"></div>
+              <section class="settings-group">
+                <h4>{{ t('appearance') }}</h4>
+                <div class="preference-row"><span>{{ t('theme_label') }}</span><div class="segmented">
+                  <button type="button" :aria-pressed="preferences.resolvedTheme === 'light'" @click="preferences.setTheme('light')">{{ t('theme_light') }}</button>
+                  <button type="button" :aria-pressed="preferences.resolvedTheme === 'dark'" @click="preferences.setTheme('dark')">{{ t('theme_dark') }}</button>
+                </div></div>
+                <div class="preference-row"><span>{{ t('card_patterns') }}</span><button id="colorblind-toggle-btn" class="preference-switch" type="button" role="switch" :aria-checked="preferences.colorblindMode" @click="preferences.setColorblindMode(!preferences.colorblindMode)">{{ t(preferences.colorblindMode ? 'enabled' : 'disabled') }}</button></div>
+                <div class="preference-row"><span>{{ t('language_label') }}</span><div class="language-switch segmented" role="group" :aria-label="t('language_label')">
+                  <button type="button" :aria-pressed="preferences.language === 'en'" @click="preferences.setLanguage('en')">{{ t('language_en') }}</button>
+                  <button type="button" :aria-pressed="preferences.language === 'tr'" @click="preferences.setLanguage('tr')">{{ t('language_tr') }}</button>
+                </div></div>
+              </section>
+              <section class="settings-group">
+                <h4>{{ t('audio_options') }}</h4>
+                <div class="preference-row"><span>{{ t('sound_effects') }}</span><button id="sound-toggle-btn" class="preference-switch" type="button" role="switch" :aria-checked="!preferences.soundMuted" @click="toggleSoundMute()">{{ t(!preferences.soundMuted ? 'enabled' : 'disabled') }}</button></div>
+                <div class="preference-row"><span>{{ t('noise_suppression') }}</span><button class="preference-switch" type="button" role="switch" :aria-checked="preferences.noiseSuppression" @click="() => void toggleNoiseSuppression()">{{ t(preferences.noiseSuppression ? 'enabled' : 'disabled') }}</button></div>
+              </section>
+              <section class="settings-group">
+                <h4>{{ t('room_setup') }}</h4>
+                <p v-if="game && game.phase !== 'finished'" class="settings-explanation">{{ t('room_setup_locked') }}</p>
+                <div class="preference-row"><span>{{ t('mode') }}</span><div class="segmented">
+                  <button type="button" :aria-pressed="roomMode === 'casual'" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('casual')">{{ t('mode_casual') }}</button>
+                  <button type="button" :aria-pressed="roomMode === 'blitz'" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('blitz')">{{ t('mode_blitz') }}</button>
+                </div></div>
+                <div v-if="roomMode === 'blitz'" class="timer-settings">
+                  <label>{{ t('blitz_hint_timer') }} <input id="blitz-hint-sec" v-model="blitzHintSec" type="number" min="5" max="300" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @change="() => void sendBlitzConfig()" /></label>
+                  <label>{{ t('blitz_guess_timer') }} <input id="blitz-guess-sec" v-model="blitzGuessSec" type="number" min="5" max="300" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @change="() => void sendBlitzConfig()" /></label>
                 </div>
-              </div>
-
-              <div class="settings-block">
-                <span class="settings-label">{{ t('mode') }}</span>
-                <div class="mode-grid">
-                  <button class="mode-btn" type="button" :class="{ active: roomMode === 'casual' }" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('casual')">
-                    {{ t('mode_casual') }}
-                  </button>
-                  <button class="mode-btn" type="button" :class="{ active: roomMode === 'blitz' }" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('blitz')">
-                    {{ t('mode_blitz') }}
-                  </button>
-                </div>
-                <div id="blitz-config" class="blitz-config" :class="{ hidden: roomMode !== 'blitz' || !!(game && game.phase !== 'finished') }">
-                  <label class="blitz-field">
-                    <span>{{ t('blitz_hint_timer') }}</span>
-                    <input id="blitz-hint-sec" v-model="blitzHintSec" type="number" min="5" max="300" class="input-sm" :disabled="!me?.isHost" @change="() => void sendBlitzConfig()" />
-                    <span>s</span>
-                  </label>
-                  <label class="blitz-field">
-                    <span>{{ t('blitz_guess_timer') }}</span>
-                    <input id="blitz-guess-sec" v-model="blitzGuessSec" type="number" min="5" max="300" class="input-sm" :disabled="!me?.isHost" @change="() => void sendBlitzConfig()" />
-                    <span>s</span>
-                  </label>
-                </div>
-                <p id="mode-note" class="mode-note">
-                  {{
-                    roomMode === 'blitz'
-                      ? t('mode_note_blitz', { hint: Math.round(Number(room?.modeConfig?.hintTimerMs || 25000) / 1000), guess: Math.round(Number(room?.modeConfig?.guessTimerMs || 35000) / 1000) })
-                      : t('mode_note_casual')
-                  }}
-                </p>
-              </div>
-
-              <div class="settings-block">
-                <div class="toggle-row">
-                  <button class="toggle-btn" type="button" @click="preferences.toggleTheme()">
-                    <span>{{ preferences.resolvedTheme === 'dark' ? t('theme_light') : t('theme_dark') }}</span>
-                  </button>
-                  <button id="sound-toggle-btn" class="toggle-btn" type="button" @click="toggleSoundMute()">
-                    <span>{{ preferences.soundMuted ? t('sound_off') : t('sound_on') }}</span>
-                  </button>
-                  <button id="colorblind-toggle-btn" class="toggle-btn" type="button" @click="preferences.setColorblindMode(!preferences.colorblindMode)">
-                    <span>{{ preferences.colorblindMode ? t('colorblind_on') : t('colorblind_off') }}</span>
-                  </button>
-                  <button class="toggle-btn" type="button" @click="() => void toggleNoiseSuppression()">
-                    <span>{{ preferences.noiseSuppression ? t('voice_noise_off') : t('voice_noise_on') }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div class="settings-block">
-                <span class="settings-label">{{ t('word_pack') }}</span>
-                <div class="pack-row">
-                  <input ref="wordPackInput" type="url" placeholder="https://..." class="input-sm" />
-                  <button class="btn btn-ghost btn-sm" type="button" @click="() => void loadWordPack()">{{ t('load') }}</button>
-                </div>
-              </div>
-
-              <div class="settings-block">
-                <div class="language-switch" role="group" aria-label="Language">
-                  <button class="lang-btn" type="button" :class="{ active: preferences.language === 'en' }" @click="preferences.setLanguage('en')">{{ t('language_en') }}</button>
-                  <button class="lang-btn" type="button" :class="{ active: preferences.language === 'tr' }" @click="preferences.setLanguage('tr')">{{ t('language_tr') }}</button>
-                </div>
-              </div>
+                <label class="wordpack-label">{{ t('word_pack') }}<div class="pack-row">
+                  <input ref="wordPackInput" type="url" placeholder="https://..." :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" />
+                  <button class="btn btn-ghost btn-sm" type="button" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void loadWordPack()">{{ t('load') }}</button>
+                </div></label>
+              </section>
             </div>
           </div>
 

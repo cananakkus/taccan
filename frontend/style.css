@@ -2845,3 +2845,75 @@ html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-bl
 @media (max-width: 400px) {
   .room-screen .bar-tab, .room-screen .btn-role { font-size: 13px; }
 }
+
+/* Play-first hierarchy: clear words, compact roster, explicit preferences. */
+.room-screen .card-word { display: block; width: 100%; max-width: 100%; letter-spacing: 0; word-break: normal; overflow-wrap: normal; line-height: 1.2; }
+.room-screen .card.keycard.assassin, .room-screen .card.finished-reveal.assassin { background: #252126; border: 2px solid #d9c7a1; box-shadow: inset 0 0 0 2px #252126; }
+.room-screen .card.keycard.assassin .card-word, .room-screen .card.finished-reveal.assassin .card-word { color: #fff3d7; }
+.colorblind-mode .room-screen .card.keycard::after, .colorblind-mode .room-screen .card.revealed::after { inset: auto 0 0; height: 9px; border-top: 1px solid var(--border-light); }
+.room-screen #hint-display { flex-basis: 68px; height: 68px; min-height: 68px; }
+.room-screen .clue-slot { position: relative; padding: 3px 4px; justify-content: flex-start; }
+.room-screen .clue-slot .clue-word { font-family: var(--font-typewriter); font-size: 18px; line-height: 24px; white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+.room-screen .clue-slot small { font-size: 14px; line-height: 16px; color: var(--ink-light); }
+.room-screen .roster-title { display: flex; align-items: center; justify-content: space-between; }
+.room-screen .roster-title .btn { font: 13px var(--font-body); min-height: 32px; padding: 3px 7px; text-transform: none; }
+.room-screen:not(.is-lobby):not(.managing-roles) .team-player-item { padding: 4px 0; }
+.room-screen:not(.is-lobby):not(.managing-roles) .team-panel { padding: 6px 0; gap: 4px; }
+.room-screen:not(.is-lobby):not(.managing-roles) .team-head h3 { font-size: 12px; }
+.room-screen:not(.is-lobby):not(.managing-roles) .team-player-name { font-size: 16px; line-height: 1.2; }
+.room-screen:not(.is-lobby):not(.managing-roles) .player-meta .tag { border: 0; background: transparent; padding: 0 4px 0 0; color: var(--ink-light); font-family: var(--font-body); font-size: 13px; text-transform: none; }
+.room-screen .ctrl-panel { padding: 8px 12px; }
+.room-screen .ctrl-head { margin-bottom: 4px; }
+.room-screen #guess-section:not(:has(.guess-row)) { border: 0; padding: 4px; }
+.room-screen #guess-section:not(:has(.guess-row)) .ctrl-status { margin: 0; }
+.room-screen #sheet-settings { top: 50%; bottom: auto; width: 500px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px); transform: translate(-50%, -50%); border: 1px solid var(--border-dark); border-radius: 8px; }
+.room-screen #sheet-settings:not(.sheet-open) { display: none; }
+.room-screen #sheet-settings .sheet-handle { display: none; }
+.room-screen #sheet-settings .sheet-body { padding: 20px; gap: 0; }
+.room-screen #sheet-settings .sheet-title { margin-bottom: 14px; }
+.settings-group { margin-bottom: 18px; }
+.settings-group:last-child { margin-bottom: 0; }
+.settings-group h4 { font: 700 15px var(--font-display); color: var(--ink); margin: 0 0 8px; }
+.preference-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 44px; font-size: 17px; }
+.segmented { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.segmented button { min-height: 34px; padding: 5px 12px; border: 0; border-radius: 0; background: transparent; color: var(--ink-light); font: 15px var(--font-body); }
+.segmented button[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 700; }
+.segmented button:disabled { cursor: not-allowed; }
+.preference-switch { min-width: 68px; min-height: 34px; border: 1px solid var(--border-dark); border-radius: 20px; background: transparent; color: var(--ink-light); font: 700 15px var(--font-body); }
+.preference-switch[aria-checked="true"] { background: var(--ink); color: var(--paper); }
+.settings-explanation { color: var(--ink-light); font-size: 15px; margin: 4px 0 8px; }
+.wordpack-label { display: block; margin-top: 12px; font-size: 16px; }
+.wordpack-label .pack-row { margin-top: 4px; }
+.timer-settings { display: flex; gap: 12px; }
+.timer-settings label { flex: 1; min-width: 0; }
+.timer-settings input { width: 100%; }
+@media (min-width: 901px) {
+ .room-screen:not(.is-lobby) .controls-strip { height: 92px; min-height: 92px; }
+ .room-screen:not(.is-lobby):not(.managing-roles) #sheet-teams { flex: 0 0 auto; max-height: 32%; }
+ .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body { gap: 8px 16px; }
+}
+@media (max-width: 900px) {
+ .room-screen:not(.is-lobby) .board { height: clamp(180px, calc(100dvh - 350px), 370px); }
+ .room-screen .bar-tabs { gap: 0 4px; }
+ .room-screen .bar-tab, .room-screen .room-code-val { min-height: 34px; }
+ .room-screen .bar-util .btn { padding: 4px 6px; }
+ .room-screen .bottom-bar { padding: 2px 8px; }
+ .room-screen .turn-banner { font-size: 14px; }
+ .room-screen #hint-display { gap: 8px; }
+ .room-screen .clue-slot .clue-word { font-size: 15px; line-height: 20px; }
+ .room-screen .clue-slot small { font-size: 13px; }
+ .room-screen:not(.is-lobby):not(.managing-roles) #sheet-teams .sheet-body { padding: 8px 12px; gap: 6px 12px; }
+ .room-screen:not(.is-lobby):not(.managing-roles) .room-sidebar { gap: 10px; }
+ .room-screen #sheet-settings .sheet-body { padding: 16px; }
+ .preference-row { font-size: 16px; }
+ .segmented button { padding: 5px 9px; }
+}
+.room-screen #guess-section:not(:has(.guess-row)) { background: transparent; box-shadow: none; }
+@media (max-width: 900px) {
+ .room-screen #hint-display { display: flex; flex-direction: column; height: 76px; min-height: 76px; flex-basis: 76px; gap: 4px; }
+ .room-screen .clue-slot { display: grid; grid-template-columns: 56px minmax(0, 1fr) 80px; align-items: center; flex: 1; padding: 0 3px; border-bottom-width: 1px; }
+ .room-screen .clue-slot strong { font-size: 13px; }
+ .room-screen .clue-slot .clue-word { font-size: 15px; line-height: 17px; }
+ .room-screen .clue-slot small { text-align: right; font-size: 13px; line-height: 15px; }
+ .room-screen:not(.is-lobby) .board { height: clamp(180px, calc(100dvh - 430px), 340px); }
+}
