@@ -618,6 +618,13 @@ async function setTeam(team: Team) {
   }
 }
 
+function toggleTeamControls() {
+  manageRoles.value = !manageRoles.value;
+  if (manageRoles.value && window.innerWidth <= 900) {
+    requestAnimationFrame(() => document.getElementById('sheet-teams')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  }
+}
+
 async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?: Team) {
   if (!snapshot.value) {
     ui.showToast(t('join_create_first'));
@@ -970,6 +977,11 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="bar-tabs-center">
+              <button v-if="game" id="manage-roles-btn" class="bar-tab" type="button" :aria-label="manageRoles ? t('close_panel') : t('change_team')" :aria-expanded="manageRoles" aria-controls="sheet-teams" @click="toggleTeamControls">
+                <span class="team-action-full">{{ manageRoles ? t('close_panel') : t('change_team') }}</span>
+                <span class="team-action-short">{{ manageRoles ? t('close_panel') : t('panel_teams') }}</span>
+              </button>
+
               <button
                 v-for="panel in PANEL_KEYS"
                 :key="panel"
@@ -995,8 +1007,8 @@ onBeforeUnmount(() => {
                     {{ voice.muted ? t('voice_unmute') : t('voice_mute') }}
                   </button>
                 <button v-if="voice.active" id="voice-controls-btn" class="bar-tab" type="button"
-                  :aria-label="t('panel_voice')" :aria-expanded="voiceMenuOpen" aria-controls="voice-menu"
-                  @click="voiceMenuOpen = !voiceMenuOpen">{{ t('audio_options') }}</button>
+                  :aria-label="t('audio_options')" :aria-expanded="voiceMenuOpen" aria-controls="voice-menu"
+                  @click="voiceMenuOpen = !voiceMenuOpen"><span class="audio-action-full">{{ t('audio_options') }}</span><span class="audio-action-short">{{ t('audio_short') }}</span></button>
                 <div id="voice-menu" class="voice-dropdown-menu">
                   <button id="voice-noise-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !voice.active }" @click="() => void toggleNoiseSuppression()">
                     {{ preferences.noiseSuppression ? t('voice_noise_off') : t('voice_noise_on') }}
@@ -1039,6 +1051,8 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="bottom-bar-status">
+          <strong v-if="game" class="words-remaining status-score red" :aria-label="`${formatTeam('red')}: ${t('words_left', { count: game.remaining.red })}`">{{ t('words_left', { count: game.remaining.red }) }}</strong>
+          <div class="turn-status-center">
           <div id="turn-banner" class="turn-banner" :class="{ red: game?.phase !== 'finished' && game?.currentTeam === 'red', blue: game?.phase !== 'finished' && game?.currentTeam === 'blue', finished: game?.phase === 'finished' }">
             {{ turnBannerText }}
           </div>
@@ -1056,6 +1070,8 @@ onBeforeUnmount(() => {
             <span id="phase-timer-label" class="timer-label">{{ phaseTimerLabel }}</span>
             <span id="phase-timer-value" class="timer-value">{{ formatTimerRemaining(phaseTimerRemainingMs) }}</span>
           </div>
+          </div>
+          <strong v-if="game" class="words-remaining status-score blue" :aria-label="`${formatTeam('blue')}: ${t('words_left', { count: game.remaining.blue })}`">{{ t('words_left', { count: game.remaining.blue }) }}</strong>
         </div>
 
         <div class="game-stage">
@@ -1064,7 +1080,6 @@ onBeforeUnmount(() => {
             <div v-if="game" class="board-area">
               <div id="hint-display" class="clue-summary" aria-live="polite">
                 <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :class="{ current: game.currentTeam === team, empty: activeHint?.team !== team }" :data-team="team">
-                  <strong class="words-remaining" :aria-label="`${formatTeam(team)}: ${t('words_left', { count: game.remaining[team] })}`">{{ t('words_left', { count: game.remaining[team] }) }}</strong>
                   <div class="spymaster-roster" :aria-label="`${formatTeam(team)} · ${t('spymaster')}`">
                     <span class="spymaster-label">{{ t('spymaster') }}</span>
                     <ul v-if="spymasters[team].length">
@@ -1187,7 +1202,7 @@ onBeforeUnmount(() => {
             <aside class="room-sidebar">
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
-              <h3 class="sheet-title roster-title">{{ t(game ? 'panel_operatives' : 'panel_teams') }} <button v-if="game" id="manage-roles-btn" class="btn btn-ghost btn-sm" type="button" :aria-expanded="manageRoles" @click="manageRoles = !manageRoles">{{ manageRoles ? t('close_panel') : t('change_team') }}</button></h3>
+              <h3 class="sheet-title roster-title">{{ t(game ? 'panel_operatives' : 'panel_teams') }}</h3>
 
               <div class="team-panel team-red">
                 <div class="team-head">

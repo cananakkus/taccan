@@ -192,7 +192,7 @@ for (const width of [390, 1280]) {
       const switchingSession = await session(second);
       const otherTeam = room.game.currentTeam === 'red' ? 'blue' : 'red';
       const beforeSwitch = JSON.stringify(room.game);
-      await expect(second.locator('#manage-roles-btn')).toHaveText('Change team');
+      await expect(second.locator('#manage-roles-btn')).toHaveAccessibleName('Change team');
       await second.locator('#manage-roles-btn').click();
       await expect(second.locator(`.team-${otherTeam} .team-head h3`)).toContainText(otherTeam === 'red' ? 'Red' : 'Blue');
       await second.locator(`.team-${otherTeam} .btn-role`).last().click();
@@ -216,7 +216,7 @@ for (const width of [390, 1280]) {
       await expect(second.locator('.feed-guess').last()).toHaveClass(new RegExp(team));
       await expect(tile.locator('.card-word')).toHaveCount(1);
       await expect(tile.locator('.card-inner')).toHaveCSS('transform', 'none');
-      await expect(second.locator(`.clue-slot[data-team="${team}"] .words-remaining`)).toHaveText(`${remaining - 1} words left`);
+      await expect(second.locator(`.status-score.${team}`)).toHaveText(`${remaining - 1} words left`);
 
 
     } finally {
@@ -289,14 +289,24 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
     await host.locator('[data-panel="settings"]').click();
     await host.locator('#sheet-settings .language-switch button').last().click();
     await host.locator('#sheet-settings .panel-close').click();
-    for (const width of [1280, 390]) {
+    for (const width of [1280, 390, 320]) {
       await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
       await host.evaluate(() => window.scrollTo(0, 0));
+      await expect(host.locator('#manage-roles-btn')).toBeInViewport({ ratio: 1 });
+      await expect(host.locator('[data-panel="settings"]')).toBeInViewport({ ratio: 1 });
+      await expect(host.locator('#leave-room-btn')).toBeInViewport({ ratio: 1 });
+      expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(host.locator('.words-remaining').first()).toContainText('kelime kaldı');
       const size = await host.locator('.words-remaining').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(18);
       expect(await host.locator('.words-remaining').evaluateAll(els => els.every(el => el.scrollWidth <= el.clientWidth))).toBe(true);
     }
+    const compactHeaderHeight = await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height);
+    await host.locator('#voice-join-btn').click();
+    await expect(host.locator('#voice-join-btn')).toHaveClass(/in-voice/);
+    expect(await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height)).toBe(compactHeaderHeight);
+    await expect(host.locator('#voice-controls-btn')).toBeInViewport({ ratio: 1 });
+    expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally {
     for (const client of crowd) { if (client.connected) await emit(client, 'room:leave', {}); client.disconnect(); }
     await host.close();

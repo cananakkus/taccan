@@ -35,6 +35,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       copy_invite: 'Copy invite link',
       invite_copied: 'Invite link copied',
       audio_options: 'Audio options',
+      audio_short: 'Audio',
       volume: 'Volume',
       close_panel: 'Close',
 
@@ -330,6 +331,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       copy_invite: 'Davet bağlantısını kopyala',
       invite_copied: 'Davet bağlantısı kopyalandı',
       audio_options: 'Ses ayarları',
+      audio_short: 'Ses',
       volume: 'Ses seviyesi',
       close_panel: 'Kapat',
 
