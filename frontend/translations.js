@@ -9,10 +9,12 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       player_count: '{count} players',
       operative_count: '{count} operatives',
       panel_operatives: 'Operatives',
+      team_join_help: 'Click a team to join',
       no_operatives: 'No operatives yet',
       watching_count: 'Watching · {count}',
       words_left: '{count} words left',
       join_spymaster: 'Join as spymaster',
+      spymaster_occupied: 'That spymaster position is occupied.',
       join_operative: 'Join as operative',
       lobby_heading: 'Choose your side',
       lobby_guidance: 'Spymasters give clues. Operatives find the words. Choose a team and a role to get started.',
@@ -275,7 +277,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mobile_chat: 'Chat',
       // Panel tabs
       panel_teams: 'Teams',
-      panel_feed: 'Chat & activity',
+      panel_feed: 'Chat',
       panel_voice: 'Voice',
       panel_settings: 'Settings',
       // Voice panel
@@ -305,10 +307,12 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       player_count: '{count} oyuncu',
       operative_count: '{count} operatif',
       panel_operatives: 'Operatifler',
+      team_join_help: 'Katılmak için takıma tıkla',
       no_operatives: 'Henüz operatif yok',
       watching_count: 'İzleyiciler · {count}',
       words_left: '{count} kelime kaldı',
       join_spymaster: 'İpucu veren ol',
+      spymaster_occupied: 'Bu takımın ipucu vereni zaten var.',
       join_operative: 'Tahmin eden ol',
       lobby_heading: 'Takımını seç',
       lobby_guidance: 'İpucu verenler yönlendirir, tahmin edenler kelimeleri bulur. Başlamak için takımını ve rolünü seç.',
@@ -569,7 +573,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       mobile_chat: 'Sohbet',
       // Panel sekmeleri
       panel_teams: 'Takımlar',
-      panel_feed: 'Sohbet ve oyun akışı',
+      panel_feed: 'Sohbet',
       panel_voice: 'Ses',
       panel_settings: 'Ayarlar',
       // Ses paneli

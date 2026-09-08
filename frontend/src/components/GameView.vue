@@ -52,6 +52,7 @@ const STAMP_PATHS = Object.freeze({
 });
 
 const SERVER_ERROR_MAP: Record<string, string> = {
+  'That spymaster position is occupied.': 'spymaster_occupied',
   'Hint word is required.': 'hint_word_required',
   'Your hint cannot be a word on the board.': 'hint_on_board',
   'Room not found.': 'room_not_found',
@@ -102,7 +103,6 @@ const hintWordInput = ref('');
 const hintCountInput = ref(1);
 const chatInput = ref('');
 const voiceMenuOpen = ref(false);
-const manageRoles = ref(false);
 watch(() => voice.active, (active) => { if (!active) voiceMenuOpen.value = false; });
 const blitzHintSec = ref(25);
 const blitzGuessSec = ref(35);
@@ -124,8 +124,8 @@ const canGuessNow = computed(() => canGuess(snapshot.value));
 const currentMaxHintCount = computed(() => getCurrentMaxHintCount(snapshot.value));
 const readinessIssue = computed(() => getReadinessIssue(snapshot.value, (key) => t(key)));
 const sortRoster = (list: PlayerView[]) => [...list].sort((a, b) => Number(b.role === 'spymaster') - Number(a.role === 'spymaster') || Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name));
-const redPlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'red').filter(player => !game.value || player.role === 'operative')));
-const bluePlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'blue').filter(player => !game.value || player.role === 'operative')));
+const redPlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'red').filter(player => player.role === 'operative')));
+const bluePlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'blue').filter(player => player.role === 'operative')));
 const spymasters = computed(() => ({
   red: sortRoster(getTeamPlayers(players.value, 'red').filter(player => player.role === 'spymaster')),
   blue: sortRoster(getTeamPlayers(players.value, 'blue').filter(player => player.role === 'spymaster')),
@@ -606,25 +606,6 @@ async function leaveRoom() {
   ui.closePanel();
 }
 
-async function setTeam(team: Team) {
-  if (!snapshot.value) {
-    ui.showToast(t('join_create_first'));
-    return;
-  }
-  try {
-    await emitWithAck('team:set', { team });
-  } catch (error) {
-    ui.showToast(error instanceof Error ? error.message : 'Team update failed', 'error');
-  }
-}
-
-function toggleTeamControls() {
-  manageRoles.value = !manageRoles.value;
-  if (manageRoles.value && window.innerWidth <= 900) {
-    requestAnimationFrame(() => document.getElementById('sheet-teams')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
-  }
-}
-
 async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?: Team) {
   if (!snapshot.value) {
     ui.showToast(t('join_create_first'));
@@ -632,13 +613,9 @@ async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?:
   }
 
   try {
-    if (roleTeam && me.value?.team !== roleTeam) {
-      await emitWithAck('team:set', { team: roleTeam });
-    }
-    await emitWithAck('role:set', { role });
-    manageRoles.value = false;
+    await emitWithAck('role:set', { role, ...(roleTeam ? { team: roleTeam } : {}) });
   } catch (error) {
-    ui.showToast(error instanceof Error ? error.message : 'Role update failed', 'error');
+    ui.showToast(error instanceof Error ? translateServerError(error.message) : 'Role update failed', 'error');
   }
 }
 
@@ -963,7 +940,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <section id="room-panel" class="room-screen" :class="{ hidden: !snapshot, 'is-lobby': !game, 'managing-roles': manageRoles }">
+      <section id="room-panel" class="room-screen" :class="{ hidden: !snapshot, 'is-lobby': !game }">
         <div class="bottom-bar">
           <nav class="bar-tabs" aria-label="Panels">
             <div class="bar-util">
@@ -977,10 +954,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="bar-tabs-center">
-              <button v-if="game" id="manage-roles-btn" class="bar-tab" type="button" :aria-label="manageRoles ? t('close_panel') : t('change_team')" :aria-expanded="manageRoles" aria-controls="sheet-teams" @click="toggleTeamControls">
-                <span class="team-action-full">{{ manageRoles ? t('close_panel') : t('change_team') }}</span>
-                <span class="team-action-short">{{ manageRoles ? t('close_panel') : t('panel_teams') }}</span>
-              </button>
+
 
               <button
                 v-for="panel in PANEL_KEYS"
@@ -1076,6 +1050,13 @@ onBeforeUnmount(() => {
 
         <div class="game-stage">
           <div v-if="!game" class="lobby-intro"><h2>{{ t('lobby_heading') }}</h2><p>{{ t('lobby_guidance') }}</p></div>
+          <div v-if="!game" class="lobby-spymasters">
+            <section v-for="team in (['red', 'blue'] as const)" :key="team" class="lobby-spymaster" :data-team="team">
+              <strong>{{ formatTeam(team) }} · {{ t('spymaster') }}</strong>
+              <span v-if="spymasters[team].length">{{ spymasters[team].map(player => player.name).join(', ') }}</span>
+              <button v-else class="btn btn-ghost spymaster-vacancy" type="button" :aria-label="`${t('join_spymaster')} · ${formatTeam(team)}`" @click="setRole('spymaster', team)">{{ t('join_spymaster') }}</button>
+            </section>
+          </div>
           <div class="stage-layout">
             <div v-if="game" class="board-area">
               <div id="hint-display" class="clue-summary" aria-live="polite">
@@ -1085,7 +1066,7 @@ onBeforeUnmount(() => {
                     <ul v-if="spymasters[team].length">
                       <li v-for="player in spymasters[team]" :key="player.sessionId" :class="{ 'is-offline': !player.connected, speaking: playerIsSpeaking(player.sessionId) }">{{ player.name }}<small v-if="!player.connected"> · {{ t('tag_offline') }}</small></li>
                     </ul>
-                    <span v-else class="spymaster-vacancy">—</span>
+                    <button v-else class="spymaster-vacancy btn btn-ghost" type="button" :aria-label="`${t('join_spymaster')} · ${formatTeam(team)}`" @click="setRole('spymaster', team)">{{ t('join_spymaster') }}</button>
                   </div>
                   <span class="clue-word" :data-team-label="formatTeam(team)">{{ activeHint?.team === team ? hintDisplayText(activeHint) : '—' }}</span>
                   <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t(game.guessesRemaining === 1 ? 'guess_left' : 'guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
@@ -1202,12 +1183,13 @@ onBeforeUnmount(() => {
             <aside class="room-sidebar">
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
-              <h3 class="sheet-title roster-title">{{ t(game ? 'panel_operatives' : 'panel_teams') }}</h3>
+              <h3 class="sheet-title roster-title">{{ t('panel_operatives') }}<small class="team-join-help">{{ t('team_join_help') }}</small></h3>
 
-              <div class="team-panel team-red">
+              <div class="team-panel team-red" :class="{ 'is-my-team': roleTeamSelected('red', 'operative') }" @click="setRole('operative', 'red')">
+                <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam('red')}`" :aria-pressed="roleTeamSelected('red', 'operative')" @click.stop="setRole('operative', 'red')"></button>
                 <div class="team-head">
                   <span class="team-dot red"></span>
-                  <h3 :aria-label="t('red_team')">{{ game && !manageRoles ? t('operative_count', { count: redPlayers.length }) : t('red_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ redPlayers.length }}</span>
+                  <h3 :aria-label="t('red_team')">{{ t('red_team') }}</h3><span class="roster-count">{{ redPlayers.length }}</span>
                 </div>
                 <ul id="red-team-list" class="player-list" :aria-label="t('red_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, redPlayers.length)) }">
                   <li v-if="redPlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('red') }}</li>
@@ -1227,18 +1209,14 @@ onBeforeUnmount(() => {
                   </li>
                 </ul>
                 <p v-if="redPlayers.length > 4" class="roster-overflow-note">{{ t('scroll_players', { count: redPlayers.length }) }}</p>
-                <div v-if="!game || manageRoles" class="team-actions">
-                  <div class="role-row">
-                    <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'spymaster') }" :aria-pressed="roleTeamSelected('red', 'spymaster')" @click="() => void setRole('spymaster', 'red')">{{ roleTeamSelected('red', 'spymaster') ? `${t('spymaster')} ✓` : t('join_spymaster') }}</button>
-                    <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'operative') }" :aria-pressed="roleTeamSelected('red', 'operative')" @click="() => void setRole('operative', 'red')">{{ roleTeamSelected('red', 'operative') ? `${t('operative')} ✓` : t('join_operative') }}</button>
-                  </div>
-                </div>
+
               </div>
 
-              <div class="team-panel team-blue">
+              <div class="team-panel team-blue" :class="{ 'is-my-team': roleTeamSelected('blue', 'operative') }" @click="setRole('operative', 'blue')">
+                <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam('blue')}`" :aria-pressed="roleTeamSelected('blue', 'operative')" @click.stop="setRole('operative', 'blue')"></button>
                 <div class="team-head">
                   <span class="team-dot blue"></span>
-                  <h3 :aria-label="t('blue_team')">{{ game && !manageRoles ? t('operative_count', { count: bluePlayers.length }) : t('blue_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ bluePlayers.length }}</span>
+                  <h3 :aria-label="t('blue_team')">{{ t('blue_team') }}</h3><span class="roster-count">{{ bluePlayers.length }}</span>
                 </div>
                 <ul id="blue-team-list" class="player-list" :aria-label="t('blue_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, bluePlayers.length)) }">
                   <li v-if="bluePlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('blue') }}</li>
@@ -1258,19 +1236,14 @@ onBeforeUnmount(() => {
                   </li>
                 </ul>
                 <p v-if="bluePlayers.length > 4" class="roster-overflow-note">{{ t('scroll_players', { count: bluePlayers.length }) }}</p>
-                <div v-if="!game || manageRoles" class="team-actions">
-                  <div class="role-row">
-                    <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'spymaster') }" :aria-pressed="roleTeamSelected('blue', 'spymaster')" @click="() => void setRole('spymaster', 'blue')">{{ roleTeamSelected('blue', 'spymaster') ? `${t('spymaster')} ✓` : t('join_spymaster') }}</button>
-                    <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'operative') }" :aria-pressed="roleTeamSelected('blue', 'operative')" @click="() => void setRole('operative', 'blue')">{{ roleTeamSelected('blue', 'operative') ? `${t('operative')} ✓` : t('join_operative') }}</button>
-                  </div>
-                </div>
+
               </div>
 
               <div v-if="spectatorPlayers.length" class="spectator-roster">
                 <strong>{{ t('watching_count', { count: spectatorPlayers.length }) }}</strong>
                 <ul :aria-label="t('spectator')"><li v-for="player in spectatorPlayers" :key="player.sessionId" :title="player.name">{{ player.name }}<span v-if="!player.connected"> · {{ t('tag_offline') }}</span></li></ul>
               </div>
-              <div v-if="!game || manageRoles || game.phase === 'finished'" class="sidebar-actions">
+              <div class="sidebar-actions">
                 <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue }">{{ readinessIssue || t('ready_to_start') }}</p>
                 <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
                   {{ t('start_game') }}

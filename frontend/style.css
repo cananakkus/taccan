@@ -3163,3 +3163,74 @@ html[data-theme="light"] .room-screen .feed-guess.neutral { color: #75644b; }
   .audio-action-full { display: none; }
   .audio-action-short { display: inline; }
 }
+
+/* Direct team joining, with the two rosters flanking the play area. */
+.room-screen #sheet-teams .team-panel { position: relative; cursor: pointer; border: 1px solid var(--border-light); border-left: 3px solid currentColor; border-radius: 5px; padding: 10px; }
+.room-screen #sheet-teams .team-red { color: var(--text-red); }
+.room-screen #sheet-teams .team-blue { color: var(--text-blue); }
+.operative-join-target { position: absolute; inset: 0 0 auto; z-index: 1; width: 100%; height: 44px; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.room-screen #sheet-teams .team-panel:hover, .room-screen #sheet-teams .team-panel:has(.operative-join-target:focus-visible) { background: color-mix(in srgb, currentColor 8%, var(--paper)); outline: 1px solid currentColor; outline-offset: -1px; }
+.room-screen #sheet-teams .team-panel.is-my-team { background: color-mix(in srgb, currentColor 6%, var(--paper)); }
+.room-screen #sheet-teams .team-panel.is-my-team .team-head::after { content: '✓'; margin-left: auto; }
+.room-screen #sheet-teams .player-list { position: relative; z-index: 2; color: var(--ink); scrollbar-gutter: auto; }
+.team-join-help { display: block; margin-top: 4px; font: 14px/20px var(--font-body); color: var(--ink-light); text-transform: none; letter-spacing: 0; }
+.room-screen #hint-display .clue-slot { border: 1px solid currentColor; border-left-width: 3px; border-right-width: 3px; border-radius: 5px; padding: 8px 10px; background: color-mix(in srgb, currentColor 4%, var(--paper)); }
+.room-screen .spymaster-vacancy { font: 15px/20px var(--font-body); white-space: normal; color: inherit; border: 1px dashed currentColor; min-height: 36px; padding: 5px 8px; text-transform: none; letter-spacing: 0; }
+.lobby-spymasters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; width: min(1100px,100%); margin: 0 auto 14px; }
+.lobby-spymaster { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid currentColor; border-inline-width: 3px; border-radius: 5px; }
+.lobby-spymaster[data-team="red"] { color: var(--text-red); }
+.lobby-spymaster[data-team="blue"] { color: var(--text-blue); }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) .game-stage { padding: 12px clamp(12px, 1.5vw, 28px); }
+  .room-screen:not(.is-lobby) .stage-layout { width: 100%; max-width: 1800px; grid-template-columns: clamp(180px,17vw,240px) minmax(0,1fr) clamp(240px,23vw,330px); grid-template-rows: minmax(0,1fr) auto; gap: 12px 16px; }
+  .room-screen:not(.is-lobby) .room-sidebar { display: contents; }
+  .room-screen:not(.is-lobby) .board-area { grid-column: 2; grid-row: 1; }
+  .room-screen:not(.is-lobby) .controls-strip { grid-column: 2; grid-row: 2; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel { grid-column: 1; grid-row: 1 / -1; height: 100%; max-height: none; }
+  .room-screen:not(.is-lobby) #sheet-feed.persistent-panel { grid-column: 3; grid-row: 1 / -1; height: 100%; min-height: 0; max-height: none; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body { height: 100%; max-height: none; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) minmax(0,1fr) auto auto; gap: 12px; padding: 12px; }
+  .room-screen:not(.is-lobby) #sheet-teams .team-panel { grid-column: 1; min-height: 0; }
+  .room-screen:not(.is-lobby) #sheet-teams .team-red { grid-row: 2; }
+  .room-screen:not(.is-lobby) #sheet-teams .team-blue { grid-row: 3; }
+  .room-screen:not(.is-lobby) #sheet-teams .spectator-roster { grid-row: 4; }
+  .room-screen:not(.is-lobby) #sheet-teams .sidebar-actions { grid-row: 5; }
+  .room-screen:not(.is-lobby) #sheet-teams .player-list { height: auto; max-height: none; flex: 1 1 auto; }
+  .room-screen:not(.is-lobby) #sheet-teams .team-player-name { white-space: normal; overflow-wrap: anywhere; }
+  .room-screen:not(.is-lobby) #sheet-teams .team-player-item { height: auto; min-height: 44px; flex-basis: auto; }
+  .room-screen:not(.is-lobby) #sheet-teams .roster-overflow-note { display: none; }
+}
+@media (max-width: 900px) {
+  .room-screen .bar-tabs { grid-template-columns: minmax(0,1fr) auto auto; }
+  .room-screen .bar-tab[data-panel="settings"] { grid-column: 2; }
+  .room-screen .bar-tabs-right { grid-column: 3; }
+  .room-screen:not(.is-lobby) .bar-tab[data-panel="settings"] .bar-tab-label { display: inline; }
+}
+
+/* Ink-blue night theme: clear surfaces, cool neutrals and distinct team accents. */
+html[data-theme="dark"] {
+  --desk: #101720; --desk-dark: #0b1119;
+  --paper: #1b2633; --paper-light: #233140; --paper-dark: #15202c; --paper-warm: #202d3a;
+  --ink: #edf2f7; --ink-light: #c4d0dd; --ink-faded: #a5b5c6; --ink-ghost: #8194a8;
+  --border: #42566b; --border-dark: #32475d; --border-light: #384c60;
+  --red: #ed7885; --red-stamp: #ef8b96; --red-light: #422835; --red-medium: #55313e;
+  --blue: #79b5ef; --blue-stamp: #91c3f4; --blue-light: #203e58; --blue-medium: #294e6d;
+  --neutral-color: #a5afba; --neutral-light: #303c49;
+  --accent: #c9ae7b; --accent-light: #534936; --focus-ring: #ebc986;
+  --btn-primary-bg: #9ac3e7; --btn-primary-text: #132231; --btn-primary-hover: #b7d6f1; --btn-accent-hover: #dec48f;
+  --room-code-bg: #111c28; --room-code-border: #4b6077;
+  --card-bg: #243241; --card-border: #526478;
+  --keycard-red-bg: #432b38; --keycard-red-border: #ad6978; --keycard-red-text: #ffb8c0;
+  --keycard-blue-bg: #203e57; --keycard-blue-border: #658fb7; --keycard-blue-text: #b5d9ff;
+  --revealed-red-start: #a84255; --revealed-red-end: #863649;
+  --revealed-blue-start: #356e9d; --revealed-blue-end: #29597f;
+  --revealed-neutral-start: #aab2bc; --revealed-neutral-end: #929eaa; --revealed-neutral-text: #172330;
+}
+html[data-theme="dark"] body, html[data-theme="dark"] .room-screen { background: #101720; }
+html[data-theme="dark"] .room-screen { --text-red: #ffabb6; --text-blue: #9bcbff; --keycard-red-text: #ffb8c0; --keycard-blue-text: #b5d9ff; }
+html[data-theme="dark"] .room-screen .game-stage { background: radial-gradient(ellipse at top, #1a2938, #101720 75%); }
+html[data-theme="dark"] .room-screen .persistent-panel, html[data-theme="dark"] .room-screen .bottom-bar, html[data-theme="dark"] .room-screen .bottom-bar-status { background: #1b2633; }
+html[data-theme="dark"] .room-screen .card:not(.revealed) { background-image: none; box-shadow: inset 0 0 0 1px #ffffff05; }
+html[data-theme="dark"] .room-screen .card.keycard.assassin, html[data-theme="dark"] .room-screen .card.finished-reveal.assassin { background: #090d13; border-color: #71849a; }
+html[data-theme="dark"] .room-screen .feed-guess.neutral { color: #c4ccd6; }
+html[data-theme="dark"] .room-screen .ctrl-panel { background: #1b2633; }
+.room-screen #sheet-teams .roster-title { display: block; }

@@ -117,7 +117,7 @@ for (const width of [390, 1280]) {
     const room = ctx.rooms.get(hostSession.code);
     // Assign roles through the visible team controls.
     async function role(page, team) {
-      await page.locator(`.team-${team} .btn-role`).first().click();
+      await page.locator(`.lobby-spymaster[data-team="${team}"] .spymaster-vacancy`).first().click();
     }
     try {
       await host.locator('[data-panel="settings"]').click();
@@ -144,6 +144,21 @@ for (const width of [390, 1280]) {
       await host.locator('#start-game-btn').click();
       await expect.poll(() => room.game?.phase).toBe('hint');
       const boardHeights = await Promise.all([host, guest].map(page => page.locator('#board').evaluate(el => el.getBoundingClientRect().height)));
+      if (width === 1280) {
+        const layout = await host.evaluate(() => {
+          const rect = selector => document.querySelector(selector).getBoundingClientRect();
+          const left = rect('#sheet-teams'), board = rect('#board'), right = rect('#sheet-feed');
+          return { left: left.x, leftEnd: left.right, boardStart: board.x, boardEnd: board.right, rightStart: right.x, rightEnd: right.right, topDifference: Math.abs(left.top - right.top), heightDifference: Math.abs(left.height - right.height), height: left.height, viewport: innerWidth };
+        });
+        expect(layout.left).toBeGreaterThanOrEqual(8);
+        expect(layout.leftEnd).toBeLessThan(layout.boardStart);
+        expect(layout.boardEnd).toBeLessThan(layout.rightStart);
+        expect(layout.rightEnd).toBeLessThanOrEqual(layout.viewport - 8);
+        expect(layout.topDifference).toBeLessThanOrEqual(1);
+        expect(layout.heightDifference).toBeLessThanOrEqual(1);
+        expect(layout.height).toBeGreaterThan(500);
+      }
+
 
       for (const page of [host, guest]) {
         await expect(page.locator('.spymaster-roster')).toContainText(['Host', 'Guest']);
@@ -192,17 +207,20 @@ for (const width of [390, 1280]) {
       const switchingSession = await session(second);
       const otherTeam = room.game.currentTeam === 'red' ? 'blue' : 'red';
       const beforeSwitch = JSON.stringify(room.game);
-      await expect(second.locator('#manage-roles-btn')).toHaveAccessibleName('Change team');
-      await second.locator('#manage-roles-btn').click();
+      await expect(second.locator('#manage-roles-btn')).toHaveCount(0);
       await expect(second.locator(`.team-${otherTeam} .team-head h3`)).toContainText(otherTeam === 'red' ? 'Red' : 'Blue');
-      await second.locator(`.team-${otherTeam} .btn-role`).last().click();
+      await second.locator(`.team-${otherTeam} .team-player-name`).first().click();
       await expect.poll(() => room.players.get(switchingSession.sessionId).team).toBe(otherTeam);
       await expect.poll(() => room.players.get(switchingSession.sessionId).role).toBe('operative');
       await expect(second.locator(`.team-${otherTeam} .team-player-name`).filter({ hasText: second === host ? 'Host' : 'Guest' })).toHaveText(second === host ? 'Host' : 'Guest');
       expect(JSON.stringify(room.game)).toBe(beforeSwitch);
-      await second.locator('#manage-roles-btn').click();
-      await second.locator(`.team-${room.game.currentTeam} .btn-role`).last().click();
-      await expect(second.locator('#manage-roles-btn')).toHaveAttribute('aria-expanded', 'false');
+      const vacantTeam = room.game.currentTeam;
+      await second.locator(`.clue-slot[data-team="${vacantTeam}"] .spymaster-vacancy`).click();
+      await expect.poll(() => room.players.get(switchingSession.sessionId).role).toBe('spymaster');
+      await expect(second.locator(`.clue-slot[data-team="${vacantTeam}"] .spymaster-vacancy`)).toHaveCount(0);
+
+      await second.locator(`.team-${room.game.currentTeam} .operative-join-target`).last().click();
+      await expect(second.locator(`.team-${room.game.currentTeam} .operative-join-target`)).toHaveAttribute('aria-pressed', 'true');
       await second.evaluate(() => window.scrollTo(0, 0));
       await expect(second.locator('#submit-guess-btn')).toBeInViewport({ ratio: 1 });
       await expect(second.locator('#guess-section')).not.toContainText('Click a card to mark');
@@ -282,17 +300,17 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
     }
     await host.setViewportSize({ width: 1280, height: 720 });
     await host.locator('#start-game-btn').click();
-    await expect(host.locator('#manage-roles-btn')).toBeInViewport({ ratio: 1 });
+    await expect(host.locator('#manage-roles-btn')).toHaveCount(0);
     await expect(host.locator('#chat-input')).toBeInViewport({ ratio: 1 });
-    await expect(host.locator('.team-red .team-head')).toContainText('9 operatives');
-    await expect(host.locator('.team-blue .team-head')).toContainText('3 operatives');
+    await expect(host.locator('.team-red .team-head')).toContainText('9');
+    await expect(host.locator('.team-blue .team-head')).toContainText('3');
     await host.locator('[data-panel="settings"]').click();
     await host.locator('#sheet-settings .language-switch button').last().click();
     await host.locator('#sheet-settings .panel-close').click();
     for (const width of [1280, 390, 320]) {
       await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
       await host.evaluate(() => window.scrollTo(0, 0));
-      await expect(host.locator('#manage-roles-btn')).toBeInViewport({ ratio: 1 });
+      await expect(host.locator('#manage-roles-btn')).toHaveCount(0);
       await expect(host.locator('[data-panel="settings"]')).toBeInViewport({ ratio: 1 });
       await expect(host.locator('#leave-room-btn')).toBeInViewport({ ratio: 1 });
       expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

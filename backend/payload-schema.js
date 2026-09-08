@@ -29,6 +29,7 @@ const SCHEMAS = {
     team: { type: 'string', optional: false, enum: ['red', 'blue', 'none'] },
   },
   'role:set': {
+    team: { type: 'string', optional: true, enum: ['red', 'blue', 'none'] },
     role: { type: 'string', optional: false, enum: ['spymaster', 'operative', 'spectator'] },
   },
   'game:start': {},

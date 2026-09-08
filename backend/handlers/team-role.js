@@ -20,6 +20,11 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if (team !== 'none' && context.player.role === 'spymaster' && [...context.room.players.values()].some(player => player.sessionId !== context.player.sessionId && player.team === team && player.role === 'spymaster')) {
+      ackError(callback, 'That spymaster position is occupied.');
+      return;
+    }
+
     context.player.team = team;
 
     if (team === 'none') {
@@ -51,18 +56,17 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    if (role === 'spectator') {
-      context.player.role = 'spectator';
-      context.player.team = 'none';
-    } else {
-      if (context.player.team === 'none') {
-        const activeGame =
-          context.room.game && context.room.game.phase !== 'finished' ? context.room.game : null;
-        context.player.team = activeGame ? activeGame.currentTeam : 'red';
-      }
-
-      context.player.role = role;
+    const requestedTeam = validatedPayload.team ?? context.player.team;
+    const team = role === 'spectator' ? 'none' : requestedTeam === 'none'
+      ? (context.room.game?.phase !== 'finished' && context.room.game?.currentTeam || 'red')
+      : requestedTeam;
+    if (role === 'spymaster' && [...context.room.players.values()].some(player => player.sessionId !== context.player.sessionId && player.team === team && player.role === 'spymaster')) {
+      ackError(callback, 'That spymaster position is occupied.');
+      return;
     }
+    // Validate the whole move before changing either field: competing claims are atomic.
+    context.player.team = team;
+    context.player.role = role;
 
     context.room.lastActiveAt = Date.now();
     emitStateToRoom(context.room);

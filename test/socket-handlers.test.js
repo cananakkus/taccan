@@ -481,3 +481,26 @@ test('voice joins notify once and signals stop after a peer leaves', async () =>
     await shutdown(ctx, spy, op);
   }
 });
+
+test('spymaster positions reject competing claims atomically and cannot be stolen through team changes', async () => {
+  const ctx = await boot();
+  const { spy, op, roomCode } = await setupRoom(ctx);
+  try {
+    const room = ctx.rooms.get(roomCode);
+    const before = [...room.players.values()].map(p => ({ id: p.sessionId, team: p.team, role: p.role }));
+    const results = await Promise.all([spy, op].map(client => emit(client, 'role:set', { role: 'spymaster', team: 'red' })));
+    assert.equal(results.filter(result => result.ok).length, 1);
+    assert.equal([...room.players.values()].filter(p => p.team === 'red' && p.role === 'spymaster').length, 1);
+    const loser = results[0].ok ? op : spy;
+    const winner = results[0].ok ? spy : op;
+    const unclaimed = [...room.players.values()].find(p => p.team !== 'red' || p.role !== 'spymaster');
+    const original = before.find(p => p.id === unclaimed.sessionId);
+    assert.equal(unclaimed.team, original.team);
+    assert.equal(unclaimed.role, original.role);
+    assert.equal((await emit(loser, 'role:set', { role: 'spymaster', team: 'blue' })).ok, true);
+    assert.equal((await emit(winner, 'team:set', { team: 'blue' })).ok, false);
+    assert.equal((await emit(winner, 'role:set', { role: 'operative', team: 'blue' })).ok, true);
+    assert.equal([...room.players.values()].filter(p => p.team === 'blue' && p.role === 'spymaster').length, 1);
+    assert.equal((await emit(loser, 'role:set', { role: 'spymaster', team: 'red' })).ok, true);
+  } finally { await shutdown(ctx, spy, op); }
+});
