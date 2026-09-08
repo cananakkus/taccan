@@ -3281,13 +3281,13 @@ html[data-theme="dark"] .room-screen .ctrl-panel { background: #1b2633; }
 .team-dot.none { background: var(--ink-light); }
 .room-screen #sheet-teams .team-panel .player-list {
   display: flex; flex-flow: row wrap; align-content: flex-start; align-items: flex-start;
-  gap: 6px; padding: 6px 0 0; margin: 0; overflow-y: auto; overflow-x: hidden;
+  gap: 4px; padding: 0; margin: 0; overflow-y: auto; overflow-x: hidden;
   scrollbar-width: thin; scroll-snap-type: none;
 }
 .room-screen #sheet-teams .team-panel .team-player-item,
 .room-screen #sheet-teams .team-panel .team-player-item:focus {
   display: inline-flex; flex: 0 0 auto; align-items: baseline; flex-wrap: wrap; gap: 0 4px;
-  height: auto; min-height: 0; max-width: 100%; padding: 3px 7px;
+  height: auto; min-height: 0; max-width: 100%; padding: 2px 6px;
   border: 1px solid var(--border); border-radius: 4px; background: var(--paper-light);
   color: var(--ink); font: 14px/18px var(--font-body);
 }
