@@ -235,6 +235,12 @@ for (const width of [390, 1280]) {
       await expect(tile.locator('.card-word')).toHaveCount(1);
       await expect(tile.locator('.card-inner')).toHaveCSS('transform', 'none');
       await expect(second.locator(`.status-score.${team}`)).toHaveText(`${remaining - 1} words left`);
+      await expect(second.locator('.spectator-btn')).toHaveCount(0);
+      await second.locator('.spectator-roster .operative-join-target').click();
+      await expect.poll(() => room.players.get(switchingSession.sessionId).role).toBe('spectator');
+      await expect.poll(() => room.players.get(switchingSession.sessionId).team).toBe('none');
+      await expect(second.locator('.spectator-roster .operative-join-target')).toHaveAttribute('aria-pressed', 'true');
+
 
 
     } finally {
@@ -281,7 +287,8 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
         await emit(client, 'role:set', { role: i === 0 || i === 10 ? 'spymaster' : 'operative' });
       }
     }
-    await expect(host.locator('.spectator-roster')).toContainText('Spectators · 3');
+    await expect(host.locator('.spectator-roster .team-head h3')).toHaveText('Spectators');
+    await expect(host.locator('.spectator-roster .roster-count')).toHaveText('3');
     for (const width of [1280, 390]) {
       await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
       await host.locator('#start-game-btn').scrollIntoViewIfNeeded();
@@ -310,7 +317,7 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
     const rosterSizes = () => host.locator('#sheet-teams .team-panel, #sheet-teams .spectator-roster').evaluateAll(els => els.map(el => el.getBoundingClientRect().height));
     const beforeSpectators = await rosterSizes();
     for (const client of crowd.slice(1, 9)) await emit(client, 'role:set', { role: 'spectator' });
-    await expect(host.locator('.spectator-roster > strong')).toHaveText('Spectators · 11');
+    await expect(host.locator('.spectator-roster .roster-count')).toHaveText('11');
     expect(await rosterSizes()).toEqual(beforeSpectators);
     expect(await host.locator('.spectator-roster ul').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
     await host.locator('.spectator-roster ul').evaluate(el => { el.scrollTop = el.scrollHeight; });

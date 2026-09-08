@@ -298,11 +298,6 @@ function formatRole(role: string): string {
   return role;
 }
 
-function teamListEmptyLabel(team: 'red' | 'blue') {
-  if (game.value) return t('no_operatives');
-  return team === 'red' ? t('no_red_agents') : t('no_blue_agents');
-}
-
 function hintStatusText() {
   if (canHintNow.value) return t('hint_status_your_turn');
   if (game.value?.phase === 'finished') return t('hint_status_game_finished');
@@ -1184,68 +1179,31 @@ onBeforeUnmount(() => {
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
 
-              <div class="team-panel team-red" :class="{ 'is-my-team': roleTeamSelected('red', 'operative') }" @click="setRole('operative', 'red')">
-                <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam('red')}`" :aria-pressed="roleTeamSelected('red', 'operative')" @click.stop="setRole('operative', 'red')"></button>
+              <section v-for="group in [
+                { team: 'red', role: 'operative', title: 'red_operatives', members: redPlayers },
+                { team: 'blue', role: 'operative', title: 'blue_operatives', members: bluePlayers },
+                { team: 'none', role: 'spectator', title: 'spectators', members: spectatorPlayers },
+              ] as const" :key="group.team" class="team-panel" :class="[`team-${group.team}`, { 'spectator-roster': group.team === 'none', 'is-my-team': roleTeamSelected(group.team, group.role) }]" @click="setRole(group.role, group.team)">
+                <button class="operative-join-target" type="button" :aria-label="group.team === 'none' ? t('spectator') : `${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, group.role)" @click.stop="setRole(group.role, group.team)"></button>
                 <div class="team-head">
-                  <span class="team-dot red"></span>
-                  <h3>{{ t('red_operatives') }}</h3><span class="roster-count">{{ redPlayers.length }}</span>
+                  <span class="team-dot" :class="group.team"></span>
+                  <h3>{{ t(group.title) }}</h3><span class="roster-count">{{ group.members.length }}</span>
                 </div>
-                <ul id="red-team-list" class="player-list" :aria-label="t('red_operatives')" tabindex="0">
-                  <li v-if="redPlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('red') }}</li>
-                  <li v-for="player in redPlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
-                    <div class="team-player-info">
-                      <div class="team-player-name">{{ player.name }}</div>
-                      <div class="player-meta">
-                        <span class="tag">{{ formatRole(player.role) }}</span>
-                        <span v-if="player.isHost" class="tag host">{{ t('tag_host') }}</span>
-                        <span v-if="!player.connected" class="tag offline">{{ t('tag_offline') }}</span>
-                        <span v-if="playerHasMarks(player)" class="tag thinking">...</span>
-                        <span v-if="voice.peerIds.includes(player.sessionId) || (voice.active && player.sessionId === me?.sessionId)" class="tag" :class="voice.mutedPeerIds.includes(player.sessionId) || (player.sessionId === me?.sessionId && voice.muted) ? 'voice-muted' : 'voice'">
-                          {{ voice.mutedPeerIds.includes(player.sessionId) || (player.sessionId === me?.sessionId && voice.muted) ? t('voice_muted_badge') : t('voice_tag') }}
-                        </span>
-                      </div>
-                    </div>
+                <ul :id="group.team === 'none' ? 'spectator-list' : `${group.team}-team-list`" class="player-list" :aria-label="t(group.title)" tabindex="0">
+                  <li v-if="!group.members.length" class="team-empty">{{ t(group.team === 'none' ? 'no_spectators' : 'no_operatives') }}</li>
+                  <li v-for="player in group.members" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}${!player.connected ? ` · ${t('tag_offline')}` : ''}`" :aria-label="player.name" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-offline': !player.connected }">
+                    <span class="team-player-name">{{ player.name }}</span>
+                    <span v-if="player.isHost" class="chip-status" :title="t('tag_host')" :aria-label="t('tag_host')">★</span>
+                    <span v-if="!player.connected" class="chip-status">· {{ t('tag_offline') }}</span>
                   </li>
                 </ul>
+              </section>
 
-              </div>
-
-              <div class="team-panel team-blue" :class="{ 'is-my-team': roleTeamSelected('blue', 'operative') }" @click="setRole('operative', 'blue')">
-                <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam('blue')}`" :aria-pressed="roleTeamSelected('blue', 'operative')" @click.stop="setRole('operative', 'blue')"></button>
-                <div class="team-head">
-                  <span class="team-dot blue"></span>
-                  <h3>{{ t('blue_operatives') }}</h3><span class="roster-count">{{ bluePlayers.length }}</span>
-                </div>
-                <ul id="blue-team-list" class="player-list" :aria-label="t('blue_operatives')" tabindex="0">
-                  <li v-if="bluePlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('blue') }}</li>
-                  <li v-for="player in bluePlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
-                    <div class="team-player-info">
-                      <div class="team-player-name">{{ player.name }}</div>
-                      <div class="player-meta">
-                        <span class="tag">{{ formatRole(player.role) }}</span>
-                        <span v-if="player.isHost" class="tag host">{{ t('tag_host') }}</span>
-                        <span v-if="!player.connected" class="tag offline">{{ t('tag_offline') }}</span>
-                        <span v-if="playerHasMarks(player)" class="tag thinking">...</span>
-                        <span v-if="voice.peerIds.includes(player.sessionId) || (voice.active && player.sessionId === me?.sessionId)" class="tag" :class="voice.mutedPeerIds.includes(player.sessionId) || (player.sessionId === me?.sessionId && voice.muted) ? 'voice-muted' : 'voice'">
-                          {{ voice.mutedPeerIds.includes(player.sessionId) || (player.sessionId === me?.sessionId && voice.muted) ? t('voice_muted_badge') : t('voice_tag') }}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-
-              </div>
-
-              <div class="spectator-roster">
-                <strong>{{ t('watching_count', { count: spectatorPlayers.length }) }}</strong>
-                <ul :aria-label="t('spectator')" tabindex="0"><li v-if="!spectatorPlayers.length" class="spectator-empty">{{ t('no_spectators') }}</li><li v-for="player in spectatorPlayers" :key="player.sessionId" :title="player.name">{{ player.name }}<span v-if="!player.connected"> · {{ t('tag_offline') }}</span></li></ul>
-              </div>
-              <div class="sidebar-actions">
+              <div v-if="!game || game.phase === 'finished' || (me?.isHost && players.some(player => !player.connected))" class="sidebar-actions">
                 <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue }">{{ readinessIssue || t('ready_to_start') }}</p>
                 <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
                   {{ t('start_game') }}
                 </button>
-                <button class="btn btn-ghost spectator-btn" type="button" @click="() => void setRole('spectator')">{{ t('spectator') }}</button>
                 <button id="prune-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !me?.isHost || !players.some(player => !player.connected) }" @click="() => void pruneDisconnected()">
                   {{ t('prune_offline') }}
                 </button>

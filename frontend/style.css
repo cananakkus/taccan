@@ -3275,3 +3275,34 @@ html[data-theme="dark"] .room-screen .ctrl-panel { background: #1b2633; }
   .room-screen:not(.is-lobby) #sheet-teams .spectator-roster { grid-row: 3; }
   .room-screen:not(.is-lobby) #sheet-teams .sidebar-actions { grid-row: 4; }
 }
+
+/* Every membership section shares the same join interaction and compact chips. */
+.room-screen #sheet-teams .team-none { color: var(--ink-light); border-left: 3px solid currentColor; cursor: pointer; }
+.team-dot.none { background: var(--ink-light); }
+.room-screen #sheet-teams .team-panel .player-list {
+  display: flex; flex-flow: row wrap; align-content: flex-start; align-items: flex-start;
+  gap: 6px; padding: 6px 0 0; margin: 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scroll-snap-type: none;
+}
+.room-screen #sheet-teams .team-panel .team-player-item,
+.room-screen #sheet-teams .team-panel .team-player-item:focus {
+  display: inline-flex; flex: 0 0 auto; align-items: baseline; flex-wrap: wrap; gap: 0 4px;
+  height: auto; min-height: 0; max-width: 100%; padding: 3px 7px;
+  border: 1px solid var(--border); border-radius: 4px; background: var(--paper-light);
+  color: var(--ink); font: 14px/18px var(--font-body);
+}
+.room-screen #sheet-teams .team-panel .team-player-name { font: inherit; color: inherit; white-space: normal; overflow: visible; overflow-wrap: anywhere; min-width: 0; }
+.room-screen #sheet-teams .team-panel .team-player-item.is-offline { color: var(--ink-faded); }
+.room-screen #sheet-teams .team-panel .team-player-item.speaking { border-color: var(--success); box-shadow: 0 0 0 1px var(--success); }
+.room-screen #sheet-teams .chip-status { font-size: 11px; }
+.room-screen #sheet-teams .team-empty { border: 0; padding: 0; background: transparent; color: var(--ink-light); font: 14px/20px var(--font-body); }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body { grid-template-rows: minmax(0,.35fr) minmax(0,.35fr) minmax(0,.3fr); }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel:has(.sidebar-actions) .sheet-body { grid-template-rows: minmax(0,.35fr) minmax(0,.35fr) minmax(0,.3fr) 52px; }
+}
+@media (max-width: 900px) {
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel { height: 400px; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body { grid-template-rows: 180px minmax(0,1fr); }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel:has(.sidebar-actions) { height: 452px; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel:has(.sidebar-actions) .sheet-body { grid-template-rows: 180px minmax(0,1fr) 40px; }
+}
