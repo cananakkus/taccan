@@ -3234,3 +3234,44 @@ html[data-theme="dark"] .room-screen .card.keycard.assassin, html[data-theme="da
 html[data-theme="dark"] .room-screen .feed-guess.neutral { color: #c4ccd6; }
 html[data-theme="dark"] .room-screen .ctrl-panel { background: #1b2633; }
 .room-screen #sheet-teams .roster-title { display: block; }
+
+/* Stable roster areas: player arrivals only change the scrollable contents. */
+.room-screen #sheet-teams.persistent-panel { height: 508px; max-height: none; }
+.room-screen #sheet-teams.persistent-panel .sheet-body {
+  height: 100%; max-height: none; padding: 12px; gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 180px 156px 124px;
+}
+.room-screen #sheet-teams .team-panel { margin: 0; min-height: 0; height: 100%; }
+.room-screen #sheet-teams .team-red { grid-column: 1; grid-row: 1; }
+.room-screen #sheet-teams .team-blue { grid-column: 2; grid-row: 1; }
+.room-screen #sheet-teams .team-head { flex: none; align-items: baseline; gap: 6px; }
+.room-screen #sheet-teams .team-head h3 { font-size: 15px; line-height: 19px; }
+.room-screen #sheet-teams .player-list { height: auto; max-height: none; min-height: 0; flex: 1 1 0; overflow-y: auto; }
+.room-screen #sheet-teams .spectator-roster {
+  grid-column: 1 / -1; grid-row: 2; display: flex; flex-direction: column;
+  min-height: 0; height: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 5px;
+}
+.room-screen #sheet-teams .spectator-roster > strong { flex: none; font-size: 15px; line-height: 20px; }
+.room-screen #sheet-teams .spectator-roster ul {
+  flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-flow: row wrap; align-content: flex-start; align-items: flex-start;
+  gap: 6px; padding: 8px 0 0; scrollbar-width: thin;
+}
+.room-screen #sheet-teams .spectator-roster li {
+  flex: 0 0 auto; max-width: 100%; padding: 3px 7px; border: 1px solid var(--border);
+  border-radius: 4px; background: var(--paper-light); color: var(--ink); font: 14px/18px var(--font-body); overflow-wrap: anywhere;
+}
+.room-screen #sheet-teams .spectator-roster .spectator-empty { border: 0; padding: 0; background: transparent; color: var(--ink-light); }
+.room-screen #sheet-teams .sidebar-actions { grid-column: 1 / -1; grid-row: 3; min-height: 0; margin: 0; align-content: flex-start; overflow-y: auto; }
+@media (min-width: 901px) {
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel { height: 100%; }
+  .room-screen:not(.is-lobby) #sheet-teams.persistent-panel .sheet-body {
+    grid-template-columns: minmax(0,1fr);
+    grid-template-rows: minmax(0, .35fr) minmax(0, .35fr) minmax(0, .3fr) 96px;
+  }
+  .room-screen:not(.is-lobby) #sheet-teams .team-red { grid-column: 1; grid-row: 1; }
+  .room-screen:not(.is-lobby) #sheet-teams .team-blue { grid-column: 1; grid-row: 2; }
+  .room-screen:not(.is-lobby) #sheet-teams .spectator-roster { grid-row: 3; }
+  .room-screen:not(.is-lobby) #sheet-teams .sidebar-actions { grid-row: 4; }
+}

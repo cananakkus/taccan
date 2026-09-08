@@ -1183,15 +1183,14 @@ onBeforeUnmount(() => {
             <aside class="room-sidebar">
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
-              <h3 class="sheet-title roster-title">{{ t('panel_operatives') }}<small class="team-join-help">{{ t('team_join_help') }}</small></h3>
 
               <div class="team-panel team-red" :class="{ 'is-my-team': roleTeamSelected('red', 'operative') }" @click="setRole('operative', 'red')">
                 <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam('red')}`" :aria-pressed="roleTeamSelected('red', 'operative')" @click.stop="setRole('operative', 'red')"></button>
                 <div class="team-head">
                   <span class="team-dot red"></span>
-                  <h3 :aria-label="t('red_team')">{{ t('red_team') }}</h3><span class="roster-count">{{ redPlayers.length }}</span>
+                  <h3>{{ t('red_operatives') }}</h3><span class="roster-count">{{ redPlayers.length }}</span>
                 </div>
-                <ul id="red-team-list" class="player-list" :aria-label="t('red_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, redPlayers.length)) }">
+                <ul id="red-team-list" class="player-list" :aria-label="t('red_operatives')" tabindex="0">
                   <li v-if="redPlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('red') }}</li>
                   <li v-for="player in redPlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
                     <div class="team-player-info">
@@ -1208,7 +1207,6 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
-                <p v-if="redPlayers.length > 4" class="roster-overflow-note">{{ t('scroll_players', { count: redPlayers.length }) }}</p>
 
               </div>
 
@@ -1216,9 +1214,9 @@ onBeforeUnmount(() => {
                 <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam('blue')}`" :aria-pressed="roleTeamSelected('blue', 'operative')" @click.stop="setRole('operative', 'blue')"></button>
                 <div class="team-head">
                   <span class="team-dot blue"></span>
-                  <h3 :aria-label="t('blue_team')">{{ t('blue_team') }}</h3><span class="roster-count">{{ bluePlayers.length }}</span>
+                  <h3>{{ t('blue_operatives') }}</h3><span class="roster-count">{{ bluePlayers.length }}</span>
                 </div>
-                <ul id="blue-team-list" class="player-list" :aria-label="t('blue_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, bluePlayers.length)) }">
+                <ul id="blue-team-list" class="player-list" :aria-label="t('blue_operatives')" tabindex="0">
                   <li v-if="bluePlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('blue') }}</li>
                   <li v-for="player in bluePlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
                     <div class="team-player-info">
@@ -1235,13 +1233,12 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
-                <p v-if="bluePlayers.length > 4" class="roster-overflow-note">{{ t('scroll_players', { count: bluePlayers.length }) }}</p>
 
               </div>
 
-              <div v-if="spectatorPlayers.length" class="spectator-roster">
+              <div class="spectator-roster">
                 <strong>{{ t('watching_count', { count: spectatorPlayers.length }) }}</strong>
-                <ul :aria-label="t('spectator')"><li v-for="player in spectatorPlayers" :key="player.sessionId" :title="player.name">{{ player.name }}<span v-if="!player.connected"> · {{ t('tag_offline') }}</span></li></ul>
+                <ul :aria-label="t('spectator')" tabindex="0"><li v-if="!spectatorPlayers.length" class="spectator-empty">{{ t('no_spectators') }}</li><li v-for="player in spectatorPlayers" :key="player.sessionId" :title="player.name">{{ player.name }}<span v-if="!player.connected"> · {{ t('tag_offline') }}</span></li></ul>
               </div>
               <div class="sidebar-actions">
                 <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue }">{{ readinessIssue || t('ready_to_start') }}</p>

@@ -281,7 +281,7 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
         await emit(client, 'role:set', { role: i === 0 || i === 10 ? 'spymaster' : 'operative' });
       }
     }
-    await expect(host.locator('.spectator-roster')).toContainText('Watching · 3');
+    await expect(host.locator('.spectator-roster')).toContainText('Spectators · 3');
     for (const width of [1280, 390]) {
       await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
       await host.locator('#start-game-btn').scrollIntoViewIfNeeded();
@@ -304,6 +304,18 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
     await expect(host.locator('#chat-input')).toBeInViewport({ ratio: 1 });
     await expect(host.locator('.team-red .team-head')).toContainText('9');
     await expect(host.locator('.team-blue .team-head')).toContainText('3');
+    await expect(host.locator('.team-red .team-head h3')).toHaveText('Red Operatives');
+    await expect(host.locator('.team-blue .team-head h3')).toHaveText('Blue Operatives');
+    await expect(host.locator('.roster-title')).toHaveCount(0);
+    const rosterSizes = () => host.locator('#sheet-teams .team-panel, #sheet-teams .spectator-roster').evaluateAll(els => els.map(el => el.getBoundingClientRect().height));
+    const beforeSpectators = await rosterSizes();
+    for (const client of crowd.slice(1, 9)) await emit(client, 'role:set', { role: 'spectator' });
+    await expect(host.locator('.spectator-roster > strong')).toHaveText('Spectators · 11');
+    expect(await rosterSizes()).toEqual(beforeSpectators);
+    expect(await host.locator('.spectator-roster ul').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+    await host.locator('.spectator-roster ul').evaluate(el => { el.scrollTop = el.scrollHeight; });
+    await expect(host.locator('.spectator-roster li').last()).toBeInViewport();
+
     await host.locator('[data-panel="settings"]').click();
     await host.locator('#sheet-settings .language-switch button').last().click();
     await host.locator('#sheet-settings .panel-close').click();
