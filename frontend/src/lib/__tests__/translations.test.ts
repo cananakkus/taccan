@@ -10,5 +10,7 @@ describe('translations', () => {
 
   it('formats translated board words for Turkish', () => {
     expect(formatCardWord('tr', 'apple')).toBe('ELMA');
+    expect(formatCardWord('tr', 'brain')).toBe('BEYİN');
+    expect(formatCardWord('tr', 'light')).toBe('IŞIK');
   });
 });

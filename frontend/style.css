@@ -6,7 +6,18 @@
   font-weight: 400;
   font-display: swap;
   src: url('./src/assets/fonts/courier-prime-turkish.woff2') format('woff2');
-  unicode-range: U+0130-0131;
+  unicode-range: U+0131;
+}
+
+/* Match Special Elite's capital height: Courier Prime is otherwise 18% shorter. */
+@font-face {
+  font-family: 'Taccan Turkish Typewriter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./src/assets/fonts/courier-prime-turkish.woff2') format('woff2');
+  size-adjust: 123%;
+  unicode-range: U+0130;
 }
 
 /* ════════════════════════════════════════════════════════════
