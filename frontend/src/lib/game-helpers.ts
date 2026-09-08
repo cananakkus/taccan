@@ -78,3 +78,11 @@ export function getPlayerName(players: PlayerView[], sessionId: string, fallback
 export function getTeamPlayers(players: PlayerView[], team: Team): PlayerView[] {
   return players.filter((player) => player.team === team);
 }
+
+// The team closer to clearing its words owns more of the shared competition bar.
+export function getScoreBarShares(remaining?: { red: number; blue: number } | null) {
+  const total = remaining ? remaining.red + remaining.blue : 0;
+  if (!remaining || total <= 0) return { red: 50, blue: 50 };
+  const red = remaining.blue / total * 100;
+  return { red, blue: 100 - red };
+}

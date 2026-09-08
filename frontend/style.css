@@ -3306,3 +3306,13 @@ html[data-theme="dark"] .room-screen .ctrl-panel { background: #1b2633; }
   .room-screen:not(.is-lobby) #sheet-teams.persistent-panel:has(.sidebar-actions) { height: 452px; }
   .room-screen:not(.is-lobby) #sheet-teams.persistent-panel:has(.sidebar-actions) .sheet-body { grid-template-rows: 180px minmax(0,1fr) 40px; }
 }
+
+/* One shared boundary moves toward the team falling behind. */
+.room-screen .score-bar { height: 6px; border: 0; border-radius: 0; }
+.room-screen .score-bar-red, .room-screen .score-bar-blue { flex: none; border-radius: 0; }
+.room-screen .score-bar-red { background: var(--red); }
+.room-screen .score-bar-blue { background: var(--blue); }
+.room-screen #hint-count-input { width: 44px; padding: 2px 0; font: 700 24px/32px var(--font-body); text-align: center; }
+@media (max-width: 600px) {
+  .room-screen #hint-count-input { width: 38px; font-size: 22px; }
+}

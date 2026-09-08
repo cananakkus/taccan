@@ -13,6 +13,7 @@ import {
   getPlayerName,
   getReadinessIssue,
   getTeamPlayers,
+  getScoreBarShares,
   truncateMarkerName,
 } from '../lib/game-helpers';
 import { getAssetPath, getInitialRoomCode, getRoomUrl, getServiceWorkerPath } from '../lib/runtime';
@@ -205,6 +206,7 @@ const voicePeerRows = computed(() => {
   }
   return rows;
 });
+const feedEntries = ref<HTMLDivElement | null>(null);
 const feedItems = computed(() => {
   const items: Array<{ key: string; className: string; text: string; sender?: string; team?: string }> = [];
   const merged: Array<{ ts: number; kind: 'chat' | 'game'; entry: ChatMessage | GameHistoryEntry }> = [];
@@ -320,12 +322,7 @@ function resultText() {
 }
 
 function scoreBarWidth(team: 'red' | 'blue') {
-  if (!game.value) return '0%';
-  const redTotal = game.value.startingTeam === 'red' ? 9 : 8;
-  const blueTotal = game.value.startingTeam === 'blue' ? 9 : 8;
-  const total = redTotal + blueTotal;
-  const found = team === 'red' ? redTotal - game.value.remaining.red : blueTotal - game.value.remaining.blue;
-  return `${(found / total) * 100}%`;
+  return `${getScoreBarShares(game.value?.remaining)[team]}%`;
 }
 
 function getBoardCardClasses(card: BoardCard) {
@@ -838,6 +835,15 @@ watch(
   { immediate: true }
 );
 
+watch(
+  [() => room.value?.code, () => feedItems.value.at(-1)?.key, () => feedItems.value.at(-1)?.text],
+  () => {
+    const entries = feedEntries.value;
+    if (entries) entries.scrollTop = entries.scrollHeight;
+  },
+  { flush: 'post' }
+);
+
 watch(game, () => syncInputDefaults(), { immediate: true });
 watch(
   () => [game.value?.id, game.value?.phase, game.value?.currentTeam],
@@ -1014,7 +1020,7 @@ onBeforeUnmount(() => {
         <div class="top-bar">
           <div id="score-bar" class="score-bar">
             <div id="score-bar-red" class="score-bar-red" :style="{ width: scoreBarWidth('red') }"></div>
-            <div class="score-bar-gap"></div>
+
             <div id="score-bar-blue" class="score-bar-blue" :style="{ width: scoreBarWidth('blue') }"></div>
           </div>
         </div>
@@ -1130,6 +1136,7 @@ onBeforeUnmount(() => {
                     </button>
                     <input
                       id="hint-count-input"
+                      :aria-label="t('hint_count')"
                       v-model="hintCountInput"
                       type="number"
                       min="1"
@@ -1214,7 +1221,7 @@ onBeforeUnmount(() => {
           <div class="persistent-panel" id="sheet-feed">
             <div class="sheet-body">
               <h3 class="sheet-title">{{ t('panel_feed') }}</h3>
-              <div id="feed-entries" class="feed-entries">
+              <div id="feed-entries" ref="feedEntries" class="feed-entries">
                 <div v-if="feedItems.length === 0" class="feed-empty">{{ t('feed_empty') }}</div>
                 <div v-for="item in feedItems" :key="item.key" :class="item.className"><template v-if="item.sender"><span class="feed-name" :class="item.team">{{ item.sender }}:</span> </template><span class="feed-text">{{ item.text }}</span></div>
               </div>

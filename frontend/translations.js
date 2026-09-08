@@ -5,6 +5,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
     en: Object.freeze({
       invite_short: 'Copy invite',
       guess_left: '{count} guess left',
+      hint_count: 'Number of words in the hint',
       scroll_players: 'Scroll to see all {count}',
       player_count: '{count} players',
       operative_count: '{count} operatives',
@@ -307,6 +308,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
     tr: Object.freeze({
       invite_short: 'Davet',
       guess_left: '{count} tahmin kaldı',
+      hint_count: 'İpucunun kelime sayısı',
       scroll_players: '{count} oyuncu için kaydır',
       player_count: '{count} oyuncu',
       operative_count: '{count} operatif',

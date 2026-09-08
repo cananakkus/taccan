@@ -140,6 +140,14 @@ for (const width of [390, 1280]) {
       }
       await expect(guest.locator('#feed-entries .feed-name.red').last()).toHaveText('Host:');
       expect(await host.locator('#sheet-feed').evaluate(el => el.getBoundingClientRect().height)).toBe(chatHeight);
+      for (const page of [host, guest]) await page.locator('#feed-entries').evaluate(el => { el.scrollTop = 0; });
+      await host.locator('#chat-input').fill('Newest message must be visible');
+      await host.locator('#chat-form button').click();
+      for (const page of [host, guest]) {
+        await expect(page.locator('#feed-entries .feed-text').last()).toHaveText('Newest message must be visible');
+        await expect.poll(() => page.locator('#feed-entries').evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThanOrEqual(1);
+      }
+
 
       await host.locator('#start-game-btn').click();
       await expect.poll(() => room.game?.phase).toBe('hint');
@@ -168,6 +176,7 @@ for (const width of [390, 1280]) {
       const second = first === host ? guest : host;
       expect(await first.locator('.controls-strip').evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
       expect(await first.locator('#hint-section').evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+      expect(await first.locator('#hint-count-input').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(22);
       await first.locator('#hint-word-input').fill('galactic');
       await first.locator('#hint-form button[type="submit"]').click();
       await expect(second.locator('#hint-display')).toBeVisible();
@@ -372,9 +381,17 @@ test('revealed words use their card colours and finished turns clear the summary
       await emit(peers[0], 'turn:hint_submit', { word: 'testclueabcd', count: 3 });
       await expect(page.locator('#hint-display')).toContainText('TESTCLUEABCD');
       const card = room.game.board.find(card => card.color === color && !card.revealed);
+      const previousRedShare = await page.locator('#score-bar-red').evaluate(el => parseFloat(el.style.width));
       await emit(peers[1], 'turn:guess', { index: card.index });
       const entry = page.locator('.feed-guess').last();
       await expect(entry).toHaveClass(new RegExp(`\\b${color}\\b`));
+      const redShare = await page.locator('#score-bar-red').evaluate(el => parseFloat(el.style.width));
+      const blueShare = await page.locator('#score-bar-blue').evaluate(el => parseFloat(el.style.width));
+      expect(redShare + blueShare).toBeCloseTo(100);
+      if (color === 'red') expect(redShare).toBeGreaterThan(previousRedShare);
+      else if (color === 'blue') expect(redShare).toBeLessThan(previousRedShare);
+      else expect(redShare).toBe(previousRedShare);
+
       if (color === 'red' || color === 'blue') {
         const expected = await page.locator(`.clue-slot[data-team="${color}"]`).evaluate(el => getComputedStyle(el).color);
         await expect(entry.locator('.feed-text')).toHaveCSS('color', expected);
