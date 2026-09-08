@@ -1572,12 +1572,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .card-inner {
   width: 100%;
   height: 100%;
-  transition: transform 500ms ease;
-  transform-style: preserve-3d;
+  transition: none;
+  transform-style: flat;
   position: relative;
 }
 
-.card-front, .card-back {
+.card-front {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
@@ -1586,9 +1586,6 @@ input[type="number"]::-webkit-outer-spin-button {
   align-items: center;
   justify-content: center;
   padding: 4px;
-}
-.card-back {
-  transform: rotateY(180deg);
 }
 
 .card-word {
@@ -1689,7 +1686,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .card.keycard.assassin .card-word { color: var(--keycard-assassin-text); font-weight: bold; }
 
 /* ── Revealed Cards — Stamped Look ── */
-.card.revealed .card-inner { transform: rotateY(180deg); }
+.card.revealed .card-inner { transform: none; }
 
 .card.revealed.red {
   background: linear-gradient(145deg, var(--revealed-red-start), var(--revealed-red-end));
@@ -2988,3 +2985,57 @@ html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-bl
  .room-screen .hint-form .stepper-btn { width: 26px; padding: 0; }
  .room-screen #hint-section { padding: 8px; }
 }
+
+/* One readable face for every card, before and after reveal. */
+.room-screen .card-inner { transform: none; }
+.room-screen .card-front { backface-visibility: visible; }
+.room-screen .card-stamp-slot { width: 13px; height: 13px; top: 4px; right: 4px; opacity: .85; }
+.room-screen .clue-slot .words-remaining { font: 700 20px/24px var(--font-body); text-transform: uppercase; letter-spacing: .01em; }
+.room-screen .clue-slot .clue-word { font-size: 19px; line-height: 24px; }
+@media (max-width: 900px) {
+ .room-screen #hint-display { grid-template-rows: 24px 24px 20px; height: 74px; min-height: 74px; flex-basis: 74px; }
+ .room-screen .clue-slot .words-remaining { font-size: 18px; line-height: 24px; }
+ .room-screen .clue-slot.current .clue-word { font-size: 18px; }
+ .room-screen .clue-slot:not(.current) .clue-word { font-size: 15px; }
+ .room-screen .clue-slot:not(.current):not(.empty) .clue-word::before { content: none; }
+}
+/* Roster headings/actions stay fixed; only the member lists scroll. */
+.room-screen #sheet-teams.persistent-panel { overflow: hidden; }
+.room-screen #sheet-teams.persistent-panel .sheet-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr); gap: 10px 16px; overflow: hidden; }
+.room-screen #sheet-teams .team-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; gap: 4px; padding: 6px 0; }
+.room-screen #sheet-teams .team-head { display: flex; min-height: 24px; flex-shrink: 0; }
+.room-screen #sheet-teams .team-head h3 { font: 700 15px var(--font-body); text-transform: none; letter-spacing: 0; }
+.room-screen #sheet-teams .roster-count { color: var(--ink-light); font: 700 15px var(--font-body); }
+.room-screen #sheet-teams .player-list { order: 1; height: calc(var(--visible-players) * 44px); max-height: 176px; min-height: 0; flex: 0 1 auto; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; scrollbar-width: thin; scroll-snap-type: y proximity; gap: 0; margin: 0; }
+.room-screen #sheet-teams .team-player-item { flex: 0 0 44px; min-height: 44px; height: 44px; padding: 4px 2px; scroll-snap-align: start; border-bottom: 1px solid var(--border-light); }
+.room-screen #sheet-teams .team-player-name { font: 600 16px/18px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-screen #sheet-teams .player-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; height: 17px; }
+.room-screen #sheet-teams .player-meta .tag { font: 13px/17px var(--font-body); text-transform: none; letter-spacing: 0; padding: 0 4px 0 0; border: 0; background: transparent; }
+.room-screen #sheet-teams .team-player-item:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
+.room-screen #sheet-teams .team-player-item:focus .team-player-name { overflow-x: auto; text-overflow: clip; }
+.room-screen #sheet-teams .team-player-item.is-offline .team-player-name { color: var(--ink-faded); }
+.room-screen #sheet-teams .team-player-item.is-spymaster .team-player-name { font-weight: 800; }
+.room-screen #sheet-teams .team-actions { order: 2; flex: none; margin-top: 8px; }
+.room-screen #sheet-teams .sidebar-actions { grid-column: 1 / -1; margin: 0; padding-top: 8px; }
+.spectator-roster { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border-light); padding-top: 8px; }
+.spectator-roster strong { font: 600 14px var(--font-body); color: var(--ink-light); }
+.spectator-roster ul { display: flex; flex-wrap: wrap; gap: 4px 12px; max-height: 48px; overflow: auto; list-style: none; padding: 4px 0 0; margin: 0; }
+.spectator-roster li { font: 15px/20px var(--font-body); overflow-wrap: anywhere; max-width: 100%; }
+@media (min-width: 901px) {
+ .room-screen.is-lobby #sheet-teams, .room-screen.is-lobby #sheet-feed { height: clamp(490px, calc(100dvh - 210px), 620px); }
+ .room-screen.is-lobby #sheet-teams .sheet-body { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
+ .room-screen:not(.is-lobby):not(.managing-roles) #sheet-teams, .room-screen:not(.is-lobby).managing-roles #sheet-teams { flex: 0 1 auto; max-height: calc(100% - 216px); }
+ .room-screen:not(.is-lobby) #sheet-teams .sheet-body { max-height: 100%; }
+}
+@media (max-width: 900px) {
+ .room-screen:not(.is-lobby):not(.managing-roles) #sheet-teams .team-head { display: flex; }
+ .room-screen #sheet-teams.persistent-panel .sheet-body { gap: 8px 12px; padding: 10px; }
+ .room-screen.is-lobby #sheet-teams .player-list { height: calc(var(--visible-players) * 44px); }
+ .room-screen #sheet-teams .team-head h3 { font-size: 14px; }
+}
+.roster-overflow-note { order: 1; flex: none; font: 13px/18px var(--font-body); color: var(--ink-light); margin: 3px 0 0; }
+@media (min-width: 901px) {
+ .room-screen.is-lobby .btn-role { min-height: 32px; padding: 5px 10px; }
+}
+.room-screen #sheet-teams .team-player-item:focus { height: auto; flex-basis: auto; }
+.room-screen #sheet-teams .team-player-item:focus .team-player-name { white-space: normal; overflow-wrap: anywhere; overflow: visible; }

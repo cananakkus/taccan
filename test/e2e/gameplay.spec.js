@@ -187,6 +187,17 @@ for (const width of [390, 1280]) {
       await second.evaluate(() => window.scrollTo(0, 0));
       await expect(second.locator('#submit-guess-btn')).toBeInViewport({ ratio: 1 });
       await expect(second.locator('#guess-section')).not.toContainText('Click a card to mark');
+      const team = room.game.currentTeam;
+      const remaining = room.game.remaining[team];
+      const card = room.game.board.find(card => card.color === team && !card.revealed);
+      const tile = second.locator('#board > button').nth(card.index);
+      await tile.click();
+      await second.locator('#submit-guess-btn').click();
+      await expect(tile).toHaveClass(/revealed/);
+      await expect(tile.locator('.card-word')).toHaveCount(1);
+      await expect(tile.locator('.card-inner')).toHaveCSS('transform', 'none');
+      await expect(second.locator(`.clue-slot[data-team="${team}"] .words-remaining`)).toHaveText(`${remaining - 1} words left`);
+
 
     } finally {
       await host.close();
@@ -213,5 +224,60 @@ test('small phone keeps Turkish labels, lobby actions, and voice controls access
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally {
     await page.close();
+  }
+});
+
+test('crowded and uneven teams keep headings, actions and spectators accessible', async ({ browser }) => {
+  const host = await openPlayer(browser);
+  const { code } = await session(host);
+  const crowd = [];
+  try {
+    for (let i = 0; i < 16; i++) {
+      const client = io(origin, { transports: ['websocket'], reconnection: false });
+      crowd.push(client); clients.push(client);
+      await new Promise(resolve => client.on('connect', resolve));
+      await emit(client, 'room:join', { code, name: `Alexandria Longname ${i}` });
+      if (i < 14) {
+        await emit(client, 'team:set', { team: i < 10 ? 'red' : 'blue' });
+        await emit(client, 'role:set', { role: i === 0 || i === 10 ? 'spymaster' : 'operative' });
+      }
+    }
+    await expect(host.locator('.spectator-roster')).toContainText('Watching · 3');
+    for (const width of [1280, 390]) {
+      await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
+      await host.locator('#start-game-btn').scrollIntoViewIfNeeded();
+      await expect(host.locator('#start-game-btn')).toBeInViewport({ ratio: 1 });
+      const fits = await host.locator('#start-game-btn').evaluate(el => {
+        const action = el.getBoundingClientRect();
+        const panel = document.querySelector('#sheet-teams').getBoundingClientRect();
+        return action.bottom <= panel.bottom && action.top >= panel.top;
+      });
+      expect(fits).toBe(true);
+      expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await host.locator('#red-team-list').evaluate(el => { el.scrollTop = el.scrollHeight; });
+      await expect(host.locator('#red-team-list li').last()).toBeInViewport();
+      await host.locator('#red-team-list li').last().focus();
+      await expect(host.locator('#red-team-list li').last().locator('.team-player-name')).toHaveCSS('white-space', 'normal');
+    }
+    await host.setViewportSize({ width: 1280, height: 720 });
+    await host.locator('#start-game-btn').click();
+    await expect(host.locator('#manage-roles-btn')).toBeInViewport({ ratio: 1 });
+    await expect(host.locator('#chat-input')).toBeInViewport({ ratio: 1 });
+    await expect(host.locator('.team-red .team-head')).toContainText('10 players');
+    await expect(host.locator('.team-blue .team-head')).toContainText('4 players');
+    await host.locator('[data-panel="settings"]').click();
+    await host.locator('#sheet-settings .language-switch button').last().click();
+    await host.locator('#sheet-settings .panel-close').click();
+    for (const width of [1280, 390]) {
+      await host.setViewportSize({ width, height: width === 1280 ? 720 : 844 });
+      await host.evaluate(() => window.scrollTo(0, 0));
+      await expect(host.locator('.words-remaining').first()).toContainText('kelime kaldı');
+      const size = await host.locator('.words-remaining').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+      expect(size).toBeGreaterThanOrEqual(18);
+      expect(await host.locator('.words-remaining').evaluateAll(els => els.every(el => el.scrollWidth <= el.clientWidth))).toBe(true);
+    }
+  } finally {
+    for (const client of crowd) { if (client.connected) await emit(client, 'room:leave', {}); client.disconnect(); }
+    await host.close();
   }
 });

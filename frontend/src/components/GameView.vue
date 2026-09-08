@@ -123,8 +123,10 @@ const canHintNow = computed(() => canHint(snapshot.value));
 const canGuessNow = computed(() => canGuess(snapshot.value));
 const currentMaxHintCount = computed(() => getCurrentMaxHintCount(snapshot.value));
 const readinessIssue = computed(() => getReadinessIssue(snapshot.value, (key) => t(key)));
-const redPlayers = computed(() => getTeamPlayers(players.value, 'red'));
-const bluePlayers = computed(() => getTeamPlayers(players.value, 'blue'));
+const sortRoster = (list: PlayerView[]) => [...list].sort((a, b) => Number(b.role === 'spymaster') - Number(a.role === 'spymaster') || Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name));
+const redPlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'red')));
+const bluePlayers = computed(() => sortRoster(getTeamPlayers(players.value, 'blue')));
+const spectatorPlayers = computed(() => players.value.filter(player => player.team === 'none' || player.role === 'spectator'));
 const roomMode = computed(() => room.value?.mode || 'casual');
 const displayBoard = computed<BoardCard[]>(() => {
   if (game.value?.board?.length) return game.value.board;
@@ -1066,7 +1068,7 @@ onBeforeUnmount(() => {
             <div v-if="game" class="board-area">
               <div id="hint-display" class="clue-summary" aria-live="polite">
                 <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :class="{ current: game.currentTeam === team, empty: !latestHints.some(hint => hint.team === team) }" :data-team="team">
-                  <strong>{{ formatTeam(team) }} · {{ game.remaining[team] }}</strong>
+                  <strong class="words-remaining" :aria-label="`${formatTeam(team)}: ${t('words_left', { count: game.remaining[team] })}`">{{ t('words_left', { count: game.remaining[team] }) }}</strong>
                   <span class="clue-word" :data-team-label="formatTeam(team)">{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
                   <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t('guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
                 </div>
@@ -1091,10 +1093,7 @@ onBeforeUnmount(() => {
                     <div class="card-inner">
                       <div class="card-front">
                         <span class="card-word" v-fit-word="boardWord(card)"></span>
-                      </div>
-                      <div class="card-back">
-                        <span class="card-word" v-fit-word="boardWord(card)"></span>
-                        <span class="card-stamp-slot" v-html="card.revealed ? stampSvg(card.color) : ''"></span>
+                        <span v-if="card.revealed" class="card-stamp-slot" aria-hidden="true" v-html="stampSvg(card.color)"></span>
                       </div>
                     </div>
                     <div class="card-markers">
@@ -1190,11 +1189,11 @@ onBeforeUnmount(() => {
               <div class="team-panel team-red">
                 <div class="team-head">
                   <span class="team-dot red"></span>
-                  <h3>{{ t('red_team') }}</h3>
+                  <h3 :aria-label="t('red_team')">{{ game ? t('player_count', { count: redPlayers.length }) : t('red_team') }}</h3><span v-if="!game" class="roster-count">{{ redPlayers.length }}</span>
                 </div>
-                <ul id="red-team-list" class="player-list">
+                <ul id="red-team-list" class="player-list" :aria-label="t('red_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, redPlayers.length)) }">
                   <li v-if="redPlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('red') }}</li>
-                  <li v-for="player in redPlayers" :key="player.sessionId" class="team-player-item" :class="{ speaking: playerIsSpeaking(player.sessionId) }">
+                  <li v-for="player in redPlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
                     <div class="team-player-info">
                       <div class="team-player-name">{{ player.sessionId === me?.sessionId ? `${player.name} ${t('you_suffix')}` : player.name }}</div>
                       <div class="player-meta">
@@ -1209,6 +1208,7 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
+                <p v-if="redPlayers.length > 4" class="roster-overflow-note">{{ t('scroll_players', { count: redPlayers.length }) }}</p>
                 <div v-if="!game || manageRoles" class="team-actions">
                   <div class="role-row">
                     <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'spymaster') }" :aria-pressed="roleTeamSelected('red', 'spymaster')" @click="() => void setRole('spymaster', 'red')">{{ roleTeamSelected('red', 'spymaster') ? `${t('spymaster')} ✓` : t('join_spymaster') }}</button>
@@ -1220,11 +1220,11 @@ onBeforeUnmount(() => {
               <div class="team-panel team-blue">
                 <div class="team-head">
                   <span class="team-dot blue"></span>
-                  <h3>{{ t('blue_team') }}</h3>
+                  <h3 :aria-label="t('blue_team')">{{ game ? t('player_count', { count: bluePlayers.length }) : t('blue_team') }}</h3><span v-if="!game" class="roster-count">{{ bluePlayers.length }}</span>
                 </div>
-                <ul id="blue-team-list" class="player-list">
+                <ul id="blue-team-list" class="player-list" :aria-label="t('blue_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, bluePlayers.length)) }">
                   <li v-if="bluePlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('blue') }}</li>
-                  <li v-for="player in bluePlayers" :key="player.sessionId" class="team-player-item" :class="{ speaking: playerIsSpeaking(player.sessionId) }">
+                  <li v-for="player in bluePlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
                     <div class="team-player-info">
                       <div class="team-player-name">{{ player.sessionId === me?.sessionId ? `${player.name} ${t('you_suffix')}` : player.name }}</div>
                       <div class="player-meta">
@@ -1239,6 +1239,7 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
+                <p v-if="bluePlayers.length > 4" class="roster-overflow-note">{{ t('scroll_players', { count: bluePlayers.length }) }}</p>
                 <div v-if="!game || manageRoles" class="team-actions">
                   <div class="role-row">
                     <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'spymaster') }" :aria-pressed="roleTeamSelected('blue', 'spymaster')" @click="() => void setRole('spymaster', 'blue')">{{ roleTeamSelected('blue', 'spymaster') ? `${t('spymaster')} ✓` : t('join_spymaster') }}</button>
@@ -1247,6 +1248,10 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
+              <div v-if="spectatorPlayers.length" class="spectator-roster">
+                <strong>{{ t('watching_count', { count: spectatorPlayers.length }) }}</strong>
+                <ul :aria-label="t('spectator')"><li v-for="player in spectatorPlayers" :key="player.sessionId" :title="player.name">{{ player.name }}<span v-if="!player.connected"> · {{ t('tag_offline') }}</span></li></ul>
+              </div>
               <div v-if="!game || manageRoles || game.phase === 'finished'" class="sidebar-actions">
                 <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue }">{{ readinessIssue || t('ready_to_start') }}</p>
                 <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">

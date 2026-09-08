@@ -3,11 +3,15 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
   supportedLanguages: ['en', 'tr'],
   strings: Object.freeze({
     en: Object.freeze({
+      scroll_players: 'Scroll to see all {count}',
+      player_count: '{count} players',
+      watching_count: 'Watching · {count}',
+      words_left: '{count} words left',
       join_spymaster: 'Join as spymaster',
       join_operative: 'Join as operative',
       lobby_heading: 'Choose your side',
       lobby_guidance: 'Spymasters give clues. Operatives find the words. Choose a team and a role to get started.',
-      ready_to_start: 'Both spymasters are ready.',
+      ready_to_start: 'Ready to start.',
 
       guesses_left: '{count} guesses left',
       change_role: 'Change role',
@@ -290,11 +294,15 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       leave: 'Leave',
     }),
     tr: Object.freeze({
+      scroll_players: '{count} oyuncu için kaydır',
+      player_count: '{count} oyuncu',
+      watching_count: 'İzleyiciler · {count}',
+      words_left: '{count} kelime kaldı',
       join_spymaster: 'İpucu veren ol',
       join_operative: 'Tahmin eden ol',
       lobby_heading: 'Takımını seç',
       lobby_guidance: 'İpucu verenler yönlendirir, tahmin edenler kelimeleri bulur. Başlamak için takımını ve rolünü seç.',
-      ready_to_start: 'İki takımın ipucu verenleri hazır.',
+      ready_to_start: 'Başlamaya hazır.',
 
       guesses_left: '{count} tahmin kaldı',
       change_role: 'Rol değiştir',
