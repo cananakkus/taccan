@@ -303,13 +303,6 @@ function hintStatusText() {
   return t('hint_status_spymaster_locked', { team: formatTeam(game.value?.currentTeam) });
 }
 
-function guessNoteText() {
-  if (canGuessNow.value) return t('guess_note_active');
-  if (game.value?.phase === 'finished') return t('guess_note_finished');
-  if (game.value?.phase !== 'guess') return t('guess_note_waiting');
-  return t('guess_note_restricted');
-}
-
 const latestHints = computed(() => {
   const hints = new Map<string, { team: Team; word: string; count: number }>();
   for (const entry of game.value?.history || []) {
@@ -638,6 +631,7 @@ async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?:
       await emitWithAck('team:set', { team: roleTeam });
     }
     await emitWithAck('role:set', { role });
+    manageRoles.value = false;
   } catch (error) {
     ui.showToast(error instanceof Error ? error.message : 'Role update failed', 'error');
   }
@@ -1067,12 +1061,13 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="game-stage">
+          <div v-if="!game" class="lobby-intro"><h2>{{ t('lobby_heading') }}</h2><p>{{ t('lobby_guidance') }}</p></div>
           <div class="stage-layout">
             <div v-if="game" class="board-area">
               <div id="hint-display" class="clue-summary" aria-live="polite">
-                <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :data-team="team">
+                <div v-for="team in (['red', 'blue'] as const)" :key="team" class="clue-slot" :class="{ current: game.currentTeam === team, empty: !latestHints.some(hint => hint.team === team) }" :data-team="team">
                   <strong>{{ formatTeam(team) }} · {{ game.remaining[team] }}</strong>
-                  <span class="clue-word">{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
+                  <span class="clue-word" :data-team-label="formatTeam(team)">{{ latestHints.find(hint => hint.team === team) ? hintDisplayText(latestHints.find(hint => hint.team === team)!) : '—' }}</span>
                   <small v-if="game.hint?.team === team && game.phase === 'guess'">{{ t('guesses_left', { count: game.guessesRemaining ?? '∞' }) }}</small>
                 </div>
               </div>
@@ -1160,8 +1155,7 @@ onBeforeUnmount(() => {
                 </form>
               </section>
 
-              <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !game || canHintNow || game.phase === 'finished' }">
-                <p id="guess-note" class="ctrl-status">{{ guessNoteText() }}</p>
+              <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !canGuessNow }">
                 <div v-if="canGuessNow" class="guess-row">
                   <span id="selected-guess" class="selected-label">{{ guessLabel }}</span>
                   <button id="submit-guess-btn" class="btn btn-primary" type="button" :disabled="!selectedGuessCard || !canGuessNow" @click="() => void submitGuess()">
@@ -1217,8 +1211,8 @@ onBeforeUnmount(() => {
                 </ul>
                 <div v-if="!game || manageRoles" class="team-actions">
                   <div class="role-row">
-                    <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'spymaster') }" @click="() => void setRole('spymaster', 'red')">{{ t('spymaster') }}</button>
-                    <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'operative') }" @click="() => void setRole('operative', 'red')">{{ t('operative') }}</button>
+                    <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'spymaster') }" :aria-pressed="roleTeamSelected('red', 'spymaster')" @click="() => void setRole('spymaster', 'red')">{{ roleTeamSelected('red', 'spymaster') ? `${t('spymaster')} ✓` : t('join_spymaster') }}</button>
+                    <button class="btn btn-role red" type="button" :class="{ active: roleTeamSelected('red', 'operative') }" :aria-pressed="roleTeamSelected('red', 'operative')" @click="() => void setRole('operative', 'red')">{{ roleTeamSelected('red', 'operative') ? `${t('operative')} ✓` : t('join_operative') }}</button>
                   </div>
                 </div>
               </div>
@@ -1247,19 +1241,19 @@ onBeforeUnmount(() => {
                 </ul>
                 <div v-if="!game || manageRoles" class="team-actions">
                   <div class="role-row">
-                    <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'spymaster') }" @click="() => void setRole('spymaster', 'blue')">{{ t('spymaster') }}</button>
-                    <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'operative') }" @click="() => void setRole('operative', 'blue')">{{ t('operative') }}</button>
+                    <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'spymaster') }" :aria-pressed="roleTeamSelected('blue', 'spymaster')" @click="() => void setRole('spymaster', 'blue')">{{ roleTeamSelected('blue', 'spymaster') ? `${t('spymaster')} ✓` : t('join_spymaster') }}</button>
+                    <button class="btn btn-role blue" type="button" :class="{ active: roleTeamSelected('blue', 'operative') }" :aria-pressed="roleTeamSelected('blue', 'operative')" @click="() => void setRole('operative', 'blue')">{{ roleTeamSelected('blue', 'operative') ? `${t('operative')} ✓` : t('join_operative') }}</button>
                   </div>
                 </div>
               </div>
 
               <div v-if="!game || manageRoles || game.phase === 'finished'" class="sidebar-actions">
-                <p v-if="!game && readinessIssue" class="readiness-note">{{ readinessIssue }}</p>
+                <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue }">{{ readinessIssue || t('ready_to_start') }}</p>
                 <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
                   {{ t('start_game') }}
                 </button>
                 <button class="btn btn-ghost spectator-btn" type="button" @click="() => void setRole('spectator')">{{ t('spectator') }}</button>
-                <button id="prune-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !me?.isHost }" @click="() => void pruneDisconnected()">
+                <button id="prune-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !me?.isHost || !players.some(player => !player.connected) }" @click="() => void pruneDisconnected()">
                   {{ t('prune_offline') }}
                 </button>
               </div>
@@ -1298,7 +1292,7 @@ onBeforeUnmount(() => {
                   <button type="button" :aria-pressed="preferences.resolvedTheme === 'light'" @click="preferences.setTheme('light')">{{ t('theme_light') }}</button>
                   <button type="button" :aria-pressed="preferences.resolvedTheme === 'dark'" @click="preferences.setTheme('dark')">{{ t('theme_dark') }}</button>
                 </div></div>
-                <div class="preference-row"><span>{{ t('card_patterns') }}</span><button id="colorblind-toggle-btn" class="preference-switch" type="button" role="switch" :aria-checked="preferences.colorblindMode" @click="preferences.setColorblindMode(!preferences.colorblindMode)">{{ t(preferences.colorblindMode ? 'enabled' : 'disabled') }}</button></div>
+                <div class="preference-row"><span>{{ t('card_patterns') }}</span><button id="colorblind-toggle-btn" :aria-label="t('card_patterns')" class="preference-switch" type="button" role="switch" :aria-checked="preferences.colorblindMode" @click="preferences.setColorblindMode(!preferences.colorblindMode)">{{ t(preferences.colorblindMode ? 'enabled' : 'disabled') }}</button></div>
                 <div class="preference-row"><span>{{ t('language_label') }}</span><div class="language-switch segmented" role="group" :aria-label="t('language_label')">
                   <button type="button" :aria-pressed="preferences.language === 'en'" @click="preferences.setLanguage('en')">{{ t('language_en') }}</button>
                   <button type="button" :aria-pressed="preferences.language === 'tr'" @click="preferences.setLanguage('tr')">{{ t('language_tr') }}</button>
@@ -1306,8 +1300,8 @@ onBeforeUnmount(() => {
               </section>
               <section class="settings-group">
                 <h4>{{ t('audio_options') }}</h4>
-                <div class="preference-row"><span>{{ t('sound_effects') }}</span><button id="sound-toggle-btn" class="preference-switch" type="button" role="switch" :aria-checked="!preferences.soundMuted" @click="toggleSoundMute()">{{ t(!preferences.soundMuted ? 'enabled' : 'disabled') }}</button></div>
-                <div class="preference-row"><span>{{ t('noise_suppression') }}</span><button class="preference-switch" type="button" role="switch" :aria-checked="preferences.noiseSuppression" @click="() => void toggleNoiseSuppression()">{{ t(preferences.noiseSuppression ? 'enabled' : 'disabled') }}</button></div>
+                <div class="preference-row"><span>{{ t('sound_effects') }}</span><button id="sound-toggle-btn" :aria-label="t('sound_effects')" class="preference-switch" type="button" role="switch" :aria-checked="!preferences.soundMuted" @click="toggleSoundMute()">{{ t(!preferences.soundMuted ? 'enabled' : 'disabled') }}</button></div>
+                <div class="preference-row"><span>{{ t('noise_suppression') }}</span><button class="preference-switch" :aria-label="t('noise_suppression')" type="button" role="switch" :aria-checked="preferences.noiseSuppression" @click="() => void toggleNoiseSuppression()">{{ t(preferences.noiseSuppression ? 'enabled' : 'disabled') }}</button></div>
               </section>
               <section class="settings-group">
                 <h4>{{ t('room_setup') }}</h4>

@@ -64,8 +64,10 @@ test('voice sends audio both ways, respects mute, and can rejoin after disconnec
   const errors = [];
   for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
   try {
+    const headerHeight = await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height);
     await host.locator('#voice-join-btn').click();
     await expect(host.locator('#voice-join-btn')).toHaveClass(/in-voice/);
+    expect(await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height)).toBe(headerHeight);
     await guest.locator('#voice-join-btn').click();
     await expect.poll(() => receivedAudio(host), { timeout: 15000 }).toBeGreaterThan(0);
     await expect.poll(() => receivedAudio(guest), { timeout: 15000 }).toBeGreaterThan(0);
@@ -179,6 +181,13 @@ for (const width of [390, 1280]) {
         await page.locator('#chat-input').scrollIntoViewIfNeeded();
         await expect(page.locator('#voice-join-btn')).toBeInViewport();
       }
+      await second.locator('#manage-roles-btn').click();
+      await second.locator(`.team-${room.game.currentTeam} .btn-role`).last().click();
+      await expect(second.locator('#manage-roles-btn')).toHaveAttribute('aria-expanded', 'false');
+      await second.evaluate(() => window.scrollTo(0, 0));
+      await expect(second.locator('#submit-guess-btn')).toBeInViewport({ ratio: 1 });
+      await expect(second.locator('#guess-section')).not.toContainText('Click a card to mark');
+
     } finally {
       await host.close();
       await guest.close();
