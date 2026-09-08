@@ -16,7 +16,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       ready_to_start: 'Ready to start.',
 
       guesses_left: '{count} guesses left',
-      change_role: 'Change role',
+      change_team: 'Change team',
       appearance: 'Appearance',
       theme_label: 'Theme',
       card_patterns: 'Card patterns',
@@ -114,7 +114,6 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       readiness_waiting: 'Waiting for {count} player(s) to ready up.',
       no_red_agents: 'No red agents yet',
       no_blue_agents: 'No blue agents yet',
-      you_suffix: '(You)',
       tag_host: 'host',
       tag_offline: 'offline',
       tag_ready: 'ready',
@@ -309,7 +308,7 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       ready_to_start: 'Başlamaya hazır.',
 
       guesses_left: '{count} tahmin kaldı',
-      change_role: 'Rol değiştir',
+      change_team: 'Takım değiştir',
       appearance: 'Görünüm',
       theme_label: 'Tema',
       card_patterns: 'Kart desenleri',
@@ -407,7 +406,6 @@ window.TACCAN_TRANSLATIONS = Object.freeze({
       readiness_waiting: '{count} oyuncunun hazır olması bekleniyor.',
       no_red_agents: 'Henüz kırmızı ajan yok',
       no_blue_agents: 'Henüz mavi ajan yok',
-      you_suffix: '(Sen)',
       tag_host: 'host',
       tag_offline: 'çevrimdışı',
       tag_ready: 'hazır',

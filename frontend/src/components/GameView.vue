@@ -184,7 +184,7 @@ const voicePeerRows = computed(() => {
   if (me.value) {
     rows.push({
       sessionId: me.value.sessionId,
-      name: `${me.value.name} ${t('you_suffix')}`,
+      name: me.value.name,
       isSelf: true,
       volume: 100,
       muted: voice.muted,
@@ -1184,18 +1184,18 @@ onBeforeUnmount(() => {
             <aside class="room-sidebar">
           <div class="persistent-panel" id="sheet-teams">
             <div class="sheet-body">
-              <h3 class="sheet-title roster-title">{{ t('panel_teams') }} <button v-if="game" id="manage-roles-btn" class="btn btn-ghost btn-sm" type="button" :aria-expanded="manageRoles" @click="manageRoles = !manageRoles">{{ manageRoles ? t('close_panel') : t('change_role') }}</button></h3>
+              <h3 class="sheet-title roster-title">{{ t('panel_teams') }} <button v-if="game" id="manage-roles-btn" class="btn btn-ghost btn-sm" type="button" :aria-expanded="manageRoles" @click="manageRoles = !manageRoles">{{ manageRoles ? t('close_panel') : t('change_team') }}</button></h3>
 
               <div class="team-panel team-red">
                 <div class="team-head">
                   <span class="team-dot red"></span>
-                  <h3 :aria-label="t('red_team')">{{ game ? t('player_count', { count: redPlayers.length }) : t('red_team') }}</h3><span v-if="!game" class="roster-count">{{ redPlayers.length }}</span>
+                  <h3 :aria-label="t('red_team')">{{ game && !manageRoles ? t('player_count', { count: redPlayers.length }) : t('red_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ redPlayers.length }}</span>
                 </div>
                 <ul id="red-team-list" class="player-list" :aria-label="t('red_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, redPlayers.length)) }">
                   <li v-if="redPlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('red') }}</li>
                   <li v-for="player in redPlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
                     <div class="team-player-info">
-                      <div class="team-player-name">{{ player.sessionId === me?.sessionId ? `${player.name} ${t('you_suffix')}` : player.name }}</div>
+                      <div class="team-player-name">{{ player.name }}</div>
                       <div class="player-meta">
                         <span class="tag">{{ formatRole(player.role) }}</span>
                         <span v-if="player.isHost" class="tag host">{{ t('tag_host') }}</span>
@@ -1220,13 +1220,13 @@ onBeforeUnmount(() => {
               <div class="team-panel team-blue">
                 <div class="team-head">
                   <span class="team-dot blue"></span>
-                  <h3 :aria-label="t('blue_team')">{{ game ? t('player_count', { count: bluePlayers.length }) : t('blue_team') }}</h3><span v-if="!game" class="roster-count">{{ bluePlayers.length }}</span>
+                  <h3 :aria-label="t('blue_team')">{{ game && !manageRoles ? t('player_count', { count: bluePlayers.length }) : t('blue_team') }}</h3><span v-if="!game || manageRoles" class="roster-count">{{ bluePlayers.length }}</span>
                 </div>
                 <ul id="blue-team-list" class="player-list" :aria-label="t('blue_team')" tabindex="0" :style="{ '--visible-players': Math.max(1, Math.min(4, bluePlayers.length)) }">
                   <li v-if="bluePlayers.length === 0" class="team-empty">{{ teamListEmptyLabel('blue') }}</li>
                   <li v-for="player in bluePlayers" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-spymaster': player.role === 'spymaster', 'is-offline': !player.connected }">
                     <div class="team-player-info">
-                      <div class="team-player-name">{{ player.sessionId === me?.sessionId ? `${player.name} ${t('you_suffix')}` : player.name }}</div>
+                      <div class="team-player-name">{{ player.name }}</div>
                       <div class="player-meta">
                         <span class="tag">{{ formatRole(player.role) }}</span>
                         <span v-if="player.isHost" class="tag host">{{ t('tag_host') }}</span>

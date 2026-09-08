@@ -181,6 +181,18 @@ for (const width of [390, 1280]) {
         await page.locator('#chat-input').scrollIntoViewIfNeeded();
         await expect(page.locator('#voice-join-btn')).toBeInViewport();
       }
+      // Team changes must work during an active guessing turn without resetting it.
+      const switchingSession = await session(second);
+      const otherTeam = room.game.currentTeam === 'red' ? 'blue' : 'red';
+      const beforeSwitch = JSON.stringify(room.game);
+      await expect(second.locator('#manage-roles-btn')).toHaveText('Change team');
+      await second.locator('#manage-roles-btn').click();
+      await expect(second.locator(`.team-${otherTeam} .team-head h3`)).toContainText(otherTeam === 'red' ? 'Red' : 'Blue');
+      await second.locator(`.team-${otherTeam} .btn-role`).last().click();
+      await expect.poll(() => room.players.get(switchingSession.sessionId).team).toBe(otherTeam);
+      await expect.poll(() => room.players.get(switchingSession.sessionId).role).toBe('operative');
+      await expect(second.locator(`.team-${otherTeam} .team-player-name`).filter({ hasText: second === host ? 'Host' : 'Guest' })).toHaveText(second === host ? 'Host' : 'Guest');
+      expect(JSON.stringify(room.game)).toBe(beforeSwitch);
       await second.locator('#manage-roles-btn').click();
       await second.locator(`.team-${room.game.currentTeam} .btn-role`).last().click();
       await expect(second.locator('#manage-roles-btn')).toHaveAttribute('aria-expanded', 'false');
