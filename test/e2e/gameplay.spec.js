@@ -190,8 +190,12 @@ for (const width of [390, 1280]) {
       await new Promise(resolve => operative.on('connect', resolve));
       await emit(operative, 'room:join', { code: room.code, name: 'Operative' });
       await emit(operative, 'team:set', { team: room.game.currentTeam });
-      await emit(operative, 'turn:end', {});
+      const endingTeam = room.game.currentTeam;
+      await first.locator(`.team-${endingTeam} .operative-join-target`).click();
+      await first.locator('#end-turn-btn').click();
+      await expect(first.locator('#confirm-overlay')).toBeHidden();
       await expect(second.locator('#hint-word-input')).toBeVisible();
+      await first.locator(`.clue-slot[data-team="${endingTeam}"] .spymaster-vacancy`).click();
       await expect(second.locator('#hint-display')).not.toContainText('GALACTIC');
       await expect(second.locator('#feed-entries')).toContainText('GALACTIC');
       await second.locator('#hint-word-input').fill('oceanic');

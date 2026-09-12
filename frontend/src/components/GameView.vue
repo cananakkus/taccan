@@ -723,8 +723,6 @@ async function submitGuess(index = ui.selectedGuessIndex) {
 }
 
 async function endTurn() {
-  const confirmed = await ui.confirm(t('confirm_end_turn'));
-  if (!confirmed) return;
   await emitWithAck('turn:end', {}).catch((error: Error) => ui.showToast(error.message, 'error'));
 }
 
