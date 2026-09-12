@@ -262,6 +262,14 @@ for (const width of [390, 1280]) {
 test('small phone keeps Turkish labels, lobby actions, and voice controls accessible', async ({ browser }) => {
   const page = await openPlayer(browser);
   try {
+    for (const viewport of [{ width: 1280, height: 600 }, { width: 1366, height: 768 }, { width: 390, height: 664 }, { width: 320, height: 568 }]) {
+      await page.setViewportSize(viewport);
+      await expect(page.locator('.lobby-intro')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+      for (const selector of ['#start-game-btn', '#chat-input', '#spectator-list .team-player-item']) {
+        await expect(page.locator(selector)).toBeInViewport({ ratio: 1 });
+      }
+    }
     await page.setViewportSize({ width: 320, height: 740 });
     await page.locator('[data-panel="settings"]').click();
     await page.locator('#sheet-settings .language-switch button').last().click();
