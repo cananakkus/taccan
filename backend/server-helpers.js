@@ -52,6 +52,8 @@ module.exports = function createServerHelpers(ctx) {
   }
 
   function preflightAction(socket, action, payload, callback) {
+    const bound=rooms.get(socket.data.roomCode);
+    if(bound?.party&&(['room:create','room:join','room:leave','room:prune_disconnected','room:mode_set','room:blitz_config','team:set','role:set','game:start','game:rematch'].includes(action)||(action==='room:rejoin'&&payload.code!==bound.code))){ackError(callback,'The party hub controls tournament seats and rounds.');return null;}
     const validated = validatePayload(action, payload);
     if (!validated.ok) { ackError(callback, validated.error || 'Invalid payload.'); return null; }
     if (!consumeRateLimit(socket, action)) {

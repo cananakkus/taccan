@@ -34,6 +34,7 @@ module.exports = function createStateView(ctx) {
       now: Date.now(),
       room: {
         code: room.code,
+        tournament: Boolean(room.party),
         status: deriveRoomStatus(room),
         hostSessionId: room.hostSessionId,
         createdAt: room.createdAt,
@@ -43,14 +44,14 @@ module.exports = function createStateView(ctx) {
         chatMessages: room.chatMessages,
       },
       me: {
-        sessionId: viewer.sessionId, name: viewer.name,
+        sessionId: viewer.sessionId, name: viewer.name, color:viewer.color,
         reconnectToken: viewer.reconnectToken,
         team: viewer.team, role: viewer.role,
         connected: viewer.connected,
         isHost: room.hostSessionId === viewer.sessionId,
       },
       players: getSortedPlayers(room).map((player) => ({
-        sessionId: player.sessionId, name: player.name,
+        sessionId: player.sessionId, name: player.name, color:player.color,
         team: player.team, role: player.role,
         connected: player.connected, joinedAt: player.joinedAt,
         isHost: room.hostSessionId === player.sessionId,
@@ -98,7 +99,7 @@ module.exports = function createStateView(ctx) {
             .filter(Boolean)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((player) => ({
-              sessionId: player.sessionId, name: player.name,
+              sessionId: player.sessionId, name: player.name, color:player.color,
               team: player.team,
               confidence: confidenceForCard[player.sessionId] || 'firm',
             })),

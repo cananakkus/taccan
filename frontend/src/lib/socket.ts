@@ -7,6 +7,7 @@ import { createAccountRenewal, requestAccountSession } from './account-session';
 export const socket = io({
   path: `${getBasePath()}socket.io`,
   auth: (done) => {
+    if(new URLSearchParams(location.search).has('party')){done({});return;}
     requestAccountSession().then(session => {
       accountRenewal.setToken(session?.token);
       done(session?.token ? { accountToken: session.token } : {});

@@ -66,7 +66,7 @@ function createApp(options = {}) {
   // Accept both direct subpath requests and requests whose proxy stripped it.
   // This must run before Socket.IO inspects HTTP and WebSocket upgrade URLs.
   function normalizeApiPath(req) {
-    const prefix = req.url.match(/^\/(?:taccan|wordmurmur|murmur)(?=\/(?:api|socket\.io)(?:[/?]|$))/);
+    const prefix = req.url.match(/^\/(?:murmur)(?=\/(?:api|socket\.io)(?:[/?]|$))/);
     if (prefix) {
       req.url = req.url.slice(prefix[0].length);
     }
@@ -99,19 +99,15 @@ function createApp(options = {}) {
 
   // ── Express Setup ──
 
-  app.use(express.json({ limit: '64kb' }));
+  app.use(express.json({ limit: '64kb', type:req=>!req.url.startsWith('/_party/')&&Boolean(req.is('application/json')) }));
   const frontendSourceDir = path.join(__dirname, '..', 'frontend');
   const frontendDistDir = path.join(frontendSourceDir, 'dist');
   const frontendDir = fs.existsSync(path.join(frontendDistDir, 'index.html'))
     ? frontendDistDir
     : frontendSourceDir;
   const staticOpts = { setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); } };
-  app.get(/^\/(?:taccan|wordmurmur)(?:\/|$)/, (req, res) => {
-    res.redirect(308, req.originalUrl.replace(/^\/(?:taccan|wordmurmur)(?=\/|\?|$)/, '/murmur'));
-  });
   app.use(express.static(frontendDir, staticOpts));
   app.use(['/murmur'], express.static(frontendDir, staticOpts));
-  app.get('/taccan/socket.io/socket.io.js', (_req, res) => res.redirect('/socket.io/socket.io.js'));
 
   // ── Assemble Helpers ──
 
@@ -133,6 +129,9 @@ function createApp(options = {}) {
     withRoomLock,
   };
   ctx.helpers = helpers;
+  const partySecret=options.partySecret ?? process.env.PARTY_SECRET;
+  const party=partySecret?require('./party-support').createPartySupport(ctx,{secret:partySecret,file:options.partyFile||process.env.PARTY_DATA_FILE||'state/party.sqlite'}):null;
+  app.use((req,res,next)=>{if(!req.path.startsWith('/_party/'))return next();if(!party)return res.status(404).json({error:'Not found'});party.handle(req,res).catch(next)});
 
   // ── API Routes ──
 
@@ -173,7 +172,7 @@ function createApp(options = {}) {
     });
   });
 
-  app.get(['/room/:code', '/taccan/room/:code', '/wordmurmur/room/:code', '/murmur/room/:code'], (_req, res) => {
+  app.get(['/room/:code', '/murmur/room/:code'], (_req, res) => {
     res.sendFile(path.join(frontendDir, 'index.html'));
   });
 
@@ -201,6 +200,7 @@ function createApp(options = {}) {
     helpers.logEvent('socket_connected', { socketId: socket.id });
     socket.emit('server:ready', { now: Date.now() });
     for (const register of handlerRegisters) register(socket, deps);
+    party?.register(socket);
   });
 
   // ── Periodic Cleanup ──
@@ -208,6 +208,7 @@ function createApp(options = {}) {
   const cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const room of rooms.values()) {
+      if(room.party)continue;
       const removedCount = pruneDisconnectedPlayers(room, now, DISCONNECTED_PLAYER_TTL_MS, helpers.clearMarksForSession);
       ensureHostSession(room);
       if (room.players.size === 0 || now - room.lastActiveAt > STALE_ROOM_TTL_MS) {
@@ -226,13 +227,13 @@ function createApp(options = {}) {
   cleanupInterval.unref();
 
   return { app, httpServer, io, rooms, phaseTimers, mvpTimers, metrics, cleanupInterval,
-    saveState: (state = rooms) => saveState(state, options.stateFile) };
+    party, saveState: (state = rooms) => saveState(new Map([...state].filter(([,r])=>!r.party)), options.stateFile) };
 }
 
 // ── Main ──
 
 if (require.main === module) {
-  const { httpServer, io, rooms, cleanupInterval, phaseTimers, mvpTimers, saveState: save } = createApp();
+  const { httpServer, io, rooms, cleanupInterval, phaseTimers, mvpTimers, party, saveState: save } = createApp();
   httpServer.listen(PORT, HOST, () => {
     console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'server_started', host: HOST, port: PORT }));
     console.log(`Murmur server listening on http://${HOST}:${PORT}`);
@@ -245,6 +246,7 @@ if (require.main === module) {
     console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'shutdown_initiated', signal }));
     console.log(`\n${signal} received, shutting down gracefully...`);
     save(rooms);
+    party?.close();
     clearInterval(cleanupInterval);
     for (const timer of [...phaseTimers.values(), ...mvpTimers.values()]) clearTimeout(timer);
     io.close(() => {

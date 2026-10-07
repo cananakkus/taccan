@@ -32,6 +32,7 @@ export interface ModeConfig {
 }
 
 export interface RoomView {
+  tournament?: boolean;
   code: string;
   status: RoomStatus;
   hostSessionId: string | null;
@@ -43,6 +44,7 @@ export interface RoomView {
 }
 
 export interface PlayerView {
+  color?: string;
   inVoice?: boolean;
   voiceMuted?: boolean;
   speaking?: boolean;
@@ -56,6 +58,7 @@ export interface PlayerView {
 }
 
 export interface MeView {
+  color?: string;
   sessionId: string;
   reconnectToken?: string;
   name: string;

@@ -1,6 +1,7 @@
 const { BOARD_SIZE } = require('./game-engine');
 
 const SCHEMAS = {
+  'player:identity': {name:{type:'string',optional:true,maxLength:18},color:{type:'string',optional:true,maxLength:7}},
   'account:refresh': {
     token: { type: 'string', optional: false, maxLength: 4096 },
   },

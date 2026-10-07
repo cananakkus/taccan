@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AccountControls from './AccountControls.vue';
+import {isTournament, loadPartySeat, savePartyIdentity} from '../lib/party';
 import LanguageSwitcher from './LanguageSwitcher.vue';
 import VoiceBadge from './VoiceBadge.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -40,6 +41,8 @@ import type {
 } from '../types';
 
 const accountName = ref('');
+const partyError = ref('');
+const retryParty = () => {partyError.value='';void tryAutoRejoin();};
 function setAccountName(name: string) {
   accountName.value = name;
   if (name) nameInput.value = name;
@@ -399,6 +402,13 @@ function setConnection(connected: boolean) {
 }
 
 async function tryAutoRejoin() {
+  if(isTournament){
+    if(app.rejoinAttempted)return;app.rejoinAttempted=true;
+    try{const seat=await loadPartySeat();await emitWithAck('room:rejoin',{code:seat.room,sessionId:seat.sessionId,reconnectToken:seat.reconnectToken,name:seat.name});}
+    catch(error){app.rejoinAttempted=false;partyError.value=error instanceof Error?error.message:'Could not join your assigned match';}
+    return;
+  }
+
   if (app.rejoinAttempted || !app.session) return;
   const inviteCode = getInitialRoomCode();
   if (inviteCode && inviteCode !== app.session.code) return;
@@ -597,7 +607,15 @@ async function leaveRoom() {
   ui.closePanel();
 }
 
+async function updatePartyIdentity(name: string, color: string) {
+  try {
+    await emitWithAck('player:identity', {name, color});
+    await savePartyIdentity({name, color});
+  } catch(error) {ui.showToast(error instanceof Error ? error.message : 'Identity update failed','error');}
+}
+
 async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?: Team) {
+  if(isTournament)return;
   if (!snapshot.value) {
     ui.showToast(t('join_create_first'));
     return;
@@ -847,9 +865,10 @@ watch(
 );
 
 onMounted(() => {
+  document.body.classList.toggle('party-mode',isTournament);
   document.addEventListener('pointerdown', unlockSound);
   document.addEventListener('keydown', unlockSound);
-  if (socket.connected) void tryAutoRejoin();
+  if (socket.connected) {setConnection(true);void tryAutoRejoin();}
   syncDocumentLanguage();
   syncSceneClasses();
   if (me.value) nameInput.value = me.value.name;
@@ -859,7 +878,7 @@ onMounted(() => {
   }, 250);
 
   const worker = getServiceWorkerPath();
-  if ('serviceWorker' in navigator) {
+  if (!isTournament && 'serviceWorker' in navigator) {
     void navigator.serviceWorker.register(worker.path, { scope: worker.scope }).catch(() => {});
   }
 });
@@ -897,7 +916,12 @@ onBeforeUnmount(() => {
             <p class="join-subtitle">{{ t('join_subtitle') }}</p>
           </header>
 
-          <form class="join-form" @submit.prevent="enterRoom">
+          <div v-if="isTournament" class="join-form" role="status">
+            <p>{{partyError || 'Connecting to your assigned match…'}}</p>
+            <button v-if="partyError" class="btn btn-primary" type="button" @click="retryParty">Try again</button>
+            <a v-if="partyError" class="btn" href="/" target="_top">Return to Play</a>
+          </div>
+          <form v-else class="join-form" @submit.prevent="enterRoom">
             <label class="field-group">
               <span class="field-label">{{ t('display_name') }}</span>
               <input v-model="nameInput" :disabled="!!accountName" type="text" maxlength="24" :placeholder="t('display_name_placeholder')" autocomplete="off" />
@@ -937,7 +961,7 @@ onBeforeUnmount(() => {
         <div class="bottom-bar">
           <nav class="bar-tabs" aria-label="Panels">
             <span class="navbar-brand"><img class="navbar-logo-mark" :src="getAssetPath('icons/murmur-mark-128.webp')" width="30" height="30" alt="" />MURMUR<span id="connection-dot" class="conn-status" :class="{ online: app.connected, offline: !app.connected }" role="status" :aria-label="app.connectionLabel" :title="app.connectionLabel"><span class="conn-dot"></span></span></span>
-            <div v-if="game" class="bar-util">
+            <div v-if="game && !isTournament" class="bar-util">
               <button id="room-code" class="room-code-val" type="button" :aria-label="t('copy_room_code')" @click="copyRoomCode">{{ room?.code || '----' }}</button>
             </div>
 
@@ -980,7 +1004,11 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="bar-tabs-right">
-              <button id="leave-room-btn" class="bar-tab bar-tab-leave" type="button" :aria-label="t('leave')" :title="t('leave')" @click="() => void leaveRoom()">
+              <div v-if="isTournament && me" class="party-identity" aria-label="Your identity">
+                <input aria-label="Your name" :value="me.name" maxlength="18" @change="updatePartyIdentity(($event.target as HTMLInputElement).value, me.color || '#5b8c65')" />
+                <input aria-label="Your color" type="color" :value="me.color || '#5b8c65'" @input="updatePartyIdentity(me.name, ($event.target as HTMLInputElement).value)" />
+              </div>
+              <button v-if="!isTournament" id="leave-room-btn" class="bar-tab bar-tab-leave" type="button" :aria-label="t('leave')" :title="t('leave')" @click="() => void leaveRoom()">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10 3H4v18h6M9 12h12m-5-5 5 5-5 5" /></svg>
                 <span class="bar-tab-label">{{ t('leave') }}</span>
               </button>
@@ -1144,10 +1172,10 @@ onBeforeUnmount(() => {
               <section id="result-section" class="ctrl-panel result-ctrl" :class="{ hidden: game?.phase !== 'finished' }">
                 <p id="result-text" class="result-text">{{ resultText() }}</p>
                 <div class="result-actions">
-                  <button id="rematch-btn" class="btn btn-primary" type="button" :class="{ hidden: !canHostRematch(snapshot) }" @click="() => void rematch('same_teams')">
+                  <button v-if="!isTournament" id="rematch-btn" class="btn btn-primary" type="button" :class="{ hidden: !canHostRematch(snapshot) }" @click="() => void rematch('same_teams')">
                     {{ t('rematch') }}
                   </button>
-                  <button id="swap-rematch-btn" class="btn btn-secondary" type="button" :class="{ hidden: !canHostRematch(snapshot) }" @click="() => void rematch('swap_teams')">
+                  <button v-if="!isTournament" id="swap-rematch-btn" class="btn btn-secondary" type="button" :class="{ hidden: !canHostRematch(snapshot) }" @click="() => void rematch('swap_teams')">
                     {{ t('swap_rematch') }}
                   </button>
                   <button id="gg-btn" class="btn btn-ghost" type="button" @click="() => void sendGG()">{{ t('gg') }}</button>
@@ -1165,7 +1193,7 @@ onBeforeUnmount(() => {
                 { team: 'blue', role: 'operative', title: 'blue_team', members: bluePlayers },
                 { team: 'none', role: 'spectator', title: 'spectators', members: spectatorPlayers },
               ] as const" :key="group.team" class="team-panel" :class="[`team-${group.team}`, { 'spectator-roster': group.team === 'none', 'is-my-team': roleTeamSelected(group.team, group.role) }]" @click="setRole(group.role, group.team)">
-                <button v-if="game || group.team === 'none'" class="operative-join-target" type="button" :aria-label="group.team === 'none' ? t('spectator') : `${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, group.role)" @click.stop="setRole(group.role, group.team)"></button>
+                <button v-if="!isTournament && (game || group.team === 'none')" class="operative-join-target" type="button" :aria-label="group.team === 'none' ? t('spectator') : `${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, group.role)" @click.stop="setRole(group.role, group.team)"></button>
                 <div class="team-head">
                   <span class="team-dot" :class="group.team"></span>
                   <h3>{{ t(group.title) }}</h3><span class="roster-count">{{ group.members.length }}</span>
@@ -1173,7 +1201,7 @@ onBeforeUnmount(() => {
                 <ul :id="group.team === 'none' ? 'spectator-list' : `${group.team}-team-list`" class="player-list" :aria-label="t(group.title)" tabindex="0">
                   <li v-if="!group.members.length" class="team-empty">{{ t(group.team === 'none' ? 'no_spectators' : 'no_team_players') }}</li>
                   <li v-for="player in group.members" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}${!player.connected ? ` · ${t('tag_offline')}` : ''}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-offline': !player.connected, 'is-spymaster': player.role === 'spymaster' }">
-                    <span class="team-player-name">{{ player.name }}</span>
+                    <span class="team-player-name" :style="player.color ? {borderLeft:`3px solid ${player.color}`,paddingLeft:'5px'} : {}">{{ player.name }}</span>
                     <VoiceBadge :name="player.name" :in-voice="!!player.inVoice" :muted="!!player.voiceMuted" :speaking="playerIsSpeaking(player.sessionId)" :volume="peerVolume(player.sessionId)" @volume="value => setPeerVolume(player.sessionId, value)" />
                     <span v-if="player.isHost" class="chip-status" :title="t('tag_host')" :aria-label="t('tag_host')">★</span>
                     <span v-if="!player.connected" class="chip-status">· {{ t('tag_offline') }}</span>
@@ -1182,18 +1210,18 @@ onBeforeUnmount(() => {
                 <div v-if="!game && group.team !== 'none'" class="lobby-team-actions" @click.stop>
                   <div class="lobby-spymaster" :data-team="group.team">
                     <button v-if="!spymasters[group.team].length" class="spymaster-vacancy" type="button" :aria-label="`${t('join_spymaster')} · ${formatTeam(group.team)}`" @click="setRole('spymaster', group.team)">{{ t('spymaster') }}</button>
-                    <button v-else class="spymaster-filled" type="button" :aria-pressed="roleTeamSelected(group.team, 'spymaster')" :disabled="!roleTeamSelected(group.team, 'spymaster')" :title="t('lobby_spymaster_is', { name: spymasters[group.team].map(player => player.name).join(', ') })" @click="setRole('spymaster', group.team)">{{ t('spymaster') }}</button>
+                    <button v-else class="spymaster-filled" type="button" :aria-pressed="roleTeamSelected(group.team, 'spymaster')" :disabled="isTournament || !roleTeamSelected(group.team, 'spymaster')" :title="t('lobby_spymaster_is', { name: spymasters[group.team].map(player => player.name).join(', ') })" @click="setRole('spymaster', group.team)">{{ t('spymaster') }}</button>
                   </div>
-                  <button class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, 'operative')" @click.stop="setRole('operative', group.team)">{{ t('operative') }}</button>
+                  <button v-if="!isTournament" class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, 'operative')" @click.stop="setRole('operative', group.team)">{{ t('operative') }}</button>
                 </div>
               </section>
 
               <div v-if="!game || game.phase === 'finished' || (me?.isHost && players.some(player => !player.connected))" class="sidebar-actions">
                 <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue && me?.isHost }">{{ me?.isHost ? (readinessIssue || t('ready_to_start')) : t('lobby_waiting_host') }}</p>
-                <button id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
+                <button v-if="!isTournament" id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
                   {{ t('start_game') }}
                 </button>
-                <button id="prune-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !me?.isHost || !players.some(player => !player.connected) }" @click="() => void pruneDisconnected()">
+                <button v-if="!isTournament" id="prune-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !me?.isHost || !players.some(player => !player.connected) }" @click="() => void pruneDisconnected()">
                   {{ t('prune_offline') }}
                 </button>
               </div>
@@ -1246,12 +1274,12 @@ onBeforeUnmount(() => {
                 <h4>{{ t('room_setup') }}</h4>
                 <p v-if="game && game.phase !== 'finished'" class="settings-explanation">{{ t('room_setup_locked') }}</p>
                 <div class="preference-row"><span>{{ t('mode') }}</span><div class="segmented">
-                  <button type="button" :aria-pressed="roomMode === 'casual'" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('casual')">{{ t('mode_casual') }}</button>
-                  <button type="button" :aria-pressed="roomMode === 'blitz'" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('blitz')">{{ t('mode_blitz') }}</button>
+                  <button type="button" :aria-pressed="roomMode === 'casual'" :disabled="isTournament || !me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('casual')">{{ t('mode_casual') }}</button>
+                  <button type="button" :aria-pressed="roomMode === 'blitz'" :disabled="isTournament || !me?.isHost || !!(game && game.phase !== 'finished')" @click="() => void setMode('blitz')">{{ t('mode_blitz') }}</button>
                 </div></div>
                 <div v-if="roomMode === 'blitz'" class="timer-settings">
-                  <label>{{ t('blitz_hint_timer') }} <input id="blitz-hint-sec" v-model="blitzHintSec" type="number" min="5" max="300" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @change="() => void sendBlitzConfig()" /></label>
-                  <label>{{ t('blitz_guess_timer') }} <input id="blitz-guess-sec" v-model="blitzGuessSec" type="number" min="5" max="300" :disabled="!me?.isHost || !!(game && game.phase !== 'finished')" @change="() => void sendBlitzConfig()" /></label>
+                  <label>{{ t('blitz_hint_timer') }} <input id="blitz-hint-sec" v-model="blitzHintSec" type="number" min="5" max="300" :disabled="isTournament || !me?.isHost || !!(game && game.phase !== 'finished')" @change="() => void sendBlitzConfig()" /></label>
+                  <label>{{ t('blitz_guess_timer') }} <input id="blitz-guess-sec" v-model="blitzGuessSec" type="number" min="5" max="300" :disabled="isTournament || !me?.isHost || !!(game && game.phase !== 'finished')" @change="() => void sendBlitzConfig()" /></label>
                 </div>
 
               </section>
@@ -1286,3 +1314,19 @@ onBeforeUnmount(() => {
     <div ref="audioContainer" id="voice-audio-container" aria-hidden="true"></div>
   </div>
 </template>
+
+<style>
+.party-identity {display:flex;align-items:center;gap:.3rem;max-width:180px}
+.party-identity input:not([type=color]) {width:100px;min-width:0;font-size:12px;padding:5px;background:var(--surface);color:inherit;border:1px solid currentColor;border-radius:4px}
+.party-identity input[type=color] {width:28px;height:28px;padding:0;flex:none}
+.party-mode .team-panel {cursor:default}
+@media(max-width:699px){
+ .party-mode .room-screen:is(.is-lobby,:not(.is-lobby)) .bar-tabs {grid-template-columns:minmax(0,1fr) auto 36px}
+ .party-mode .room-screen .navbar-brand {grid-column:1 / 3}
+ .party-mode .room-screen:is(.is-lobby,:not(.is-lobby)) .bar-tab[data-panel="settings"] {grid-column:3}
+ .party-mode .party-identity {grid-column:1;grid-row:2;max-width:135px;justify-self:start}
+ .party-mode .party-identity input:not([type=color]){width:100px;flex:none}
+ .party-mode .room-screen:is(.is-lobby,:not(.is-lobby)) .voice-controls {grid-column:2 / 4}
+}
+@media(min-width:540px) and (max-width:900px) and (max-height:500px){.party-mode .room-screen:is(.is-lobby,:not(.is-lobby)) .bar-tabs{display:flex}.party-identity input:not([type=color]){width:85px}}
+</style>

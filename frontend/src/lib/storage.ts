@@ -1,11 +1,11 @@
 import type { SessionRecord } from '../types';
 
-export const STORAGE_KEY = 'taccan.session.v1';
-export const LANGUAGE_STORAGE_KEY = 'taccan.language.v1';
-export const SOUND_MUTE_KEY = 'taccan.sound.mute.v1';
-export const COLORBLIND_KEY = 'taccan.colorblind.v1';
-export const NOISE_SUPPRESSION_KEY = 'taccan.noise.v1';
-export const THEME_KEY = 'taccan.theme.v1';
+export const STORAGE_KEY = 'murmur.session.v1';
+export const LANGUAGE_STORAGE_KEY = 'murmur.language.v1';
+export const SOUND_MUTE_KEY = 'murmur.sound.mute.v1';
+export const COLORBLIND_KEY = 'murmur.colorblind.v1';
+export const NOISE_SUPPRESSION_KEY = 'murmur.noise.v1';
+export const THEME_KEY = 'murmur.theme.v1';
 
 export function readJson<T>(key: string): T | null {
   try {
@@ -22,7 +22,10 @@ export function writeJson(key: string, value: unknown): void {
   } catch (_error) {}
 }
 
+const isParty = () => new URLSearchParams(window.location.search).has('party') && new URLSearchParams(window.location.search).has('match');
+
 export function readSession(): SessionRecord | null {
+  if (isParty()) return null;
   const value = readJson<SessionRecord>(STORAGE_KEY);
   if (!value || typeof value.code !== 'string' || !/^[A-Za-z0-9]{4}$/.test(value.code) ||
       typeof value.sessionId !== 'string' || !value.sessionId.trim() || value.sessionId.length > 128 ||
@@ -33,10 +36,12 @@ export function readSession(): SessionRecord | null {
 }
 
 export function writeSession(session: SessionRecord): void {
+  if (isParty()) return;
   writeJson(STORAGE_KEY, session);
 }
 
 export function clearSession(): void {
+  if (isParty()) return;
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (_error) {}

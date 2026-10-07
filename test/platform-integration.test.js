@@ -8,7 +8,7 @@ const { createVoiceInfrastructure } = require('../backend/voice-infrastructure')
 
 const secret = 'private-test-account-secret';
 const voiceEnv = { TURN_HOST: 'turn.example.test', TURN_SHARED_SECRET: 'private-test-turn-secret' };
-function proof({ sub = 'verified-user', name = 'Verified', exp = Math.floor(Date.now() / 1000) + 300, aud = 'taccan' } = {}) {
+function proof({ sub = 'verified-user', name = 'Verified', exp = Math.floor(Date.now() / 1000) + 300, aud = 'murmur' } = {}) {
   const head = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
   const body = Buffer.from(JSON.stringify({ iss: 'wleeaf-play', aud, sub, name, exp })).toString('base64url');
   return `${head}.${body}.${createHmac('sha256', secret).update(`${head}.${body}`).digest('base64url')}`;
@@ -161,7 +161,7 @@ test('shared voice adapter uses the private broker and fails closed if it is una
   const infrastructure = createVoiceInfrastructure({ env: { VOICE_SERVICE_URL: `http://127.0.0.1:${broker.address().port}`, VOICE_SERVICE_KEY: 'private-app-key' } });
   const result = await infrastructure.credentials({ roomId: 'ABCD', playerId: 'player' });
   assert.equal(result.iceServers[0].username, 'derived');
-  assert.deepEqual(received, { path: '/v1/credentials', authorization: 'Bearer private-app-key', body: { application: 'taccan', roomId: 'ABCD', playerId: 'player' } });
+  assert.deepEqual(received, { path: '/v1/credentials', authorization: 'Bearer private-app-key', body: { application: 'murmur', roomId: 'ABCD', playerId: 'player' } });
   await new Promise(resolve => broker.close(resolve));
   await assert.rejects(infrastructure.credentials({ roomId: 'ABCD', playerId: 'player' }));
   assert.throws(() => createVoiceInfrastructure({ env: { VOICE_SERVICE_URL: 'http://example.test' } }), /together/);

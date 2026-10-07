@@ -143,16 +143,14 @@ test('zero is a deterministic seed and board words stay distinct after normaliza
   assert.equal(first.confidenceByCard[0].player, undefined);
 });
 
-test('legacy room links redirect while legacy health endpoints remain compatible', async t => {
+test('retired game aliases stay unavailable while Murmur health remains available', async t => {
   const { origin } = await setup(t);
   for (const prefix of ['taccan', 'wordmurmur']) {
     const response = await fetch(`${origin}/${prefix}/room/ABCD?theater=1`, { redirect: 'manual' });
-    assert.equal(response.status, 308);
-    assert.equal(response.headers.get('location'), '/murmur/room/ABCD?theater=1');
+    assert.equal(response.status, 404);
   }
-  for (const prefix of ['taccan', 'wordmurmur', 'murmur']) {
-    assert.equal((await fetch(`${origin}/${prefix}/api/health`)).status, 200);
-  }
+  for (const prefix of ['taccan', 'wordmurmur']) assert.equal((await fetch(`${origin}/${prefix}/api/health`)).status,404);
+  assert.equal((await fetch(`${origin}/murmur/api/health`)).status,200);
 });
 
 test('queued actions cannot change a room after the player has left', async t => {

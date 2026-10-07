@@ -1,6 +1,6 @@
 const { accountSessionActive, verifyAccountToken } = require('./account');
 
-function createAccountSessions({ secret, audience = 'taccan' }) {
+function createAccountSessions({ secret, audience = 'murmur' }) {
   const timers = new WeakMap();
   function verify(token) { return verifyAccountToken(token, audience, secret); }
   function attach(socket, account) {

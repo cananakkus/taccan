@@ -63,6 +63,8 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if(room.party){ackError(callback,'This is a private tournament match.');return;}
+
     if (socket.data.roomCode === code) {
       const current = getContext(socket, action);
       if (current) {
@@ -116,6 +118,7 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if(room.party?.forfeits.includes(sessionId)){ackError(callback,'This seat was forfeited.');return;}
     const player = room.players.get(sessionId);
     if (player?.accountId && player.accountId !== socket.data.account?.id) {
       ackError(callback, 'Sign in with the account that joined this room.'); return;

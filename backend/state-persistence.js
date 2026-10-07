@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { randomBytes } = require('node:crypto');
 
-const STATE_FILE = process.env.STATE_FILE || path.join(__dirname, '..', '.taccan-state.json');
+const STATE_FILE = process.env.STATE_FILE || path.join(__dirname, '..', 'state', 'rooms.json');
 
 function serializeGame(game) {
   return {

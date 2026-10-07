@@ -14,7 +14,7 @@ export async function requestAccountSession(): Promise<PlatformSession | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      Promise.resolve().then(() => platform.session('taccan')),
+      Promise.resolve().then(() => platform.session('murmur')),
       new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('Account service timed out.')), 5000); }),
     ]);
   } finally { clearTimeout(timer); }

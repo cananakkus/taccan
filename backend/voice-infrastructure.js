@@ -4,7 +4,7 @@ const { getIceServers } = require('./turn-config');
 // local Coturn or the shared Wleeaf broker, without changing WebRTC signaling.
 function createVoiceInfrastructure(options = {}) {
   const env = options.env ?? process.env;
-  const application = options.application ?? 'taccan';
+  const application = options.application ?? 'murmur';
   const ttlSeconds = Number(env.VOICE_CREDENTIAL_TTL_SECONDS || 600);
   if (!Number.isInteger(ttlSeconds) || ttlSeconds < 120 || ttlSeconds > 3600) {
     throw new Error('Voice credential TTL must be between 120 and 3600 seconds.');

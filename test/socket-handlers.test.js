@@ -413,13 +413,13 @@ for (const transport of ['polling', 'websocket']) {
   test(`subpath supports API and Socket.IO ${transport}`, async () => {
     const ctx = await boot();
     const client = ioClient(`http://127.0.0.1:${ctx.port}`, {
-      path: '/taccan/socket.io', transports: [transport],
+      path: '/murmur/socket.io', transports: [transport],
       forceNew: true, reconnection: false,
     });
     try {
       await waitFor(client, 'server:ready');
       assert.equal((await emit(client, 'room:create', {})).ok, true);
-      const response = await fetch(`http://127.0.0.1:${ctx.port}/taccan/api/turn-credentials`);
+      const response = await fetch(`http://127.0.0.1:${ctx.port}/murmur/api/turn-credentials`);
       assert.equal(response.status, 200);
       assert.ok(Array.isArray((await response.json()).iceServers));
     } finally {
