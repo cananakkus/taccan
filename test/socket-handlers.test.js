@@ -4,7 +4,7 @@ const { io: ioClient } = require('socket.io-client');
 const { createApp } = require('../backend/server');
 
 function boot() {
-  const ctx = createApp({ corsOrigin: '*' });
+  const ctx = createApp({ corsOrigin: '*', restoreState: false });
   return new Promise((resolve) => {
     ctx.httpServer.listen(0, '127.0.0.1', () => {
       const port = ctx.httpServer.address().port;
@@ -173,6 +173,7 @@ test('room:rejoin restores session', async () => {
     const rejoin = await emit(c2, 'room:rejoin', {
       code: create.roomCode,
       sessionId: create.sessionId,
+      reconnectToken: create.reconnectToken,
       name: 'Host',
     });
     assert.equal(rejoin.ok, true);

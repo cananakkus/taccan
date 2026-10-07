@@ -63,6 +63,7 @@ test('server boots and responds on /api/health', async (t) => {
       ...process.env,
       HOST: '127.0.0.1',
       PORT: String(port),
+      STATE_FILE: path.join(require('node:os').tmpdir(), `wordmurmur-smoke-${process.pid}.json`),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -76,5 +77,6 @@ test('server boots and responds on /api/health', async (t) => {
   } finally {
     child.kill('SIGTERM');
     await new Promise((resolve) => child.once('exit', resolve));
+    require('node:fs').rmSync(path.join(require('node:os').tmpdir(), `wordmurmur-smoke-${process.pid}.json`), { force: true });
   }
 });

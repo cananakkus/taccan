@@ -4,6 +4,12 @@ import { getBasePath, getInitialRoomCode } from '../runtime';
 
 describe('runtime helpers', () => {
   it('detects room routes under root and subpath deployments', () => {
+    expect(getBasePath('/murmur')).toBe('/murmur/');
+    expect(getBasePath('/murmur/room/ABCD')).toBe('/murmur/');
+    expect(getBasePath('/murmur-other')).toBe('/');
+    expect(getBasePath('/wordmurmur')).toBe('/wordmurmur/');
+    expect(getBasePath('/wordmurmur/room/ABCD')).toBe('/wordmurmur/');
+    expect(getBasePath('/wordmurmur-other')).toBe('/');
     expect(getBasePath('/room/ABCD')).toBe('/');
     expect(getBasePath('/taccan/room/ABCD')).toBe('/taccan/');
     expect(getBasePath('/taccan')).toBe('/taccan/');
@@ -13,5 +19,7 @@ describe('runtime helpers', () => {
     expect(getInitialRoomCode('/room/ABCD')).toBe('ABCD');
     expect(getInitialRoomCode('/taccan/room/wxyz')).toBe('WXYZ');
     expect(getInitialRoomCode('/')).toBe('');
+    expect(getInitialRoomCode('/wordmurmur/room/wxyz/')).toBe('WXYZ');
+    expect(getBasePath('/wordmurmur/room/wxyz/')).toBe('/wordmurmur/');
   });
 });

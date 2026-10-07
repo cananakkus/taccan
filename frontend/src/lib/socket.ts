@@ -2,9 +2,26 @@ import { io } from 'socket.io-client';
 
 import type { AckResponse, TurnCredentialsResponse } from '../types';
 import { getBasePath } from './runtime';
+import { createAccountRenewal, requestAccountSession } from './account-session';
 
 export const socket = io({
   path: `${getBasePath()}socket.io`,
+  auth: (done) => {
+    requestAccountSession().then(session => {
+      accountRenewal.setToken(session?.token);
+      done(session?.token ? { accountToken: session.token } : {});
+    }).catch(() => { accountRenewal.setToken(); done({ accountUnavailable: true }); });
+  },
+});
+const accountRenewal = createAccountRenewal(socket);
+let accountRetryTimer: ReturnType<typeof setTimeout> | undefined;
+socket.on('connect', () => clearTimeout(accountRetryTimer));
+socket.on('connect_error', () => {
+  // Socket.IO retries transport failures itself, but middleware rejections
+  // require an explicit reconnect with a freshly obtained account proof.
+  if (socket.active) return;
+  clearTimeout(accountRetryTimer);
+  accountRetryTimer = setTimeout(() => socket.connect(), 5000);
 });
 
 export function emitWithAck<T extends Record<string, unknown>>(
@@ -13,17 +30,15 @@ export function emitWithAck<T extends Record<string, unknown>>(
   timeoutMs = 7000
 ): Promise<T> {
   return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = window.setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      reject(new Error(`Request timed out (${event}).`));
-    }, timeoutMs);
-
-    socket.emit(event, payload, (response: AckResponse<T>) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
+    if (!socket.connected) {
+      reject(new Error('Disconnected. Wait for the connection to recover.'));
+      return;
+    }
+    socket.timeout(timeoutMs).emit(event, payload, (error: Error | null, response: AckResponse<T>) => {
+      if (error) {
+        reject(new Error(`Request timed out (${event}).`));
+        return;
+      }
 
       if (!response) {
         reject(new Error('No response from server.'));
@@ -41,10 +56,5 @@ export function emitWithAck<T extends Record<string, unknown>>(
 }
 
 export async function fetchTurnCredentials(): Promise<TurnCredentialsResponse> {
-  const response = await fetch(`${getBasePath()}api/turn-credentials`, { signal: AbortSignal.timeout(5000) });
-  if (!response.ok) {
-    throw new Error(`TURN credentials request failed (${response.status}).`);
-  }
-
-  return response.json() as Promise<TurnCredentialsResponse>;
+  return emitWithAck<TurnCredentialsResponse & Record<string, unknown>>('voice:credentials', {});
 }

@@ -29,6 +29,7 @@ export const useUiStore = defineStore('ui', {
       }, 2400);
     },
     async confirm(message: string) {
+      this.resolveConfirm(false);
       this.confirmMessage = message;
       this.confirmId = nextConfirmId++;
       return new Promise<boolean>((resolve) => {

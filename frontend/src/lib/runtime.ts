@@ -1,10 +1,17 @@
 export function getBasePath(pathname = window.location.pathname): string {
-  const match = pathname.match(/^(.*\/)(?:room\/[A-Za-z0-9]{4})$/);
+  const match = pathname.match(/^(.*\/)(?:room\/[A-Za-z0-9]{4})\/?$/);
   if (match) {
     return match[1];
   }
 
-  if (pathname.startsWith('/taccan')) {
+  if (pathname === '/murmur' || pathname.startsWith('/murmur/')) {
+    return '/murmur/';
+  }
+  if (pathname === '/wordmurmur' || pathname.startsWith('/wordmurmur/')) {
+    return '/wordmurmur/';
+  }
+
+  if (pathname === '/taccan' || pathname.startsWith('/taccan/')) {
     return '/taccan/';
   }
 
@@ -17,7 +24,7 @@ export function getBasePathNoTrailingSlash(pathname = window.location.pathname):
 }
 
 export function getInitialRoomCode(pathname = window.location.pathname): string {
-  const match = pathname.match(/\/room\/([A-Za-z0-9]{4})$/);
+  const match = pathname.match(/\/room\/([A-Za-z0-9]{4})\/?$/);
   return match ? match[1].toUpperCase() : '';
 }
 

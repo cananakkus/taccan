@@ -44,6 +44,7 @@ module.exports = function createStateView(ctx) {
       },
       me: {
         sessionId: viewer.sessionId, name: viewer.name,
+        reconnectToken: viewer.reconnectToken,
         team: viewer.team, role: viewer.role,
         connected: viewer.connected,
         isHost: room.hostSessionId === viewer.sessionId,
@@ -53,6 +54,9 @@ module.exports = function createStateView(ctx) {
         team: player.team, role: player.role,
         connected: player.connected, joinedAt: player.joinedAt,
         isHost: room.hostSessionId === player.sessionId,
+        inVoice: Boolean(room.voicePeers?.has(player.sessionId)),
+        voiceMuted: Boolean(room.voiceMuted?.has(player.sessionId)),
+        speaking: Boolean(room.voiceSpeaking?.has(player.sessionId)),
       })),
       game,
     };

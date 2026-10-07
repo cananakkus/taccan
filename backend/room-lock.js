@@ -4,9 +4,10 @@ function withRoomLock(roomCode, fn) {
   const prev = locks.get(roomCode) || Promise.resolve();
   const next = prev.then(fn, fn);
   locks.set(roomCode, next);
-  next.then(() => {
+  const release = () => {
     if (locks.get(roomCode) === next) locks.delete(roomCode);
-  });
+  };
+  next.then(release, release);
   return next;
 }
 

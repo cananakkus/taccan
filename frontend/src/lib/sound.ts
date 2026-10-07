@@ -12,6 +12,11 @@ function getContext(): AudioContext {
   return audioCtx;
 }
 
+export function unlockSound(): void {
+  if (usePreferencesStore().soundMuted) return;
+  try { getContext(); } catch (_error) {}
+}
+
 export function toggleSoundMute(): boolean {
   const preferences = usePreferencesStore();
   const nextValue = !preferences.soundMuted;
@@ -55,6 +60,10 @@ export function playSound(name: string, volume = 0.3): void {
       case 'cardFlip':
         playTone(ctx, 80, 0.04, 'sine', volume * 0.4);
         playNoiseBurst(ctx, 0.03, volume * 0.15);
+        break;
+      case 'hint':
+        playTone(ctx, 784, 0.09, 'triangle', volume * 0.6);
+        window.setTimeout(() => playTone(ctx, 1047, 0.15, 'triangle', volume * 0.6), 100);
         break;
       case 'yourTurn':
         playTone(ctx, 698, 0.1, 'triangle', volume * 0.5);

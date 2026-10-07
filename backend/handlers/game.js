@@ -1,9 +1,9 @@
 module.exports = function register(socket, deps) {
   const { metrics, helpers } = deps;
   const {
-    preflightAction, getContext, ackOk, ackError, sendViolation, logEvent,
+    preflightAction, ackOk, ackError, sendViolation, logEvent,
     isGameActive, validateRoomReadiness, startNewRound, swapRoomTeams,
-    withRoomLock,
+    withContextLock,
   } = helpers;
 
   socket.on('game:start', (payload = {}, callback) => {
@@ -11,19 +11,13 @@ module.exports = function register(socket, deps) {
     const validatedPayload = preflightAction(socket, action, payload, callback);
     if (!validatedPayload) return;
 
-    const context = getContext(socket, action);
-    if (!context) {
-      ackError(callback, 'You are not in a room.');
-      return;
-    }
+    withContextLock(socket, action, callback, (context) => {
+      if (context.room.hostSessionId !== context.player.sessionId) {
+        sendViolation(socket, 'game:start', 'Only the host can start the game.');
+        ackError(callback, 'Only the host can start the game.');
+        return;
+      }
 
-    if (context.room.hostSessionId !== context.player.sessionId) {
-      sendViolation(socket, 'game:start', 'Only the host can start the game.');
-      ackError(callback, 'Only the host can start the game.');
-      return;
-    }
-
-    withRoomLock(context.room.code, () => {
       if (isGameActive(context.room)) {
         ackError(callback, 'A game is already running.');
         return;
@@ -46,21 +40,21 @@ module.exports = function register(socket, deps) {
     const validatedPayload = preflightAction(socket, action, payload, callback);
     if (!validatedPayload) return;
 
-    const context = getContext(socket, action);
-    if (!context) {
-      ackError(callback, 'You are not in a room.');
-      return;
-    }
+    withContextLock(socket, action, callback, (context) => {
+      if (context.room.hostSessionId !== context.player.sessionId) {
+        sendViolation(socket, action, 'Only the host can start a rematch.');
+        ackError(callback, 'Only the host can start a rematch.');
+        return;
+      }
 
-    if (context.room.hostSessionId !== context.player.sessionId) {
-      sendViolation(socket, action, 'Only the host can start a rematch.');
-      ackError(callback, 'Only the host can start a rematch.');
-      return;
-    }
-
-    withRoomLock(context.room.code, () => {
       if (!context.room.game || context.room.game.phase !== 'finished') {
         ackError(callback, 'Rematch is only available after a game finishes.');
+        return;
+      }
+
+      const readinessError = validateRoomReadiness(context.room);
+      if (readinessError) {
+        ackError(callback, readinessError);
         return;
       }
 

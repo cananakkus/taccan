@@ -7,7 +7,7 @@ import {
   SOUND_MUTE_KEY,
   THEME_KEY,
 } from '../lib/storage';
-import { DEFAULT_LANGUAGE, normalizeLanguage } from '../lib/translations';
+import { DEFAULT_LANGUAGE, normalizeLanguage, SUPPORTED_LANGUAGES } from '../lib/translations';
 
 function readBoolean(key: string, defaultValue: boolean, truthy = '1'): boolean {
   try {
@@ -19,10 +19,9 @@ function readBoolean(key: string, defaultValue: boolean, truthy = '1'): boolean 
   }
 }
 
-let _initialized = false;
-
 export const usePreferencesStore = defineStore('preferences', {
   state: () => ({
+    initialized: false,
     language: DEFAULT_LANGUAGE,
     soundMuted: false,
     colorblindMode: true,
@@ -32,19 +31,16 @@ export const usePreferencesStore = defineStore('preferences', {
   }),
   actions: {
     initialize() {
-      if (_initialized) return;
-      _initialized = true;
+      if (this.initialized) return;
+      this.initialized = true;
+      const browserLang = (navigator.languages?.[0] || navigator.language || 'en').toLowerCase().split(/[-_]/)[0];
+      this.language = browserLang === 'tr' ? 'tr' : 'en';
       try {
         const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-        if (stored) {
+        if (stored && SUPPORTED_LANGUAGES.includes(stored)) {
           this.language = normalizeLanguage(stored);
-        } else {
-          const browserLang = navigator.language?.split('-')[0] || '';
-          this.language = normalizeLanguage(browserLang);
         }
-      } catch (_error) {
-        this.language = DEFAULT_LANGUAGE;
-      }
+      } catch (_error) {}
       this.soundMuted = readBoolean(SOUND_MUTE_KEY, false);
       this.colorblindMode = readBoolean(COLORBLIND_KEY, true);
       this.noiseSuppression = readBoolean(NOISE_SUPPRESSION_KEY, true, 'true');

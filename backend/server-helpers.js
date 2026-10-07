@@ -2,6 +2,7 @@ const { validatePayload } = require('./payload-schema');
 const { ensureHostSession } = require('./room-utils');
 
 const EVENT_RATE_LIMITS = {
+  'account:refresh': { max: 10, windowMs: 60_000 },
   'room:create': { max: 8, windowMs: 30_000 },
   'room:join': { max: 12, windowMs: 30_000 },
   'room:rejoin': { max: 20, windowMs: 30_000 },
@@ -19,11 +20,12 @@ const EVENT_RATE_LIMITS = {
   'turn:mark_confidence': { max: 80, windowMs: 10_000 },
   'game:gg': { max: 3, windowMs: 30_000 },
   'game:mvp_vote': { max: 5, windowMs: 30_000 },
-  'room:word_pack_set': { max: 5, windowMs: 60_000 },
   'voice:join': { max: 10, windowMs: 30_000 },
+  'voice:credentials': { max: 10, windowMs: 60_000 },
   'voice:leave': { max: 10, windowMs: 30_000 },
   'voice:signal': { max: 200, windowMs: 10_000 },
   'voice:mute': { max: 30, windowMs: 10_000 },
+  'voice:speaking': { max: 60, windowMs: 10_000 },
   'chat:send': { max: 10, windowMs: 10_000 },
   default: { max: 60, windowMs: 10_000 },
 };
@@ -81,7 +83,34 @@ module.exports = function createServerHelpers(ctx) {
     if (!room) { sendViolation(socket, action, 'Room no longer exists.'); clearSocketBinding(socket); return null; }
     const player = room.players.get(sessionId);
     if (!player) { sendViolation(socket, action, 'Player session is not part of this room.'); clearSocketBinding(socket); return null; }
+    if (!player.connected || player.socketId !== socket.id) {
+      clearSocketBinding(socket);
+      sendViolation(socket, action, 'This player session has moved to another connection.');
+      return null;
+    }
     return { room, player };
+  }
+
+  function withContextLock(socket, action, callback, operation) {
+    const context = getContext(socket, action);
+    if (!context) { ackError(callback, 'You are not in a room.'); return; }
+    const gameId = context.room.game?.id;
+    const turnNumber = context.room.game?.turnNumber;
+    return ctx.helpers.withRoomLock(context.room.code, () => {
+      const current = getContext(socket, action);
+      if (!current || current.room !== context.room || current.player !== context.player) {
+        ackError(callback, 'Your room session changed before this action could complete.');
+        return;
+      }
+      if (action.startsWith('turn:') && (current.room.game?.id !== gameId || current.room.game?.turnNumber !== turnNumber)) {
+        ackError(callback, 'This turn has changed. Try again.');
+        return;
+      }
+      return operation(current);
+    }).catch((error) => {
+      logEvent('action_failed', { action, roomCode: context.room.code, message: error.message });
+      ackError(callback, 'Could not complete action. Try again.');
+    });
   }
 
   function bindSocketToPlayer(socket, room, player) {
@@ -119,6 +148,9 @@ module.exports = function createServerHelpers(ctx) {
   function handleVoiceLeave(room, player) {
     if (!room.voicePeers || !room.voicePeers.has(player.sessionId)) return;
     room.voicePeers.delete(player.sessionId);
+    room.voiceMuted?.delete(player.sessionId);
+    room.voiceSpeaking?.delete(player.sessionId);
+    io.to(room.code).emit('voice:status', { sessionId: player.sessionId, inVoice: false, muted: false, speaking: false });
     for (const peerId of room.voicePeers) {
       const peer = room.players.get(peerId);
       if (!peer || !peer.connected || !peer.socketId) continue;
@@ -156,6 +188,7 @@ module.exports = function createServerHelpers(ctx) {
     ensureHostSession(room);
     if (room.players.size === 0) {
       ctx.helpers.clearPhaseTimerState(room);
+      ctx.helpers.clearMvpTimer(room.code);
       logEvent('room_deleted', { roomCode: room.code, reason: 'empty' });
       rooms.delete(room.code);
       return;
@@ -166,10 +199,13 @@ module.exports = function createServerHelpers(ctx) {
   function clearMarksForSession(room, sessionId) {
     if (!room.game || !room.game.marksByCard) return;
     for (const marks of room.game.marksByCard) marks.delete(sessionId);
+    for (const confidence of room.game.confidenceByCard || []) {
+      if (confidence) delete confidence[sessionId];
+    }
   }
 
   return {
-    preflightAction, consumeRateLimit, getContext,
+    preflightAction, consumeRateLimit, getContext, withContextLock,
     bindSocketToPlayer, clearSocketBinding,
     leaveBoundRoom, handleVoiceLeave,
     markDisconnected, removePlayerFromRoom, clearMarksForSession,

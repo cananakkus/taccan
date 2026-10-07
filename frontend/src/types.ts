@@ -8,6 +8,7 @@ export type GamePhase = 'hint' | 'guess' | 'finished';
 export interface SessionRecord {
   code: string;
   sessionId: string;
+  reconnectToken?: string;
   name: string;
 }
 
@@ -42,6 +43,9 @@ export interface RoomView {
 }
 
 export interface PlayerView {
+  inVoice?: boolean;
+  voiceMuted?: boolean;
+  speaking?: boolean;
   sessionId: string;
   name: string;
   team: Team;
@@ -53,6 +57,7 @@ export interface PlayerView {
 
 export interface MeView {
   sessionId: string;
+  reconnectToken?: string;
   name: string;
   team: Team;
   role: Role;
@@ -176,6 +181,7 @@ export type AckResponse<T = Record<string, unknown>> = AckSuccess<T> | AckFailur
 
 export interface TurnCredentialsResponse {
   iceServers: RTCIceServer[];
+  expiresAt: number;
 }
 
 export interface ToastState {

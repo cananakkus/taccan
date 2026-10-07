@@ -30,6 +30,7 @@ module.exports = function register(socket, deps) {
     };
 
     context.room.chatMessages.push(message);
+    context.room.lastActiveAt = message.ts;
     if (context.room.chatMessages.length > CHAT_MAX_MESSAGES) {
       context.room.chatMessages.splice(0, context.room.chatMessages.length - CHAT_MAX_MESSAGES);
     }

@@ -1,7 +1,6 @@
-const { randomUUID } = require('crypto');
+const { randomUUID, randomBytes } = require('crypto');
 const { createGameState } = require('./game-engine');
 const { getRoomReadinessError } = require('./room-utils');
-
 module.exports = function createRoomLifecycle(ctx) {
   const { rooms, io, metrics } = ctx;
 
@@ -13,6 +12,7 @@ module.exports = function createRoomLifecycle(ctx) {
   function createPlayer(name, socketId) {
     return {
       sessionId: randomUUID(),
+      reconnectToken: randomBytes(32).toString('base64url'),
       socketId,
       name: sanitizeName(name),
       team: 'none',
@@ -88,7 +88,6 @@ module.exports = function createRoomLifecycle(ctx) {
       roundNumber: match.roundNumber,
       mode: roomMode,
       maxHintCount: modeConfig.maxHintCount,
-      customWords: room.customWords || null,
     });
     room.lastActiveAt = Date.now();
 
@@ -131,71 +130,10 @@ module.exports = function createRoomLifecycle(ctx) {
     }
   }
 
-  function isPrivateIP(ip) {
-    const parts = ip.split('.').map(Number);
-    if (parts.length === 4) {
-      if (parts[0] === 10) return true;
-      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-      if (parts[0] === 192 && parts[1] === 168) return true;
-      if (parts[0] === 127) return true;
-      if (parts[0] === 169 && parts[1] === 254) return true;
-      if (parts[0] === 0) return true;
-    }
-    if (ip === '::1' || ip.startsWith('fe80:') || ip.startsWith('fc') || ip.startsWith('fd')) return true;
-    return false;
-  }
-
-  async function fetchWordPack(url) {
-    const https = require('https');
-    const dns = require('dns');
-    const safeLookup = (hostname, opts, cb) => {
-      dns.lookup(hostname, opts, (err, address, family) => {
-        if (err) return cb(err);
-        const addresses = Array.isArray(address) ? address.map((entry) => entry.address) : [address];
-        if (addresses.some(isPrivateIP)) return cb(new Error('URL resolves to a private/internal address.'));
-        cb(null, address, family);
-      });
-    };
-    return new Promise((resolve, reject) => {
-      const req = https.get(url, { timeout: 10_000, lookup: safeLookup }, (res) => {
-        if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); res.resume(); return; }
-        let data = '';
-        let bytes = 0;
-        res.on('error', reject);
-        res.on('data', (chunk) => {
-          bytes += Buffer.byteLength(chunk);
-          if (bytes > 1024 * 1024) {
-            const error = new Error('Word pack exceeds the 1 MiB limit.');
-            reject(error);
-            res.destroy();
-            req.destroy();
-            return;
-          }
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const words = JSON.parse(data);
-            if (!Array.isArray(words) || words.length < 50) {
-              reject(new Error('Word pack must be a JSON array with at least 50 strings.'));
-              return;
-            }
-            const validated = words.filter((w) => typeof w === 'string' && w.trim().length > 0).map((w) => w.trim());
-            if (validated.length < 50) { reject(new Error('Word pack must contain at least 50 valid strings.')); return; }
-            resolve(validated);
-          } catch (_e) { reject(new Error('Invalid JSON.')); }
-        });
-      });
-      req.on('error', (e) => reject(e));
-      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout.')); });
-    });
-  }
-
   return {
     sanitizeName, createPlayer, createRoomCode,
     getNormalizedMode, getRoomMode, getModeConfig,
     isGameActive, validateRoomReadiness, deriveRoomStatus,
     startNewRound, getNextMatch, swapRoomTeams,
-    isPrivateIP, fetchWordPack,
   };
 };

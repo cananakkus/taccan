@@ -2,15 +2,20 @@ import { onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 import { fetchTurnCredentials, emitWithAck, socket } from '../lib/socket';
 import { getAssetPath } from '../lib/runtime';
+import { createVoiceCredentialRenewal } from '../lib/voice-credentials';
 import { usePreferencesStore } from '../stores/preferences';
 import { useUiStore } from '../stores/ui';
 import { useVoiceStore } from '../stores/voice';
-import type { PlayerView } from '../types';
+import type { TurnCredentialsResponse } from '../types';
+
+interface VoiceParticipant { sessionId: string; name: string }
 
 interface PeerEntry {
   pc: RTCPeerConnection;
+  isInitiator: boolean;
   stream: MediaStream | null;
   analyser: AnalyserNode | null;
+  source: MediaStreamAudioSourceNode | null;
   pendingCandidates: RTCIceCandidateInit[];
 }
 
@@ -32,7 +37,7 @@ const SPEAKING_POLL_MS = 100;
 const RNNOISE_WORKLET_ID = '@sapphi-red/web-noise-suppressor/rnnoise';
 
 export function useVoice(
-  players: Ref<PlayerView[]>,
+  players: Ref<VoiceParticipant[]>,
   meSessionId: Ref<string | null>,
   audioContainer: Ref<HTMLElement | null>,
   t: (key: string, vars?: Record<string, string | number>) => string
@@ -50,10 +55,14 @@ export function useVoice(
   let rnnoiseWorkletContext: AudioContext | null = null;
   let rtcConfig: RTCConfiguration | null = null;
   let speakingInterval: number | null = null;
+  let lastReportedSpeaking = false;
+  let lastSpeechAt = 0;
   let audioCtx: AudioContext | null = null;
   let initialized = false;
   const joining = ref(false);
   let joinGeneration = 0;
+  let suppressionGeneration = 0;
+  let localAnalyserSource: MediaStreamAudioSourceNode | null = null;
   const subscriptions: Array<[string, (...args: any[]) => void]> = [];
 
   function listen(event: string, handler: (...args: any[]) => void) {
@@ -71,16 +80,20 @@ export function useVoice(
     return audioCtx;
   }
 
-  async function getRtcConfig(): Promise<RTCConfiguration> {
-    if (rtcConfig) return rtcConfig;
-    try {
-      rtcConfig = await fetchTurnCredentials();
-      return rtcConfig;
-    } catch (_error) {
-      rtcConfig = STUN_ONLY_CONFIG;
-      return rtcConfig;
+  function applyCredentials(config: TurnCredentialsResponse, renewing = false) {
+    rtcConfig = { iceServers: config.iceServers };
+    for (const entry of peers.values()) {
+      entry.pc.setConfiguration(rtcConfig);
+      // One offerer per pair avoids simultaneous ICE-restart offers. Both
+      // participants install new credentials before their old lease expires.
+      if (renewing && entry.isInitiator) entry.pc.restartIce();
     }
   }
+
+  const credentials = createVoiceCredentialRenewal(fetchTurnCredentials, applyCredentials, error => {
+    leaveVoice();
+    ui.showToast(error.message, 'error');
+  });
 
   // ── RNNoise noise suppression pipeline ──
 
@@ -114,7 +127,13 @@ export function useVoice(
     if (preferences.noiseSuppression) {
       try {
         worklet = await createRnnoiseNode();
-        source.connect(worklet).connect(dest);
+        if (preferences.noiseSuppression) source.connect(worklet).connect(dest);
+        else {
+          worklet.disconnect();
+          worklet.port.postMessage('destroy');
+          worklet = null;
+          source.connect(dest);
+        }
       } catch (_error) {
         source.connect(dest);
       }
@@ -260,13 +279,14 @@ export function useVoice(
         return;
       }
       localStream = stream;
-      await Promise.all([setupNoisePipeline(), getRtcConfig()]);
+      await setupNoisePipeline();
       if (generation !== joinGeneration) return;
       voice.setActive(true);
       voice.setMuted(false);
-      startSpeakingDetection();
-      const response = await emitWithAck<{ peers?: string[] }>('voice:join', {});
+      const response = await emitWithAck<TurnCredentialsResponse & { peers?: string[] } & Record<string, unknown>>('voice:join', {});
       if (generation !== joinGeneration) return;
+      credentials.start(response);
+      startSpeakingDetection();
       for (const peerId of response.peers || []) {
         createPeerConnection(peerId, true);
       }
@@ -281,7 +301,9 @@ export function useVoice(
 
   function leaveVoice(notify = true) {
     joinGeneration++;
+    suppressionGeneration++;
     joining.value = false;
+    credentials.stop();
     stopSpeakingDetection();
     destroyAllPeers();
     cleanupNoisePipeline();
@@ -307,6 +329,7 @@ export function useVoice(
   }
 
   async function toggleNoiseSuppression() {
+    const generation = ++suppressionGeneration;
     const nextValue = !preferences.noiseSuppression;
     preferences.setNoiseSuppression(nextValue);
 
@@ -324,7 +347,7 @@ export function useVoice(
     if (nextValue) {
       try {
         const worklet = await createRnnoiseNode();
-        if (noiseNodes !== pipeline) {
+        if (noiseNodes !== pipeline || generation !== suppressionGeneration) {
           worklet.disconnect();
           worklet.port.postMessage('destroy');
           return;
@@ -332,7 +355,7 @@ export function useVoice(
         noiseNodes.source.connect(worklet).connect(noiseNodes.dest);
         noiseNodes.worklet = worklet;
       } catch (_error) {
-        if (noiseNodes === pipeline) noiseNodes.source.connect(noiseNodes.dest);
+        if (noiseNodes === pipeline && generation === suppressionGeneration) noiseNodes.source.connect(noiseNodes.dest);
       }
     } else {
       noiseNodes.source.connect(noiseNodes.dest);
@@ -345,7 +368,7 @@ export function useVoice(
     if (peers.has(sessionId)) return;
 
     const pc = new RTCPeerConnection(rtcConfig || STUN_ONLY_CONFIG);
-    const entry: PeerEntry = { pc, stream: null, analyser: null, pendingCandidates: [] };
+    const entry: PeerEntry = { pc, isInitiator, stream: null, analyser: null, source: null, pendingCandidates: [] };
     peers.set(sessionId, entry);
     voice.setPeer(sessionId, voice.peers.find((peer) => peer.sessionId === sessionId)?.volume ?? 100);
 
@@ -389,7 +412,8 @@ export function useVoice(
       setupAnalyser(sessionId, remoteStream, entry);
     };
 
-    if (isInitiator) {
+    pc.onnegotiationneeded = () => {
+      if (!isInitiator || pc.signalingState !== 'stable') return;
       void pc
         .createOffer()
         .then((offer) => pc.setLocalDescription(offer))
@@ -401,7 +425,7 @@ export function useVoice(
           })
         )
         .catch(() => closePeer(sessionId));
-    }
+    };
   }
 
   async function flushCandidates(entry: PeerEntry) {
@@ -413,10 +437,13 @@ export function useVoice(
   function setupAnalyser(sessionId: string, stream: MediaStream, entry: PeerEntry) {
     try {
       const context = ensureAudioContext();
+      entry.source?.disconnect();
+      entry.analyser?.disconnect();
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
+      entry.source = source;
       entry.analyser = analyser;
       voice.setSpeaking(sessionId, false);
     } catch (_error) {}
@@ -425,6 +452,8 @@ export function useVoice(
   function closePeer(sessionId: string) {
     const entry = peers.get(sessionId);
     if (entry) {
+      entry.source?.disconnect();
+      entry.analyser?.disconnect();
       entry.pc.close();
       peers.delete(sessionId);
       voice.removePeer(sessionId);
@@ -461,6 +490,7 @@ export function useVoice(
       try {
         const context = ensureAudioContext();
         const source = context.createMediaStreamSource(localStream);
+        localAnalyserSource = source;
         localAnalyser = context.createAnalyser();
         localAnalyser.fftSize = 256;
         source.connect(localAnalyser);
@@ -470,7 +500,13 @@ export function useVoice(
     speakingInterval = window.setInterval(() => {
       const myId = meSessionId.value;
       if (myId && localAnalyser) {
-        voice.setSpeaking(myId, isSpeaking(localAnalyser));
+        if (!voice.muted && isSpeaking(localAnalyser)) lastSpeechAt = Date.now();
+        const speaking = !voice.muted && Date.now() - lastSpeechAt < 250;
+        voice.setSpeaking(myId, speaking);
+        if (speaking !== lastReportedSpeaking && socket.connected) {
+          lastReportedSpeaking = speaking;
+          socket.emit('voice:speaking', { speaking });
+        }
       }
       for (const [sessionId, entry] of peers) {
         if (!entry.analyser) continue;
@@ -480,6 +516,10 @@ export function useVoice(
   }
 
   function stopSpeakingDetection() {
+    lastReportedSpeaking = false;
+    lastSpeechAt = 0;
+    localAnalyserSource?.disconnect();
+    localAnalyserSource = null;
     if (!speakingInterval) return;
     window.clearInterval(speakingInterval);
     speakingInterval = null;

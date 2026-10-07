@@ -1,3 +1,5 @@
+const { timingSafeEqual } = require('node:crypto');
+
 module.exports = function register(socket, deps) {
   const { io, rooms, metrics, helpers, constants } = deps;
   const {
@@ -18,7 +20,8 @@ module.exports = function register(socket, deps) {
 
     leaveBoundRoom(socket);
 
-    const player = createPlayer(validatedPayload.name, socket.id);
+    const player = createPlayer(socket.data.account?.name ?? validatedPayload.name, socket.id);
+    player.accountId = socket.data.account?.id ?? null;
     const code = createRoomCode();
 
     const room = {
@@ -39,7 +42,7 @@ module.exports = function register(socket, deps) {
     metrics.roomCreate += 1;
     logEvent('room_created', { roomCode: room.code, by: player.sessionId });
 
-    ackOk(callback, { roomCode: room.code, sessionId: player.sessionId });
+    ackOk(callback, { roomCode: room.code, sessionId: player.sessionId, reconnectToken: player.reconnectToken });
   });
 
   socket.on('room:join', (payload = {}, callback) => {
@@ -60,6 +63,15 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if (socket.data.roomCode === code) {
+      const current = getContext(socket, action);
+      if (current) {
+        emitStateToRoom(room);
+        ackOk(callback, { roomCode: code, sessionId: current.player.sessionId, reconnectToken: current.player.reconnectToken });
+        return;
+      }
+    }
+
     if (getConnectedPlayerCount(room) >= ROOM_CONNECTED_LIMIT) {
       ackError(callback, 'Room is full.');
       return;
@@ -67,7 +79,8 @@ module.exports = function register(socket, deps) {
 
     leaveBoundRoom(socket);
 
-    const player = createPlayer(validatedPayload.name, socket.id);
+    const player = createPlayer(socket.data.account?.name ?? validatedPayload.name, socket.id);
+    player.accountId = socket.data.account?.id ?? null;
     room.players.set(player.sessionId, player);
     room.lastActiveAt = Date.now();
     ensureHostSession(room);
@@ -81,7 +94,7 @@ module.exports = function register(socket, deps) {
       connected: getConnectedPlayerCount(room),
     });
 
-    ackOk(callback, { roomCode: room.code, sessionId: player.sessionId });
+    ackOk(callback, { roomCode: room.code, sessionId: player.sessionId, reconnectToken: player.reconnectToken });
   });
 
   socket.on('room:rejoin', (payload = {}, callback) => {
@@ -104,8 +117,27 @@ module.exports = function register(socket, deps) {
     }
 
     const player = room.players.get(sessionId);
+    if (player?.accountId && player.accountId !== socket.data.account?.id) {
+      ackError(callback, 'Sign in with the account that joined this room.'); return;
+    }
+
     if (!player) {
       ackError(callback, 'Session not found in room.');
+      return;
+    }
+
+    const ownsConnection = player.socketId === socket.id && socket.data.roomCode === code && socket.data.sessionId === sessionId;
+    const ownsAccount = player.accountId && player.accountId === socket.data.account?.id;
+    const suppliedToken = Buffer.from(validatedPayload.reconnectToken || '');
+    const expectedToken = Buffer.from(player.reconnectToken || '');
+    if (!ownsConnection && !ownsAccount && (!expectedToken.length || suppliedToken.length !== expectedToken.length || !timingSafeEqual(suppliedToken, expectedToken))) {
+      ackError(callback, 'Session proof is invalid. Join the room again.');
+      return;
+    }
+
+    const replacesOwnSeat = socket.data.roomCode === code;
+    if (!player.connected && !replacesOwnSeat && getConnectedPlayerCount(room) >= ROOM_CONNECTED_LIMIT) {
+      ackError(callback, 'Room is full.');
       return;
     }
 
@@ -115,8 +147,8 @@ module.exports = function register(socket, deps) {
       leaveBoundRoom(socket);
     }
 
-    if (validatedPayload.name) {
-      player.name = sanitizeName(validatedPayload.name);
+    if (socket.data.account || validatedPayload.name !== undefined) {
+      player.name = sanitizeName(socket.data.account?.name ?? validatedPayload.name);
     }
 
     if (player.socketId && player.socketId !== socket.id) {
@@ -141,7 +173,7 @@ module.exports = function register(socket, deps) {
     metrics.roomRejoin += 1;
     logEvent('room_rejoined', { roomCode: room.code, sessionId: player.sessionId });
 
-    ackOk(callback, { roomCode: room.code, sessionId: player.sessionId });
+    ackOk(callback, { roomCode: room.code, sessionId: player.sessionId, reconnectToken: player.reconnectToken });
   });
 
   socket.on('room:leave', (payload = {}, callback) => {

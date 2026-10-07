@@ -4,7 +4,7 @@ const { saveState, loadState, restoreRooms } = require('../backend/state-persist
 const fs = require('fs');
 const path = require('path');
 
-const STATE_FILE = path.join(__dirname, '..', '.taccan-state.json');
+const STATE_FILE = path.join(require('node:os').tmpdir(), `wordmurmur-state-test-${process.pid}.json`);
 
 function createMockRoom() {
   return {
@@ -16,7 +16,6 @@ function createMockRoom() {
     match: { id: 'match-1', roundNumber: 1 },
     chatMessages: [{ text: 'hello', by: 'session-1', at: Date.now() }],
     blitzConfig: null,
-    customWords: null,
     voicePeers: new Set(),
     players: new Map([
       ['session-1', {
@@ -80,10 +79,10 @@ test('saveState and restoreRooms round-trip preserves room data', () => {
   const rooms = new Map();
   rooms.set('TEST', createMockRoom());
 
-  const saved = saveState(rooms);
+  const saved = saveState(rooms, STATE_FILE);
   assert.ok(saved, 'saveState should return truthy');
 
-  const loaded = loadState();
+  const loaded = loadState(STATE_FILE);
   assert.ok(loaded, 'loadState should return data');
   assert.ok(Array.isArray(loaded), 'loaded data is an array');
 
@@ -105,8 +104,8 @@ test('saveState resets connection state and phaseTimer', () => {
   const rooms = new Map();
   rooms.set('TEST', createMockRoom());
 
-  saveState(rooms);
-  const loaded = loadState();
+  saveState(rooms, STATE_FILE);
+  const loaded = loadState(STATE_FILE);
   const restored = restoreRooms(loaded);
   const room = restored.get('TEST');
 
@@ -122,8 +121,8 @@ test('marksByCard Sets survive serialization', () => {
   const rooms = new Map();
   rooms.set('TEST', createMockRoom());
 
-  saveState(rooms);
-  const loaded = loadState();
+  saveState(rooms, STATE_FILE);
+  const loaded = loadState(STATE_FILE);
   const restored = restoreRooms(loaded);
   const room = restored.get('TEST');
 
@@ -142,8 +141,8 @@ test('shutdown starts the disconnect grace period for connected players', () => 
   const oldSeenAt = Date.now() - 60 * 60 * 1000;
   for (const player of room.players.values()) player.lastSeenAt = oldSeenAt;
   const beforeSave = Date.now();
-  assert.equal(saveState(new Map([[room.code, room]])), true);
-  const restored = restoreRooms(loadState()).get(room.code);
+  assert.equal(saveState(new Map([[room.code, room]]), STATE_FILE), true);
+  const restored = restoreRooms(loadState(STATE_FILE)).get(room.code);
   assert.ok(restored.players.get('session-1').lastSeenAt >= beforeSave);
   assert.equal(restored.players.get('session-2').lastSeenAt, oldSeenAt);
 });

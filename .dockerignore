@@ -1,8 +1,13 @@
 node_modules
+frontend/dist
 .git
 test
-.taccan-state.json
 .env
 .env.*
+.taccan-state.json
+.taccan-state.json.tmp
 test-results
 playwright-report
+coverage
+.playwright-mcp
+.codex

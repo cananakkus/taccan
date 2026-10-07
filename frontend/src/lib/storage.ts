@@ -24,8 +24,12 @@ export function writeJson(key: string, value: unknown): void {
 
 export function readSession(): SessionRecord | null {
   const value = readJson<SessionRecord>(STORAGE_KEY);
-  if (!value?.code || !value?.sessionId) return null;
-  return value;
+  if (!value || typeof value.code !== 'string' || !/^[A-Za-z0-9]{4}$/.test(value.code) ||
+      typeof value.sessionId !== 'string' || !value.sessionId.trim() || value.sessionId.length > 128 ||
+      (value.name !== undefined && typeof value.name !== 'string') ||
+      (value.reconnectToken !== undefined && (typeof value.reconnectToken !== 'string' || value.reconnectToken.length > 128))) return null;
+  return { code: value.code.toUpperCase(), sessionId: value.sessionId, name: value.name || '',
+    ...(value.reconnectToken ? { reconnectToken: value.reconnectToken } : {}) };
 }
 
 export function writeSession(session: SessionRecord): void {

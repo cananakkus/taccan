@@ -6,7 +6,7 @@ module.exports = function register(socket, deps) {
     preflightAction, getContext, ackOk, ackError, sendViolation,
     emitStateToRoom, getRoomMode, getModeConfig,
     syncPhaseTimerForCurrentPhase, clearPhaseTimerState, scheduleMvpTimeout,
-    buildMarksForCard, withRoomLock,
+    buildMarksForCard, withContextLock,
   } = helpers;
 
   socket.on('turn:hint_submit', (payload = {}, callback) => {
@@ -14,13 +14,7 @@ module.exports = function register(socket, deps) {
     const validatedPayload = preflightAction(socket, action, payload, callback);
     if (!validatedPayload) return;
 
-    const context = getContext(socket, action);
-    if (!context) {
-      ackError(callback, 'You are not in a room.');
-      return;
-    }
-
-    withRoomLock(context.room.code, () => {
+    withContextLock(socket, action, callback, (context) => {
       const game = context.room.game;
       if (!game || game.phase === 'finished') {
         ackError(callback, 'No active game.');
@@ -50,15 +44,15 @@ module.exports = function register(socket, deps) {
       }
 
       const hintUpper = hintWord.toUpperCase();
-      if (game.board.some((c) => c.word === hintUpper)) {
+      if (game.board.some((c) => !c.revealed && c.word.normalize('NFC').toUpperCase() === hintUpper)) {
         ackError(callback, 'Your hint cannot be a word on the board.');
         return;
       }
 
-      if (!Number.isInteger(count) || count < 0 || (maxHintCount !== null && count > maxHintCount)) {
+      if (!Number.isInteger(count) || count < 1 || (maxHintCount !== null && count > maxHintCount)) {
         ackError(
           callback,
-          `Hint count must be an integer from 0${maxHintCount !== null ? ` to ${maxHintCount}` : ''}.`
+          `Hint count must be an integer from 1${maxHintCount !== null ? ` to ${maxHintCount}` : ''}.`
         );
         return;
       }
@@ -71,7 +65,7 @@ module.exports = function register(socket, deps) {
         at: Date.now(),
       };
       game.phase = 'guess';
-      game.guessesRemaining = count === 0 ? null : count + 1;
+      game.guessesRemaining = count + 1;
       game.history.push({
         type: 'hint',
         by: context.player.sessionId,
@@ -81,6 +75,7 @@ module.exports = function register(socket, deps) {
         at: Date.now(),
       });
       game.lastActionAt = Date.now();
+      context.room.lastActiveAt = game.lastActionAt;
 
       io.to(context.room.code).emit('turn:hint_accepted', {
         team: game.currentTeam,
@@ -169,13 +164,7 @@ module.exports = function register(socket, deps) {
     const validatedPayload = preflightAction(socket, action, payload, callback);
     if (!validatedPayload) return;
 
-    const context = getContext(socket, action);
-    if (!context) {
-      ackError(callback, 'You are not in a room.');
-      return;
-    }
-
-    withRoomLock(context.room.code, () => {
+    withContextLock(socket, action, callback, (context) => {
       const game = context.room.game;
       if (!game || game.phase === 'finished') {
         ackError(callback, 'No active game.');
@@ -248,13 +237,7 @@ module.exports = function register(socket, deps) {
     const validatedPayload = preflightAction(socket, action, payload, callback);
     if (!validatedPayload) return;
 
-    const context = getContext(socket, action);
-    if (!context) {
-      ackError(callback, 'You are not in a room.');
-      return;
-    }
-
-    withRoomLock(context.room.code, () => {
+    withContextLock(socket, action, callback, (context) => {
       const game = context.room.game;
       if (!game || game.phase === 'finished') {
         ackError(callback, 'No active game.');
@@ -338,7 +321,13 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if (game.board[index].revealed || !game.marksByCard[index]?.has(context.player.sessionId)) {
+      ackError(callback, 'Mark an unrevealed card before setting confidence.');
+      return;
+    }
     setCardConfidence(game, context.player.sessionId, index, validatedPayload.confidence);
+    game.lastActionAt = Date.now();
+    context.room.lastActiveAt = game.lastActionAt;
 
     io.to(context.room.code).emit('turn:mark_update', {
       index,

@@ -52,12 +52,12 @@ module.exports = function createTimers(ctx) {
 
   function finalizePhaseTimer(roomCode, timerId) {
     const room = rooms.get(roomCode);
-    clearPhaseTimer(roomCode);
     if (!room || !room.game || room.game.phase === 'finished') return;
 
     const game = room.game;
     const phaseTimer = game.phaseTimer;
     if (!phaseTimer || phaseTimer.id !== timerId) return;
+    clearPhaseTimer(roomCode);
 
     const expiredPhase = phaseTimer.phase;
     if (game.phase !== expiredPhase) { game.phaseTimer = null; return; }

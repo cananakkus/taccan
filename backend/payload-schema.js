@@ -1,6 +1,9 @@
 const { BOARD_SIZE } = require('./game-engine');
 
 const SCHEMAS = {
+  'account:refresh': {
+    token: { type: 'string', optional: false, maxLength: 4096 },
+  },
   'room:create': {
     name: { type: 'string', optional: true, maxLength: 200 },
   },
@@ -11,6 +14,7 @@ const SCHEMAS = {
   'room:rejoin': {
     code: { type: 'string', optional: false, maxLength: 32 },
     sessionId: { type: 'string', optional: false, maxLength: 128 },
+    reconnectToken: { type: 'string', optional: true, maxLength: 128 },
     name: { type: 'string', optional: true, maxLength: 200 },
   },
   'room:leave': {},
@@ -21,9 +25,6 @@ const SCHEMAS = {
   'room:blitz_config': {
     hintTimerSec: { type: 'integer', optional: false, min: 5, max: 300 },
     guessTimerSec: { type: 'integer', optional: false, min: 5, max: 300 },
-  },
-  'room:word_pack_set': {
-    url: { type: 'string', optional: false, maxLength: 2048 },
   },
   'team:set': {
     team: { type: 'string', optional: false, enum: ['red', 'blue', 'none'] },
@@ -56,12 +57,16 @@ const SCHEMAS = {
   },
   'turn:end': {},
   'voice:join': {},
+  'voice:credentials': {},
   'voice:leave': {},
   'voice:signal': {
     targetSessionId: { type: 'string', optional: false, maxLength: 128 },
     type: { type: 'string', optional: false, enum: ['offer', 'answer', 'candidate'] },
     sdp: { type: 'string', optional: true, maxLength: 65536 },
     candidate: { type: 'string', optional: true, maxLength: 4096 },
+  },
+  'voice:speaking': {
+    speaking: { type: 'boolean', optional: false },
   },
   'voice:mute': {
     muted: { type: 'boolean', optional: false },

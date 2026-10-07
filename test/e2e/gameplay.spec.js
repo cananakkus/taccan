@@ -6,7 +6,7 @@ let ctx;
 let origin;
 const clients = [];
 test.beforeAll(async () => {
-  ctx = createApp({ corsOrigin: '*' });
+  ctx = createApp({ corsOrigin: '*', restoreState: false });
   await new Promise(resolve => ctx.httpServer.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${ctx.httpServer.address().port}`;
 });
@@ -21,19 +21,29 @@ test.afterAll(async () => {
 async function openPlayer(browser, code) {
   const page = await browser.newPage();
   await page.addInitScript(() => {
+    window.testSoundTones = [];
+    const OriginalAudio = window.AudioContext;
+    window.AudioContext = class extends OriginalAudio {
+      createOscillator() {
+        const oscillator = super.createOscillator();
+        const originalStart = oscillator.start.bind(oscillator);
+        oscillator.start = (...args) => { window.testSoundTones.push(oscillator.frequency.value); return originalStart(...args); };
+        return oscillator;
+      }
+    };
     window.voiceConnections = [];
     const Original = window.RTCPeerConnection;
     window.RTCPeerConnection = class extends Original {
       constructor(config) { super(config); window.voiceConnections.push(this); }
     };
   });
-  await page.goto(`${origin}/taccan/`);
+  await page.goto(`${origin}/murmur/`);
   await page.locator('#join-panel input').first().fill(code ? 'Guest' : 'Host');
   if (code) {
     await page.locator('.code-field').fill(code);
-    await page.locator('#join-btn').click();
+    await page.locator('#room-action-btn').click();
   } else {
-    await page.locator('#create-btn').click();
+    await page.locator('#room-action-btn').click();
   }
   await expect(page.locator('#room-panel')).toBeVisible();
   return page;
@@ -68,7 +78,20 @@ test('voice sends audio both ways, respects mute, and can rejoin after disconnec
     await host.locator('#voice-join-btn').click();
     await expect(host.locator('#voice-join-btn')).toHaveClass(/in-voice/);
     expect(await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height)).toBe(headerHeight);
+    await expect(host.locator('#voice-noise-btn')).toBeVisible();
+    await expect(host.locator('#voice-controls-btn')).toHaveCount(0);
+    await expect(host.locator('#voice-peer-list')).toHaveCount(0);
+    await expect(guest.locator('#spectator-list .player-voice')).toHaveCount(1);
+    await expect(host.locator('.navbar-brand')).toHaveText('MURMUR');
     await guest.locator('#voice-join-btn').click();
+    for (const page of [host, guest]) {
+      for (const [width, height] of [[1280, 720], [390, 844], [844, 390]]) {
+        await page.setViewportSize({ width, height });
+        expect(await page.locator('.bottom-bar button:visible').evaluateAll(buttons => buttons.every(button => button.getBoundingClientRect().height === 36))).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(page.locator('#score-bar')).toHaveCount(0);
+      }
+    }
     await expect.poll(() => receivedAudio(host), { timeout: 15000 }).toBeGreaterThan(0);
     await expect.poll(() => receivedAudio(guest), { timeout: 15000 }).toBeGreaterThan(0);
     for (const page of [host, guest]) {
@@ -127,12 +150,17 @@ for (const width of [390, 1280]) {
       await expect(host.locator('#start-game-btn')).toBeVisible();
       await expect(host.locator('#sheet-feed')).toBeVisible();
       await expect(host.locator('#board')).toHaveCount(0);
+      await expect(host.locator('#score-bar')).toHaveCount(0);
       await host.locator('#chat-input').fill('Ready to play');
       await host.locator('#chat-form button').click();
       await expect(guest.locator('#feed-entries')).toContainText('Ready to play');
       expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await role(host, 'red');
       await role(guest, 'blue');
+      for (const page of [host, guest]) {
+        await expect(page.locator('.team-red .is-spymaster .team-player-name')).toHaveText('Host');
+        await expect(page.locator('.team-blue .is-spymaster .team-player-name')).toHaveText('Guest');
+      }
       const chatHeight = await host.locator('#sheet-feed').evaluate(el => el.getBoundingClientRect().height);
       for (let i = 0; i < 8; i++) {
         await host.locator('#chat-input').fill(`Message ${i}: ${'A longer message to exercise scrolling. '.repeat(3)}`);
@@ -151,6 +179,15 @@ for (const width of [390, 1280]) {
 
       await host.locator('#start-game-btn').click();
       await expect.poll(() => room.game?.phase).toBe('hint');
+      await expect(host.locator('#score-bar')).toBeVisible();
+      const scoreLayout = await host.evaluate(() => ({
+        navbarBottom: document.querySelector('.bottom-bar').getBoundingClientRect().bottom,
+        markerTop: document.querySelector('.score-battle').getBoundingClientRect().top,
+        markerBottom: document.querySelector('.score-battle').getBoundingClientRect().bottom,
+        stripBottom: document.querySelector('.top-bar').getBoundingClientRect().bottom,
+      }));
+      expect(scoreLayout.markerTop).toBeGreaterThanOrEqual(scoreLayout.navbarBottom);
+      expect(scoreLayout.markerBottom).toBeLessThanOrEqual(scoreLayout.stripBottom);
       const boardHeights = await Promise.all([host, guest].map(page => page.locator('#board').evaluate(el => el.getBoundingClientRect().height)));
       if (width === 1280) {
         const layout = await host.evaluate(() => {
@@ -170,7 +207,9 @@ for (const width of [390, 1280]) {
 
       for (const page of [host, guest]) {
         await expect(page.locator('.spymaster-roster')).toContainText(['Host', 'Guest']);
-        await expect(page.locator('#sheet-teams .team-player-name')).toHaveCount(0);
+        await expect(page.locator('#sheet-teams .team-player-name')).toHaveCount(2);
+        await expect(page.locator('.team-red .is-spymaster .team-player-name')).toHaveText('Host');
+        await expect(page.locator('.team-blue .is-spymaster .team-player-name')).toHaveText('Guest');
       }
       const first = room.game.currentTeam === 'red' ? host : guest;
       const second = first === host ? guest : host;
@@ -225,11 +264,13 @@ for (const width of [390, 1280]) {
       await second.locator(`.team-${otherTeam} .team-player-name`).first().click();
       await expect.poll(() => room.players.get(switchingSession.sessionId).team).toBe(otherTeam);
       await expect.poll(() => room.players.get(switchingSession.sessionId).role).toBe('operative');
+      await expect(second.locator('.team-player-item.is-spymaster').filter({ hasText: second === host ? 'Host' : 'Guest' })).toHaveCount(0);
       await expect(second.locator(`.team-${otherTeam} .team-player-name`).filter({ hasText: second === host ? 'Host' : 'Guest' })).toHaveText(second === host ? 'Host' : 'Guest');
       expect(JSON.stringify(room.game)).toBe(beforeSwitch);
       const vacantTeam = room.game.currentTeam;
       await second.locator(`.clue-slot[data-team="${vacantTeam}"] .spymaster-vacancy`).click();
       await expect.poll(() => room.players.get(switchingSession.sessionId).role).toBe('spymaster');
+      await expect(second.locator(`.team-${vacantTeam} .team-player-item.is-spymaster`).filter({ hasText: second === host ? 'Host' : 'Guest' })).toBeVisible();
       await expect(second.locator(`.clue-slot[data-team="${vacantTeam}"] .spymaster-vacancy`)).toHaveCount(0);
 
       await second.locator(`.team-${room.game.currentTeam} .operative-join-target`).last().click();
@@ -266,8 +307,17 @@ for (const width of [390, 1280]) {
 test('small phone keeps Turkish labels, lobby actions, and voice controls accessible', async ({ browser }) => {
   const page = await openPlayer(browser);
   try {
+    await page.locator('[data-panel="settings"]').click();
+    await page.locator('#sheet-settings .language-switch button').last().click();
+    await page.locator('#sheet-settings .panel-close').click();
     for (const viewport of [{ width: 1280, height: 600 }, { width: 1366, height: 768 }, { width: 390, height: 664 }, { width: 320, height: 568 }]) {
       await page.setViewportSize(viewport);
+      const rolesFit = await page.locator('.lobby-team-actions button').evaluateAll(buttons => buttons.every(button => {
+        const role = button.getBoundingClientRect();
+        const card = button.closest('.team-panel').getBoundingClientRect();
+        return role.top >= card.top && role.bottom <= card.bottom && role.left >= card.left && role.right <= card.right;
+      }));
+      expect(rolesFit, `Role controls fit at ${viewport.width} × ${viewport.height}`).toBe(true);
       await expect(page.locator('.lobby-intro')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
       for (const selector of ['#start-game-btn', '#chat-input', '#spectator-list .team-player-item']) {
@@ -275,12 +325,9 @@ test('small phone keeps Turkish labels, lobby actions, and voice controls access
       }
     }
     await page.setViewportSize({ width: 320, height: 740 });
-    await page.locator('[data-panel="settings"]').click();
-    await page.locator('#sheet-settings .language-switch button').last().click();
-    await page.locator('#sheet-settings .panel-close').click();
     expect(await page.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height)).toBeLessThanOrEqual(90);
     await expect(page.locator('#start-game-btn')).toBeVisible();
-    await expect(page.locator('[data-panel="settings"] .bar-tab-label')).toBeVisible();
+    await expect(page.locator('[data-panel="settings"]')).toBeInViewport({ ratio: 1 });
     await page.locator('#voice-join-btn').click();
     await expect(page.locator('#voice-mute-btn')).toBeVisible();
     await page.locator('#voice-mute-btn').click();
@@ -330,10 +377,10 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
     await host.locator('#start-game-btn').click();
     await expect(host.locator('#manage-roles-btn')).toHaveCount(0);
     await expect(host.locator('#chat-input')).toBeInViewport({ ratio: 1 });
-    await expect(host.locator('.team-red .team-head')).toContainText('9');
-    await expect(host.locator('.team-blue .team-head')).toContainText('3');
-    await expect(host.locator('.team-red .team-head h3')).toHaveText('Red Operatives');
-    await expect(host.locator('.team-blue .team-head h3')).toHaveText('Blue Operatives');
+    await expect(host.locator('.team-red .roster-count')).toHaveText('10');
+    await expect(host.locator('.team-blue .roster-count')).toHaveText('4');
+    await expect(host.locator('.team-red .team-head h3')).toHaveText('Red Team');
+    await expect(host.locator('.team-blue .team-head h3')).toHaveText('Blue Team');
     await expect(host.locator('.roster-title')).toHaveCount(0);
     const rosterSizes = () => host.locator('#sheet-teams .team-panel, #sheet-teams .spectator-roster').evaluateAll(els => els.map(el => el.getBoundingClientRect().height));
     const beforeSpectators = await rosterSizes();
@@ -353,17 +400,18 @@ test('crowded and uneven teams keep headings, actions and spectators accessible'
       await expect(host.locator('#manage-roles-btn')).toHaveCount(0);
       await expect(host.locator('[data-panel="settings"]')).toBeInViewport({ ratio: 1 });
       await expect(host.locator('#leave-room-btn')).toBeInViewport({ ratio: 1 });
-      expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Viewport width: ${width}`).toBe(true);
       await expect(host.locator('.words-remaining').first()).toContainText('kelime kaldı');
       const size = await host.locator('.words-remaining').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(18);
       expect(await host.locator('.words-remaining').evaluateAll(els => els.every(el => el.scrollWidth <= el.clientWidth))).toBe(true);
     }
-    const compactHeaderHeight = await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height);
     await host.locator('#voice-join-btn').click();
     await expect(host.locator('#voice-join-btn')).toHaveClass(/in-voice/);
-    expect(await host.locator('.bottom-bar').evaluate(el => el.getBoundingClientRect().height)).toBe(compactHeaderHeight);
-    await expect(host.locator('#voice-controls-btn')).toBeInViewport({ ratio: 1 });
+
+    await expect(host.locator('#voice-noise-btn')).toBeInViewport({ ratio: 1 });
+    await expect(host.locator('#voice-mute-btn')).toBeInViewport({ ratio: 1 });
+    await expect(host.locator('#voice-controls-btn')).toHaveCount(0);
     expect(await host.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally {
     for (const client of crowd) { if (client.connected) await emit(client, 'room:leave', {}); client.disconnect(); }
@@ -415,5 +463,153 @@ test('revealed words use their card colours and finished turns clear the summary
   } finally {
     for (const peer of peers) peer.disconnect();
     await page.close();
+  }
+});
+
+test('new invites preserve unrelated sessions and refresh rejoins the chosen room', async ({ browser }) => {
+  const first = await openPlayer(browser);
+  const second = await openPlayer(browser);
+  try {
+    const original = await session(first);
+    const target = await session(second);
+    await first.goto(`${origin}/murmur/room/${target.code}/`);
+    await expect(first.locator('#join-panel')).toBeVisible();
+    await expect(first.locator('.code-field')).toHaveValue(target.code);
+    expect(await session(first)).toEqual(original);
+    await first.locator('#room-action-btn').click();
+    await expect(first.locator('#room-code strong')).toHaveText(target.code);
+    const joined = await session(first);
+    expect(joined.code).toBe(target.code);
+    expect(joined.sessionId).not.toBe(original.sessionId);
+    await first.reload();
+    await expect(first.locator('#room-panel')).toBeVisible();
+    expect(await session(first)).toEqual(joined);
+    await expect(second.locator('.spectator-roster')).toContainText('Host');
+  } finally {
+    await first.close();
+    await second.close();
+  }
+});
+
+test('one room action switches between creation and joining, including Enter', async ({ browser }) => {
+  const host = await openPlayer(browser);
+  const hostSession = await session(host);
+  const guest = await browser.newPage();
+  try {
+    await guest.goto(`${origin}/wordmurmur/`);
+    await expect(guest).toHaveURL(`${origin}/murmur/`);
+    await expect(guest).toHaveTitle('MURMUR');
+    const action = guest.locator('#room-action-btn');
+    await expect(guest.locator('.join-form button')).toHaveCount(1);
+    await expect(action).toHaveText('Create Room');
+    await guest.locator('.code-field').fill('    ');
+    await expect(action).toHaveText('Create Room');
+    const missingCode = ['AAAA', 'BBBB', 'CCCC'].find(code => !ctx.rooms.has(code));
+    await guest.locator('.code-field').fill(missingCode);
+    await expect(action).toHaveText('Join Room');
+    const roomCount = ctx.rooms.size;
+    await guest.locator('.code-field').press('Enter');
+    await expect(guest.locator('.toast')).toContainText('Room not found');
+    expect(ctx.rooms.size).toBe(roomCount);
+    await guest.locator('.code-field').fill('');
+    await expect(action).toHaveText('Create Room');
+    await guest.locator('.code-field').fill(hostSession.code.toLowerCase());
+    await guest.locator('.code-field').press('Enter');
+    await expect(guest.locator('#room-panel')).toBeVisible();
+    expect((await session(guest)).code).toBe(hostSession.code);
+  } finally {
+    await host.close();
+    await guest.close();
+  }
+});
+
+test('positive hints, synchronized guesses, refresh and rematch work through the UI', async ({ browser }) => {
+  const host = await openPlayer(browser);
+  const hostSession = await session(host);
+  const guest = await openPlayer(browser, hostSession.code);
+  const room = ctx.rooms.get(hostSession.code);
+  try {
+    await host.locator('.lobby-spymaster[data-team="red"] .spymaster-vacancy').click();
+    await guest.locator('.team-red .operative-join-target').click();
+    await host.locator('#start-game-btn').click();
+    await expect.poll(() => room.game?.phase).toBe('hint');
+    const team = room.game.currentTeam;
+    if (team === 'blue') {
+      await host.locator('.clue-slot[data-team="blue"] .spymaster-vacancy').click();
+      await guest.locator('.team-blue .operative-join-target').click();
+    }
+    await host.setViewportSize({ width: 1280, height: 720 });
+    await host.screenshot({ path: '/tmp/murmur-patterns-desktop.png' });
+    await host.setViewportSize({ width: 390, height: 844 });
+    await host.screenshot({ path: '/tmp/murmur-patterns-phone.png' });
+    await host.setViewportSize({ width: 844, height: 390 });
+    await host.screenshot({ path: '/tmp/murmur-patterns-landscape.png' });
+    await expect(host.locator('#board')).toBeInViewport({ ratio: 1 });
+    await expect(host.locator('#hint-word-input')).toBeInViewport({ ratio: 1 });
+    await host.locator('.stepper-btn-down').click();
+    await expect(host.locator('#hint-count-input')).toHaveValue('1');
+    await host.locator('#hint-word-input').fill('linkedclue');
+    await host.locator('#hint-count-input').fill('0');
+    await host.locator('#hint-form button[type="submit"]').click();
+    expect(room.game.phase).toBe('hint');
+    await host.locator('#hint-count-input').fill('1');
+    await host.locator('#hint-form button[type="submit"]').click();
+    await expect(guest.locator('#hint-display .has-hint')).toContainText('LINKEDCLUE');
+    for (const page of [host, guest]) await expect.poll(() => page.evaluate(() => window.testSoundTones.filter(frequency => frequency === 784).length)).toBe(1);
+    await guest.setViewportSize({ width: 844, height: 390 });
+    await expect(guest.locator('#board')).toBeInViewport({ ratio: 1 });
+    await expect(guest.locator('#submit-guess-btn')).toBeInViewport({ ratio: 1 });
+    await expect(guest.locator('#end-turn-btn')).toBeInViewport({ ratio: 1 });
+    const ownCard = room.game.board.find(card => card.color === team);
+    const ownButton = guest.locator('#board > button').nth(ownCard.index);
+    const guestId = (await session(guest)).sessionId;
+    await ownButton.click();
+    await expect.poll(() => room.game.marksByCard[ownCard.index].has(guestId)).toBe(true);
+    await expect(ownButton).toHaveClass(/selected-for-guess/);
+    await expect(ownButton).toHaveAttribute('aria-pressed', 'true');
+    await ownButton.click();
+    await expect.poll(() => room.game.marksByCard[ownCard.index].has(guestId)).toBe(false);
+    await expect(ownButton).not.toHaveClass(/selected-for-guess/);
+    await expect(guest.locator('#submit-guess-btn')).toBeDisabled();
+    await ownButton.dblclick();
+    await expect(ownButton).not.toHaveClass(/selected-for-guess/);
+    expect(room.game.board[ownCard.index].revealed).toBe(false);
+    await ownButton.click();
+    await expect(ownButton).toHaveClass(/selected-for-guess/);
+    await guest.locator('#submit-guess-btn').click();
+    for (const page of [host, guest]) await expect(page.locator('#board > button').nth(ownCard.index)).toHaveClass(/revealed/);
+    expect(room.game.guessesRemaining).toBe(1);
+    await expect(host.locator('#board > button').nth(ownCard.index).locator('.card-opened-mark')).toHaveText('◆');
+    await expect(guest.locator('.card-opened-mark')).toHaveCount(0);
+    for (const page of [host, guest]) {
+      expect(await page.evaluate(() => window.testSoundTones.filter(frequency => frequency === 784).length)).toBe(1);
+    }
+    const guestSession = await session(guest);
+    await guest.reload();
+    await expect(guest.locator('#hint-display')).toContainText('LINKEDCLUE');
+    expect(await session(guest)).toEqual(guestSession);
+    await expect(guest.locator('#board > button').nth(ownCard.index)).toHaveClass(/revealed/);
+    const assassin = room.game.board.find(card => card.color === 'assassin');
+    await guest.locator('#board > button').nth(assassin.index).click();
+    await guest.locator('#submit-guess-btn').click();
+    await expect(host.locator('#rematch-btn')).toBeVisible();
+    await expect(guest.locator('#rematch-btn')).not.toBeVisible();
+    const oldGameId = room.game.id;
+    const matchId = room.game.matchId;
+    await host.locator('#rematch-btn').click();
+    await expect.poll(() => room.game.id).not.toBe(oldGameId);
+    expect(room.game.matchId).toBe(matchId);
+    expect(room.game.roundNumber).toBe(2);
+    await expect(guest.locator('#board > button.revealed')).toHaveCount(0);
+    await expect(guest.locator('#board > button.keycard')).toHaveCount(0);
+    for (const [width, height] of [[1280, 720], [390, 844], [844, 390]]) {
+      await guest.setViewportSize({ width, height });
+      expect(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await guest.locator('#board').scrollIntoViewIfNeeded();
+      await expect(guest.locator('#board')).toBeInViewport();
+    }
+  } finally {
+    await host.close();
+    await guest.close();
   }
 });

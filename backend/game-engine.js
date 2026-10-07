@@ -38,7 +38,9 @@ function shuffle(items, rng) {
 }
 
 function sampleWords(count, rng, wordList) {
-  const pool = wordList || words;
+  const pool = [...new Set((wordList || words)
+    .filter((word) => typeof word === 'string' && word.trim())
+    .map((word) => word.trim().normalize('NFC').toUpperCase()))];
   if (pool.length < count) {
     throw new Error('Not enough words to generate board.');
   }
@@ -56,7 +58,7 @@ function createGameState(options = {}) {
   const maxHintCount = options.maxHintCount ?? null;
 
   // Seeded PRNG (Wave 8.1)
-  const seed = options.seed || (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+  const seed = options.seed ?? (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const rng = mulberry32(seed);
 
   const startingTeam = rng() < 0.5 ? 'red' : 'blue';
@@ -68,9 +70,7 @@ function createGameState(options = {}) {
     'assassin',
   ], rng);
 
-  const wordList = options.customWords && options.customWords.length >= BOARD_SIZE
-    ? options.customWords
-    : words;
+  const wordList = words;
 
   const board = sampleWords(BOARD_SIZE, rng, wordList).map((word, index) => ({
     index,
@@ -114,18 +114,26 @@ function createGameState(options = {}) {
 
 // --- Duet Mode (NOT YET WIRED — engine only, no server handlers or UI) ---
 function createDuetGameState(options = {}) {
-  const seed = options.seed || (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+  const seed = options.seed ?? (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const rng = mulberry32(seed);
 
-  const wordList = options.customWords && options.customWords.length >= BOARD_SIZE
-    ? options.customWords
-    : words;
+  const wordList = words;
   const boardWords = sampleWords(BOARD_SIZE, rng, wordList);
 
   // Duet keycards: 9 agents, 3 assassins, 13 bystanders per player's perspective
   // Some overlap: shared agents, shared assassins
   const keycardA = generateDuetKeycard(rng);
-  const keycardB = generateDuetKeycard(rng);
+  const agentIndexesA = keycardA.flatMap((color, index) => color === 'agent' ? [index] : []);
+  const otherIndexesA = keycardA.flatMap((color, index) => color !== 'agent' ? [index] : []);
+  const agentIndexesB = new Set([
+    ...shuffle(agentIndexesA, rng).slice(0, 3),
+    ...shuffle(otherIndexesA, rng).slice(0, 6),
+  ]);
+  const assassinIndexesB = new Set(shuffle(
+    keycardA.flatMap((_color, index) => agentIndexesB.has(index) ? [] : [index]), rng
+  ).slice(0, 3));
+  const keycardB = keycardA.map((_color, index) =>
+    agentIndexesB.has(index) ? 'agent' : assassinIndexesB.has(index) ? 'assassin' : 'bystander');
 
   const board = boardWords.map((word, index) => ({
     index,
@@ -302,6 +310,7 @@ function toggleCardMark(game, sessionId, index) {
   if (!marks) return null;
   if (marks.has(sessionId)) {
     marks.delete(sessionId);
+    if (game.confidenceByCard?.[index]) delete game.confidenceByCard[index][sessionId];
     return false;
   }
   marks.add(sessionId);

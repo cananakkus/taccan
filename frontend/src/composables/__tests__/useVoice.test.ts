@@ -8,7 +8,7 @@ import { usePreferencesStore } from '../../stores/preferences';
 
 const signaling = vi.hoisted(() => ({
   handlers: new Map<string, Function>(),
-  emit: vi.fn(async (..._args: any[]) => ({ peers: [] })),
+  emit: vi.fn(async (..._args: any[]) => ({ peers: [], iceServers: [], expiresAt: Date.now() + 600_000 })),
 }));
 vi.mock('../../lib/socket', () => ({
   socket: {
@@ -17,7 +17,7 @@ vi.mock('../../lib/socket', () => ({
     off: (event: string) => signaling.handlers.delete(event),
   },
   emitWithAck: (...args: any[]) => signaling.emit(...args),
-  fetchTurnCredentials: async () => ({ iceServers: [] }),
+  fetchTurnCredentials: async () => ({ iceServers: [], expiresAt: Date.now() + 600_000 }),
 }));
 
 let pcs: any[];

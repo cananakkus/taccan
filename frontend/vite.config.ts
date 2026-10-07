@@ -5,7 +5,7 @@ export default defineConfig({
   root: __dirname,
   publicDir: 'public',
   plugins: [vue()],
-  base: '/taccan/',
+  base: '/murmur/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -19,8 +19,8 @@ export default defineConfig({
         target: 'http://127.0.0.1:3000',
         ws: true,
       },
-      '/taccan/api': 'http://127.0.0.1:3000',
-      '/taccan/socket.io': {
+      '/murmur/api': 'http://127.0.0.1:3000',
+      '/murmur/socket.io': {
         target: 'http://127.0.0.1:3000',
         ws: true,
       },

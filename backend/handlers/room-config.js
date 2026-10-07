@@ -3,7 +3,7 @@ module.exports = function register(socket, deps) {
   const {
     preflightAction, getContext, ackOk, ackError, sendViolation,
     emitStateToRoom, logEvent,
-    isGameActive, getNormalizedMode, getRoomMode, getModeConfig, fetchWordPack,
+    isGameActive, getNormalizedMode, getRoomMode, getModeConfig,
   } = helpers;
   const { ROOM_MODE_VALUES } = constants;
 
@@ -84,46 +84,4 @@ module.exports = function register(socket, deps) {
     ackOk(callback, { blitzConfig: context.room.blitzConfig });
   });
 
-  socket.on('room:word_pack_set', (payload = {}, callback) => {
-    const action = 'room:word_pack_set';
-    const validatedPayload = preflightAction(socket, action, payload, callback);
-    if (!validatedPayload) return;
-
-    const context = getContext(socket, action);
-    if (!context) {
-      ackError(callback, 'You are not in a room.');
-      return;
-    }
-
-    if (context.room.hostSessionId !== context.player.sessionId) {
-      ackError(callback, 'Only the host can set word packs.');
-      return;
-    }
-
-    if (isGameActive(context.room)) {
-      ackError(callback, 'Cannot change word pack during an active game.');
-      return;
-    }
-
-    const url = String(validatedPayload.url || '').trim();
-    if (!url.startsWith('https://')) {
-      ackError(callback, 'Word pack URL must use HTTPS.');
-      return;
-    }
-
-    const roomCode = context.room.code;
-    fetchWordPack(url)
-      .then((words) => {
-        const room = deps.rooms.get(roomCode);
-        if (!room) return;
-        if (room.game) return;
-        room.customWords = words;
-        room.lastActiveAt = Date.now();
-        emitStateToRoom(room);
-        ackOk(callback, { loaded: true, wordCount: words.length });
-      })
-      .catch((error) => {
-        ackError(callback, `Failed to load word pack: ${error.message}`);
-      });
-  });
 };

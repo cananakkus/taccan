@@ -1,9 +1,8 @@
-Courier Prime regular, Google Fonts v11, subset for `İ` and `ı`.
+Courier Prime regular and bold, bundled for all typewriter text, including
+`I`, `İ`, `i` and `ı`. Using one face avoids mixed letter heights and baselines.
 
 Source: https://github.com/quoteunquoteapps/CourierPrime
+Bundled files: https://github.com/google/fonts/tree/main/ofl/courierprime
 License: [SIL Open Font License 1.1](CourierPrime-OFL.txt).
 
-The bundled WOFF2 replaces only U+0130 and U+0131 in the typewriter
-font stack. Special Elite remains responsible for other characters;
-Playfair Display SC and Crimson Pro remain unchanged. This keeps Turkish
-letterforms clear at small sizes without changing the overall typography.
+Playfair Display SC and Crimson Pro remain the display and body fonts.

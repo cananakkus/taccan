@@ -1,6 +1,6 @@
-const { createHmac } = require('node:crypto');
+const { createHmac, createHash } = require('node:crypto');
 
-function getIceServers(env = process.env, now = Date.now()) {
+function getIceServers(env = process.env, now = Date.now(), options = {}) {
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
@@ -9,9 +9,10 @@ function getIceServers(env = process.env, now = Date.now()) {
   let username = env.TURN_USERNAME;
   let credential = env.TURN_CREDENTIAL;
   if (host && env.TURN_SHARED_SECRET) {
-    // Coturn REST credentials: valid for a day, longer than a room's 8h TTL.
-    // Only the derived credential is sent to clients, never the signing secret.
-    username = `${Math.floor(now / 1000) + 86400}:taccan`;
+    const ttl = Number(options.ttlSeconds ?? env.VOICE_CREDENTIAL_TTL_SECONDS ?? 600);
+    if (!Number.isInteger(ttl) || ttl < 120 || ttl > 3600) throw new Error('Voice credential TTL must be between 120 and 3600 seconds.');
+    const subject = createHash('sha256').update(options.subject || 'taccan').digest('hex').slice(0, 32);
+    username = `${Math.floor(now / 1000) + ttl}:${subject}`;
     credential = createHmac('sha1', env.TURN_SHARED_SECRET).update(username).digest('base64');
   }
   if (host && username && credential) {

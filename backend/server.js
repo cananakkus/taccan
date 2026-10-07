@@ -1,3 +1,5 @@
+const { createAccountSessions } = require('./account-session');
+const { createVoiceInfrastructure } = require('./voice-infrastructure');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -57,11 +59,16 @@ function createApp(options = {}) {
     cors: { origin: corsOrigin === '*' ? true : corsOrigin.split(','), methods: ['GET', 'POST'] },
   });
 
+  const accounts = createAccountSessions({ secret: options.accountSecret ?? process.env.PLAY_ACCOUNT_SECRET });
+  const voiceInfrastructure = createVoiceInfrastructure({ env: options.voiceEnv, authorize: options.authorizeVoice });
+  io.use(accounts.middleware);
+
   // Accept both direct subpath requests and requests whose proxy stripped it.
   // This must run before Socket.IO inspects HTTP and WebSocket upgrade URLs.
   function normalizeApiPath(req) {
-    if (/^\/taccan\/(?:api|socket\.io)(?:[/?]|$)/.test(req.url)) {
-      req.url = req.url.slice('/taccan'.length);
+    const prefix = req.url.match(/^\/(?:taccan|wordmurmur|murmur)(?=\/(?:api|socket\.io)(?:[/?]|$))/);
+    if (prefix) {
+      req.url = req.url.slice(prefix[0].length);
     }
   }
   httpServer.prependListener('request', normalizeApiPath);
@@ -83,7 +90,7 @@ function createApp(options = {}) {
 
   // ── State Restore ──
   const { saveState, loadState, restoreRooms } = require('./state-persistence');
-  const savedState = loadState();
+  const savedState = options.restoreState === false ? null : loadState(options.stateFile);
   if (savedState) {
     const restored = restoreRooms(savedState);
     for (const [code, room] of restored) rooms.set(code, room);
@@ -99,8 +106,11 @@ function createApp(options = {}) {
     ? frontendDistDir
     : frontendSourceDir;
   const staticOpts = { setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); } };
+  app.get(/^\/(?:taccan|wordmurmur)(?:\/|$)/, (req, res) => {
+    res.redirect(308, req.originalUrl.replace(/^\/(?:taccan|wordmurmur)(?=\/|\?|$)/, '/murmur'));
+  });
   app.use(express.static(frontendDir, staticOpts));
-  app.use('/taccan', express.static(frontendDir, staticOpts));
+  app.use(['/murmur'], express.static(frontendDir, staticOpts));
   app.get('/taccan/socket.io/socket.io.js', (_req, res) => res.redirect('/socket.io/socket.io.js'));
 
   // ── Assemble Helpers ──
@@ -138,7 +148,8 @@ function createApp(options = {}) {
 
   app.get('/api/turn-credentials', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ iceServers: getIceServers() });
+    // Compatibility for old tabs. Relay credentials require a bound socket.
+    res.json({ iceServers: getIceServers({}) });
   });
 
   app.get('/api/rooms/:code', (req, res) => {
@@ -162,13 +173,13 @@ function createApp(options = {}) {
     });
   });
 
-  app.get(['/room/:code', '/taccan/room/:code'], (_req, res) => {
+  app.get(['/room/:code', '/taccan/room/:code', '/wordmurmur/room/:code', '/murmur/room/:code'], (_req, res) => {
     res.sendFile(path.join(frontendDir, 'index.html'));
   });
 
   // ── Deps Object ──
 
-  const deps = { io, rooms, phaseTimers, mvpTimers, metrics, constants, helpers };
+  const deps = { io, rooms, phaseTimers, mvpTimers, metrics, constants, helpers, voiceInfrastructure };
 
   const handlerRegisters = [
     registerRoomHandlers,
@@ -186,6 +197,7 @@ function createApp(options = {}) {
 
   io.on('connection', (socket) => {
     socket.data.rateBuckets = {};
+    accounts.register(socket, helpers);
     helpers.logEvent('socket_connected', { socketId: socket.id });
     socket.emit('server:ready', { now: Date.now() });
     for (const register of handlerRegisters) register(socket, deps);
@@ -200,6 +212,7 @@ function createApp(options = {}) {
       ensureHostSession(room);
       if (room.players.size === 0 || now - room.lastActiveAt > STALE_ROOM_TTL_MS) {
         helpers.clearPhaseTimerState(room);
+        helpers.clearMvpTimer(room.code);
         helpers.logEvent('room_deleted', { roomCode: room.code, reason: room.players.size === 0 ? 'empty' : 'stale' });
         rooms.delete(room.code);
         continue;
@@ -212,23 +225,29 @@ function createApp(options = {}) {
   }, CLEANUP_INTERVAL_MS);
   cleanupInterval.unref();
 
-  return { app, httpServer, io, rooms, phaseTimers, mvpTimers, metrics, cleanupInterval, saveState };
+  return { app, httpServer, io, rooms, phaseTimers, mvpTimers, metrics, cleanupInterval,
+    saveState: (state = rooms) => saveState(state, options.stateFile) };
 }
 
 // ── Main ──
 
 if (require.main === module) {
-  const { httpServer, rooms, saveState: save } = createApp();
+  const { httpServer, io, rooms, cleanupInterval, phaseTimers, mvpTimers, saveState: save } = createApp();
   httpServer.listen(PORT, HOST, () => {
     console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'server_started', host: HOST, port: PORT }));
-    console.log(`Taccan server listening on http://${HOST}:${PORT}`);
+    console.log(`Murmur server listening on http://${HOST}:${PORT}`);
   });
 
+  let shuttingDown = false;
   function gracefulShutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'shutdown_initiated', signal }));
     console.log(`\n${signal} received, shutting down gracefully...`);
     save(rooms);
-    httpServer.close(() => {
+    clearInterval(cleanupInterval);
+    for (const timer of [...phaseTimers.values(), ...mvpTimers.values()]) clearTimeout(timer);
+    io.close(() => {
       console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'server_closed' }));
       process.exit(0);
     });

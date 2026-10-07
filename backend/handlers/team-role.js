@@ -1,6 +1,6 @@
 module.exports = function register(socket, deps) {
   const { helpers, constants } = deps;
-  const { preflightAction, getContext, ackOk, ackError, emitStateToRoom } = helpers;
+  const { preflightAction, getContext, ackOk, ackError, emitStateToRoom, clearMarksForSession } = helpers;
   const { TEAM_VALUES, ROLE_VALUES } = constants;
 
   socket.on('team:set', (payload = {}, callback) => {
@@ -25,6 +25,7 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if (context.player.team !== team) clearMarksForSession(context.room, context.player.sessionId);
     context.player.team = team;
 
     if (team === 'none') {
@@ -65,6 +66,9 @@ module.exports = function register(socket, deps) {
       return;
     }
     // Validate the whole move before changing either field: competing claims are atomic.
+    if (context.player.team !== team || context.player.role !== role) {
+      clearMarksForSession(context.room, context.player.sessionId);
+    }
     context.player.team = team;
     context.player.role = role;
 

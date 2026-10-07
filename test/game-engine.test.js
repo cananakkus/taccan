@@ -229,3 +229,12 @@ test('resolveGuess clears confidenceByCard at the revealed index', () => {
 
   assert.deepEqual(game.confidenceByCard[card.index], {});
 });
+
+test('duet keycards have exactly fifteen distinct agents across both perspectives', () => {
+  for (let seed = 0; seed < 30; seed++) {
+    const game = createDuetGameState({ seed });
+    const agents = game.board.filter(card => card.colorForPlayerA === 'agent' || card.colorForPlayerB === 'agent');
+    assert.equal(agents.length, game.totalAgents);
+    assert.equal(game.board.filter(card => card.colorForPlayerA === 'agent' && card.colorForPlayerB === 'agent').length, 3);
+  }
+});
