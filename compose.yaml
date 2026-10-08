@@ -1,0 +1,23 @@
+services:
+  taccan:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      HOST: 0.0.0.0
+      STATE_FILE: /app/state/.taccan-state.json
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://play.wleeaf.dev}
+      PLAY_ACCOUNT_SECRET: ${PLAY_ACCOUNT_SECRET:-}
+      TURN_HOST: ${TURN_HOST:-}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      VOICE_SERVICE_URL: ${VOICE_SERVICE_URL:-}
+      VOICE_SERVICE_KEY: ${VOICE_SERVICE_KEY:-}
+      VOICE_CREDENTIAL_TTL_SECONDS: ${VOICE_CREDENTIAL_TTL_SECONDS:-600}
+    volumes:
+      - room-state:/app/state
+    stop_grace_period: 15s
+    restart: unless-stopped
+volumes:
+  room-state:
