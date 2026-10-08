@@ -111,6 +111,9 @@ export function useVoice(
     }
 
     return new AudioWorkletNode(ctx, RNNOISE_WORKLET_ID, {
+      channelCount: 1,
+      channelCountMode: 'explicit',
+      outputChannelCount: [1],
       processorOptions: { wasmBinary: rnnoiseWasmBinary, maxChannels: 1 },
     });
   }
@@ -122,6 +125,9 @@ export function useVoice(
     const stream = localStream;
     const source = ctx.createMediaStreamSource(stream);
     const dest = ctx.createMediaStreamDestination();
+    // RNNoise processes one channel; a mono track keeps voices centred for listeners.
+    dest.channelCount = 1;
+    dest.channelCountMode = 'explicit';
     let worklet: AudioWorkletNode | null = null;
 
     if (preferences.noiseSuppression) {
