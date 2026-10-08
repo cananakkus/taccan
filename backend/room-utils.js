@@ -40,13 +40,14 @@ function getConnectedPlayersCountGlobal(rooms) {
 }
 
 function getNextHost(room) {
+  // Bots are always connected but never host.
   const sortedPlayers = getSortedPlayers(room);
-  const connectedPlayer = sortedPlayers.find((player) => player.connected);
+  const connectedPlayer = sortedPlayers.find((player) => player.connected && !player.bot);
   if (connectedPlayer) {
     return connectedPlayer;
   }
 
-  return sortedPlayers[0] || null;
+  return sortedPlayers.find((player) => !player.bot) || sortedPlayers[0] || null;
 }
 
 function ensureHostSession(room) {
@@ -57,7 +58,7 @@ function ensureHostSession(room) {
   }
 
   const currentHost = room.players.get(room.hostSessionId);
-  if (currentHost && currentHost.connected) {
+  if (currentHost && currentHost.connected && !currentHost.bot) {
     return;
   }
 

@@ -95,6 +95,7 @@ function chooseClue(game, bot, rng = Math.random) {
   const opponent = team === 'red' ? 'blue' : 'red';
   const open = game.board.filter((card) => !card.revealed);
   const forbidden = (clue) => open.some((card) => sameFamily(clue, card.word));
+  const given = new Set(game.history.filter((entry) => entry.type === 'hint' && entry.team === team).map((entry) => entry.word.toUpperCase()));
   const rate = (risk) => {
   const options = [];
   for (const [clue, words] of clueToWords) {
@@ -114,7 +115,8 @@ function chooseClue(game, bot, rng = Math.random) {
     const penalty = risk === 'reckless'
       ? assassin * 1.5 + opp * 0.5 + neutral * 0.2
       : assassin * 5 + opp * 1.2 + neutral * 0.5;
-    options.push({ clue, count, score: count - penalty });
+    // Vary clues the team has ignored instead of repeating them.
+    options.push({ clue, count, score: count - penalty - (given.has(clue) ? 0.75 : 0) });
   }
   return options;
   };

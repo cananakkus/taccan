@@ -151,3 +151,15 @@ test('getRoomReadinessError enforces connected team players', () => {
   });
   assert.equal(getRoomReadinessError(baseRoom), null);
 });
+
+test('bots are never chosen as host', () => {
+  const { ensureHostSession } = require('../backend/room-utils');
+  const room = { hostSessionId: 'h', players: new Map([
+    ['b', { sessionId: 'b', bot: true, connected: true, joinedAt: 1 }],
+    ['h', { sessionId: 'h', connected: false, joinedAt: 2 }],
+  ]) };
+  ensureHostSession(room);
+  assert.equal(room.hostSessionId, 'h');
+  room.hostSessionId = 'b'; ensureHostSession(room);
+  assert.equal(room.hostSessionId, 'h');
+});
