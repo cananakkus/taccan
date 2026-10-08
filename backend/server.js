@@ -126,6 +126,7 @@ function createApp(options = {}) {
     ...createStateView(ctx),
     ...createTimers(ctx),
     ...createRoomLifecycle(ctx),
+    ...require('./turn-actions')(ctx),
     withRoomLock,
   };
   ctx.helpers = helpers;

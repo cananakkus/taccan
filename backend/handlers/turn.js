@@ -1,12 +1,11 @@
-const { BOARD_SIZE, normalizeHint, resolveGuess, advanceTurn, toggleCardMark, setCardConfidence } = require('../game-engine');
+const { BOARD_SIZE, normalizeHint, setCardConfidence } = require('../game-engine');
 
 module.exports = function register(socket, deps) {
   const { io, helpers } = deps;
   const {
     preflightAction, getContext, ackOk, ackError, sendViolation,
-    emitStateToRoom, getRoomMode, getModeConfig,
-    syncPhaseTimerForCurrentPhase, clearPhaseTimerState, scheduleMvpTimeout,
-    buildMarksForCard, withContextLock,
+    getRoomMode, getModeConfig, buildMarksForCard, withContextLock,
+    applyHint, applyGuess, applyEndTurn, applyMark,
   } = helpers;
 
   socket.on('turn:hint_submit', (payload = {}, callback) => {
@@ -57,33 +56,7 @@ module.exports = function register(socket, deps) {
         return;
       }
 
-      game.hint = {
-        word: hintWord,
-        count,
-        team: context.player.team,
-        by: context.player.sessionId,
-        at: Date.now(),
-      };
-      game.phase = 'guess';
-      game.guessesRemaining = count + 1;
-      game.history.push({
-        type: 'hint',
-        by: context.player.sessionId,
-        team: context.player.team,
-        word: hintWord,
-        count,
-        at: Date.now(),
-      });
-      game.lastActionAt = Date.now();
-      context.room.lastActiveAt = game.lastActionAt;
-
-      io.to(context.room.code).emit('turn:hint_accepted', {
-        team: game.currentTeam,
-        hint: game.hint,
-      });
-
-      syncPhaseTimerForCurrentPhase(context.room, game.phase, 'hint_submitted');
-      emitStateToRoom(context.room);
+      applyHint(context.room, context.player, hintWord, count);
       ackOk(callback, { accepted: true });
     });
   });
@@ -128,33 +101,11 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    const marked = toggleCardMark(game, context.player.sessionId, index);
+    const marked = applyMark(context.room, context.player, index);
     if (marked === null) {
       ackError(callback, 'Card mark state unavailable.');
       return;
     }
-
-    game.lastActionAt = Date.now();
-    game.history.push({
-      type: 'mark_toggle',
-      by: context.player.sessionId,
-      team: context.player.team,
-      index,
-      marked,
-      at: Date.now(),
-    });
-    context.room.lastActiveAt = Date.now();
-
-    io.to(context.room.code).emit('turn:mark_toggled', {
-      index,
-      by: context.player.sessionId,
-      marked,
-    });
-
-    io.to(context.room.code).emit('turn:mark_update', {
-      index,
-      marks: buildMarksForCard(context.room, game, index),
-    });
 
     ackOk(callback, { index, marked });
   });
@@ -195,39 +146,7 @@ module.exports = function register(socket, deps) {
         return;
       }
 
-      const phaseBeforeGuess = game.phase;
-      const result = resolveGuess(game, context.player, card);
-      context.room.lastActiveAt = Date.now();
-
-      io.to(context.room.code).emit('turn:guess_resolved', {
-        index: card.index,
-        color: card.color,
-        team: context.player.team,
-        outcome: result.outcome,
-        finished: game.phase === 'finished',
-      });
-
-      if (game.phase === 'finished') {
-        io.to(context.room.code).emit('game:finished', {
-          winner: game.winner,
-          loser: game.loser,
-          reason: game.reason,
-        });
-      } else if (result.endedTurn) {
-        io.to(context.room.code).emit('turn:ended', {
-          reason: result.turnEndReason || result.outcome,
-          nextTeam: game.currentTeam,
-        });
-      }
-
-      if (game.phase === 'finished') {
-        clearPhaseTimerState(context.room);
-        scheduleMvpTimeout(context.room);
-      } else if (phaseBeforeGuess !== game.phase) {
-        syncPhaseTimerForCurrentPhase(context.room, game.phase, 'phase_changed_after_guess');
-      }
-
-      emitStateToRoom(context.room);
+      const result = applyGuess(context.room, context.player, card);
       ackOk(callback, result);
     });
   });
@@ -255,16 +174,7 @@ module.exports = function register(socket, deps) {
         return;
       }
 
-      advanceTurn(game, 'player_ended');
-      context.room.lastActiveAt = Date.now();
-
-      io.to(context.room.code).emit('turn:ended', {
-        reason: 'player_ended',
-        nextTeam: game.currentTeam,
-      });
-
-      syncPhaseTimerForCurrentPhase(context.room, game.phase, 'player_ended');
-      emitStateToRoom(context.room);
+      applyEndTurn(context.room);
       ackOk(callback, { ended: true });
     });
   });
