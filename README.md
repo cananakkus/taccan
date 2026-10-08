@@ -86,6 +86,22 @@ npm test
 
 The Node.js suite covers game rules, room/session lifecycle, payload validation, state persistence, voice signaling, and TURN credentials. Run `npm run typecheck` to check TypeScript and Vue templates, `npm run test:unit` for frontend unit tests, and `npm run test:e2e` for browser gameplay and voice tests. Tests use isolated state so they do not consume saved rooms.
 
+## Play party
+
+With `PARTY_SECRET` set, the private `/_party/matches` API lets the Play party service (play.wleeaf.dev) create tournament rooms of four to eight seats. Seats alternate red/blue and the first two are the spymasters. [PARTY.md](PARTY.md) describes the full integration.
+
+### Bots
+
+Roster entries may be bots: `{id, name, color, bot: true, skill: "easy" | "normal" | "hard"}`. A missing `skill` means `normal`. Every roster needs at least one human, names are at most 18 characters, and invalid `bot` or `skill` values are rejected. The server plays every bot seat itself:
+
+- Bots are always listed in `connected`, count as ready, and the round starts once the humans connect. `POST .../join` for a bot returns 400 `Bots cannot be joined`, and the socket rejoin rejects bot seats. Bots are never host.
+- **Spymaster bots** read the keycard and score every clue in a bundled offline association table (`backend/bot-associations.js`: about 500 clues covering every board word). Each clue is scored by the team's words it covers minus the opponent, neutral and assassin words it also hits. Clues that are board words, contain one or share its stem are never given.
+- **Operative bots** see only what a human operative sees: the words, revealed cards and clues. They rank unrevealed cards by how strongly the clue points at them, through a direct table link, plurals and stems, or co-occurrence when the clue is itself a board-vocabulary word. That last rule lets them follow many human clues. A bot always makes at least one guess, guesses up to the clue's number while the links stay strong, and then ends the turn.
+- **Skill.** *Easy* knows about 60% of the links, ranks noisily, gives clues for at most 2 words, often settles for 1, ignores most risk and sometimes stops early. *Normal* knows 88%, never knowingly points at the assassin and caps clues at 3. *Hard* knows every link, only gives clues that avoid the assassin and the opponent (up to 4 words), and uses the bonus guess on words left over from its team's earlier clues. In offline bot-vs-bot rounds, hard beats easy about 98% of the time and normal about 80%; easy teams hit the assassin in roughly a third of their rounds.
+- **Timing.** A clue takes 1.2 to 3 s and each guess 0.7 to 2.2 s. When a human operative shares the turn, the bot first marks its preferred card as a suggestion. It guesses only after its teammates have been idle for 20 s, so humans lead without the turn stalling. `BOT_DELAY_SCALE` scales all of these delays; tests use 0.01.
+- **Persistence and forfeits.** The `bot` and `skill` flags are stored in the persisted match payload and on the player snapshot. After a restart, bots come back connected and carry on. If the last human forfeits, a team left with fewer than two players loses at once as before. Otherwise the remaining bots finish the round immediately on the server. The result is a draw only if that cannot finish. Results may name bot ids as winners.
+- The UI shows a small **BOT** tag, with the skill in its tooltip, next to bot names in the team rosters and spymaster slots.
+
 ## Architecture
 
 The backend is Node.js with Express and Socket.IO. The browser client uses Vue 3, Pinia, TypeScript, and Vite. The former Flutter app was removed; it remains available in Git history before the removal commit.
@@ -108,6 +124,11 @@ backend/
   payload-schema.js    Event payload validation
   room-utils.js        Host failover, player pruning
   state-persistence.js State save and restore on shutdown
+  turn-actions.js      Clue, guess, mark and end-turn state changes (humans and bots)
+  party-adapter.cjs    Private Play party match API (SQLite)
+  party-support.js     Party rooms: seats, forfeits, results
+  bots.js              Party bot clue/guess logic and scheduling
+  bot-associations.js  Offline clue-to-word association table
   words.js             Default word pool
   handlers/            Socket.IO event handler modules
 
@@ -143,6 +164,9 @@ frontend/
 | VOICE_CREDENTIAL_TTL_SECONDS | 600 | Local dynamic credential lifetime, 120–3600 seconds; broker mode uses the broker's TTL |
 | PLAY_ACCOUNT_SECRET | | Signing secret for optional wleeaf account sessions |
 | STATE_FILE | .taccan-state.json in the project root | Room snapshot written during graceful shutdown |
+| PARTY_SECRET | | Enables the private Play party API (at least 32 characters) |
+| PARTY_DATA_FILE | state/party.sqlite | SQLite store for party matches |
+| BOT_DELAY_SCALE | 1 | Multiplier for party bot thinking delays |
 
 ## Deployment
 
