@@ -53,6 +53,8 @@ export interface PlayerView {
   team: Team;
   role: Role;
   connected: boolean;
+  bot?: boolean;
+  skill?: 'easy' | 'normal' | 'hard';
   joinedAt: number;
   isHost: boolean;
 }

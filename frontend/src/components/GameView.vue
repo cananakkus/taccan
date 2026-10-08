@@ -173,6 +173,7 @@ const roundLabel = computed(() => {
 const turnBannerText = computed(() => {
   if (!game.value) return t('lobby_open');
   if (game.value.phase === 'finished') {
+    if (!game.value.winner) return t('game_over_draw', { round: roundLabel.value });
     return t('game_over_banner', {
       round: roundLabel.value,
       team: formatTeam(game.value.winner),
@@ -296,6 +297,7 @@ function hintDisplayText(hint: { word: string; count: number }) {
 
 function resultText() {
   if (!game.value) return '';
+  if (game.value.phase === 'finished' && !game.value.winner) return t('result_draw');
   if (game.value.reason === 'assassin') return t('result_assassin', { loser: formatTeam(game.value.loser) });
   if (game.value.reason === 'all_agents_revealed') return t('result_all_agents', { winner: formatTeam(game.value.winner) });
   if (game.value.reason === 'opponent_agents_revealed') return t('result_opponent_agents', { winner: formatTeam(game.value.winner) });
@@ -1067,7 +1069,7 @@ onBeforeUnmount(() => {
                   <div class="spymaster-roster" :aria-label="`${formatTeam(team)} · ${t('spymaster')}`">
                     <span class="spymaster-label">{{ t('spymaster') }}</span>
                     <ul v-if="spymasters[team].length">
-                      <li v-for="player in spymasters[team]" :key="player.sessionId" :class="{ 'is-offline': !player.connected, speaking: playerIsSpeaking(player.sessionId) }"><span>{{ player.name }}</span> <VoiceBadge :name="player.name" :in-voice="!!player.inVoice" :muted="!!player.voiceMuted" :speaking="playerIsSpeaking(player.sessionId)" :volume="peerVolume(player.sessionId)" @volume="value => setPeerVolume(player.sessionId, value)" /><small v-if="!player.connected"> · {{ t('tag_offline') }}</small></li>
+                      <li v-for="player in spymasters[team]" :key="player.sessionId" :class="{ 'is-offline': !player.connected, speaking: playerIsSpeaking(player.sessionId) }"><span>{{ player.name }}</span><span v-if="player.bot" class="bot-tag" :title="t('tag_bot_title', { skill: t(`bot_skill_${player.skill || 'normal'}`) })">{{ t('tag_bot') }}</span> <VoiceBadge :name="player.name" :in-voice="!!player.inVoice" :muted="!!player.voiceMuted" :speaking="playerIsSpeaking(player.sessionId)" :volume="peerVolume(player.sessionId)" @volume="value => setPeerVolume(player.sessionId, value)" /><small v-if="!player.connected"> · {{ t('tag_offline') }}</small></li>
                     </ul>
                     <button v-else class="spymaster-vacancy btn btn-ghost" type="button" :aria-label="`${t('join_spymaster')} · ${formatTeam(team)}`" @click="setRole('spymaster', team)">{{ t('join_spymaster') }}</button>
                   </div>
@@ -1200,8 +1202,9 @@ onBeforeUnmount(() => {
                 </div>
                 <ul :id="group.team === 'none' ? 'spectator-list' : `${group.team}-team-list`" class="player-list" :aria-label="t(group.title)" tabindex="0">
                   <li v-if="!group.members.length" class="team-empty">{{ t(group.team === 'none' ? 'no_spectators' : 'no_team_players') }}</li>
-                  <li v-for="player in group.members" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name} · ${formatRole(player.role)}${!player.connected ? ` · ${t('tag_offline')}` : ''}`" :aria-label="`${player.name} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-offline': !player.connected, 'is-spymaster': player.role === 'spymaster' }">
+                  <li v-for="player in group.members" :key="player.sessionId" class="team-player-item" tabindex="0" :title="`${player.name}${player.bot ? ` · ${t('tag_bot')}` : ''} · ${formatRole(player.role)}${!player.connected ? ` · ${t('tag_offline')}` : ''}`" :aria-label="`${player.name}${player.bot ? ` · ${t('tag_bot')}` : ''} · ${formatRole(player.role)}`" :class="{ speaking: playerIsSpeaking(player.sessionId), 'is-offline': !player.connected, 'is-spymaster': player.role === 'spymaster' }">
                     <span class="team-player-name" :style="player.color ? {borderLeft:`3px solid ${player.color}`,paddingLeft:'5px'} : {}">{{ player.name }}</span>
+                    <span v-if="player.bot" class="bot-tag" :title="t('tag_bot_title', { skill: t(`bot_skill_${player.skill || 'normal'}`) })">{{ t('tag_bot') }}</span>
                     <VoiceBadge :name="player.name" :in-voice="!!player.inVoice" :muted="!!player.voiceMuted" :speaking="playerIsSpeaking(player.sessionId)" :volume="peerVolume(player.sessionId)" @volume="value => setPeerVolume(player.sessionId, value)" />
                     <span v-if="player.isHost" class="chip-status" :title="t('tag_host')" :aria-label="t('tag_host')">★</span>
                     <span v-if="!player.connected" class="chip-status">· {{ t('tag_offline') }}</span>

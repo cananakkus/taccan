@@ -3014,6 +3014,11 @@ html[data-theme="dark"] .room-screen { --keycard-red-text: #ffb1b1; --keycard-bl
 .spymaster-roster ul { display: flex; flex-wrap: wrap; gap: 0 10px; list-style: none; padding: 0; margin: 0; min-width: 0; }
 .spymaster-roster li { font: 700 17px/22px var(--font-body); overflow-wrap: anywhere; max-width: 100%; }
 .spymaster-roster li.is-offline { opacity: .7; }
+.bot-tag {
+  display: inline-block; margin-left: 5px; padding: 0 4px; vertical-align: 2px;
+  font: 700 10px/14px var(--font-typewriter); letter-spacing: .08em;
+  color: var(--ink-light); border: 1px solid currentColor; border-radius: 3px;
+}
 .spymaster-roster li.speaking { text-decoration: underline; text-decoration-thickness: 2px; }
 .room-screen #hint-display .spymaster-roster small { font: 13px/20px var(--font-body); }
 .room-screen #hint-display .spymaster-roster small::before { content: none; }
