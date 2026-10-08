@@ -128,6 +128,7 @@ module.exports = function register(socket, deps) {
       ackError(callback, 'Session not found in room.');
       return;
     }
+    if (player.bot) { ackError(callback, 'Bots cannot be joined.'); return; }
 
     const ownsConnection = player.socketId === socket.id && socket.data.roomCode === code && socket.data.sessionId === sessionId;
     const ownsAccount = player.accountId && player.accountId === socket.data.account?.id;

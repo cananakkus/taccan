@@ -44,7 +44,9 @@ class PartyAdapter {
       }
       if (req.method === 'POST' && url.pathname === '/_party/matches') {
         if (!/^[a-f0-9-]{36}$/.test(body.id) || !Array.isArray(body.players) || body.players.length < this.minPlayers || body.players.length > this.maxPlayers ||
-            new Set(body.players.map(p=>p.id)).size !== body.players.length || body.players.some(p=>!/^[-a-f0-9]{36}$/.test(p.id) || typeof p.name !== 'string' || p.name.length > 18 || !/^#[a-f0-9]{6}$/i.test(p.color))) throw Error('Invalid match roster');
+            new Set(body.players.map(p=>p.id)).size !== body.players.length || body.players.some(p=>!/^[-a-f0-9]{36}$/.test(p.id) || typeof p.name !== 'string' || p.name.length > 18 || !/^#[a-f0-9]{6}$/i.test(p.color) ||
+            (p.bot !== undefined && typeof p.bot !== 'boolean') || (p.skill !== undefined && !['easy','normal','hard'].includes(p.skill)))) throw Error('Invalid match roster');
+        if (body.players.every(p=>p.bot===true)) throw Error('A match needs at least one human');
         let record = this.rooms.get(body.id);
         if (record && JSON.stringify(record.payload.players.map(p=>p.id)) !== JSON.stringify(body.players.map(p=>p.id))) throw Error('Match roster cannot change');
         if (!record) { record = {payload:body, room:this.create(body), outcome:null}; this.rooms.set(body.id, record); this.save(body.id, true); }
@@ -58,7 +60,9 @@ class PartyAdapter {
         respond(200, {room:record.room.id || record.room.code, result:record.outcome, connected:this.connected(record.room), status:record.outcome?'completed':'active'});
       } else if (match[2] === 'join' && req.method === 'POST') {
         if (record.outcome) throw Error('This match has finished');
-        if (!record.payload.players.some(p=>p.id===body.player)) throw Error('This seat is not assigned to you');
+        const seat = record.payload.players.find(p=>p.id===body.player);
+        if (!seat) throw Error('This seat is not assigned to you');
+        if (seat.bot) throw Error('Bots cannot be joined');
         respond(200, this.join(record.room, body.player));
       } else if (match[2] === 'forfeit' && req.method === 'POST') {
         if (!record.payload.players.some(p=>p.id===body.player)) throw Error('Unknown player');

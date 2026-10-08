@@ -131,7 +131,7 @@ function createApp(options = {}) {
   };
   ctx.helpers = helpers;
   const partySecret=options.partySecret ?? process.env.PARTY_SECRET;
-  const party=partySecret?require('./party-support').createPartySupport(ctx,{secret:partySecret,file:options.partyFile||process.env.PARTY_DATA_FILE||'state/party.sqlite'}):null;
+  const party=partySecret?require('./party-support').createPartySupport(ctx,{secret:partySecret,file:options.partyFile||process.env.PARTY_DATA_FILE||'state/party.sqlite',botDelayScale:options.botDelayScale??(Number(process.env.BOT_DELAY_SCALE)||1)}):null;
   app.use((req,res,next)=>{if(!req.path.startsWith('/_party/'))return next();if(!party)return res.status(404).json({error:'Not found'});party.handle(req,res).catch(next)});
 
   // ── API Routes ──

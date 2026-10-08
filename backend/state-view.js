@@ -53,6 +53,7 @@ module.exports = function createStateView(ctx) {
       players: getSortedPlayers(room).map((player) => ({
         sessionId: player.sessionId, name: player.name, color:player.color,
         team: player.team, role: player.role,
+        bot: Boolean(player.bot), skill: player.bot ? player.skill || 'normal' : undefined,
         connected: player.connected, joinedAt: player.joinedAt,
         isHost: room.hostSessionId === player.sessionId,
         inVoice: Boolean(room.voicePeers?.has(player.sessionId)),
@@ -100,7 +101,7 @@ module.exports = function createStateView(ctx) {
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((player) => ({
               sessionId: player.sessionId, name: player.name, color:player.color,
-              team: player.team,
+              team: player.team, bot: Boolean(player.bot),
               confidence: confidenceForCard[player.sessionId] || 'firm',
             })),
         };
