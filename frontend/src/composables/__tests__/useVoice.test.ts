@@ -126,4 +126,32 @@ describe('voice lifecycle and signaling', () => {
     expect(useVoiceStore().active).toBe(false);
     expect(tracks[0].stop).toHaveBeenCalledOnce();
   });
+
+  it('stays fully off when disabled for a Play party match', async () => {
+    wrapper.unmount();
+    signaling.handlers.clear();
+    signaling.emit.mockClear();
+    wrapper = mount(defineComponent({
+      setup() {
+        api = useVoice(ref([]), ref('me'), ref(null), key => key, { disabled: true });
+        return () => null;
+      },
+    }));
+    await api.joinVoice();
+    expect(media).not.toHaveBeenCalled();
+    expect(pcs).toHaveLength(0);
+    expect(signaling.handlers.size).toBe(0);
+    expect(useVoiceStore().active).toBe(false);
+    wrapper.unmount();
+    expect(signaling.emit).not.toHaveBeenCalled();
+    wrapper = mount(defineComponent({ setup: () => () => null }));
+  });
+
+  it('reports a blocked microphone as a normal join failure', async () => {
+    media.mockRejectedValue(new DOMException('Permission denied', 'NotAllowedError'));
+    await api.joinVoice();
+    expect(useVoiceStore().active).toBe(false);
+    expect(api.joining.value).toBe(false);
+    expect(pcs).toHaveLength(0);
+  });
 });

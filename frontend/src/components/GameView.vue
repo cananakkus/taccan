@@ -257,7 +257,8 @@ const { joining, joinVoice, leaveVoice, toggleMute, toggleNoiseSuppression, setP
   players,
   computed(() => me.value?.sessionId || null),
   audioContainer,
-  t
+  t,
+  { disabled: isTournament }
 );
 
 function t(key: string, vars: Record<string, string | number> = {}) {
@@ -988,7 +989,7 @@ onBeforeUnmount(() => {
                 </span>
               </button>
 
-              <div class="voice-controls" :class="{ 'voice-active': voice.active }" role="group" :aria-label="t('voice_chat')">
+              <div v-if="!isTournament" class="voice-controls" :class="{ 'voice-active': voice.active }" role="group" :aria-label="t('voice_chat')">
                 <button id="voice-join-btn" :aria-label="voice.active ? t('voice_leave') : t('voice_join')" :title="voice.active ? t('voice_leave') : t('voice_join')" :disabled="joining" class="bar-tab bar-tab-voice" type="button" :class="{ 'in-voice': voice.active }" @click="() => void joinVoice()">
                   <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3M4 12H2v8h5v-8ZM20 12h2v8h-5v-8Z" /></svg>
                   <span class="bar-tab-label">{{ voice.active ? t('voice_leave') : t('voice_join') }}</span>

@@ -1,10 +1,15 @@
 import { usePreferencesStore } from '../stores/preferences';
+import { createDuckGain } from './voice-duck';
 
 let audioCtx: AudioContext | null = null;
+// Every effect leaves through the party voice-chat duck.
+let output: AudioNode | null = null;
 
 function getContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
+    output = createDuckGain(audioCtx);
+    output.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') {
     void audioCtx.resume();
@@ -90,7 +95,7 @@ function playTone(
   gain.gain.setValueAtTime(volume, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
   oscillator.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(output ?? ctx.destination);
   oscillator.start(ctx.currentTime);
   oscillator.stop(ctx.currentTime + duration + 0.01);
 }
@@ -108,7 +113,7 @@ function playNoiseBurst(ctx: AudioContext, duration: number, volume: number) {
   gain.gain.setValueAtTime(volume, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
   source.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(output ?? ctx.destination);
   source.start(ctx.currentTime);
 }
 
@@ -121,7 +126,7 @@ function playDissonantChord(ctx: AudioContext, volume: number) {
     gain.gain.setValueAtTime(volume * 0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
     oscillator.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(output ?? ctx.destination);
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + 0.81);
   }

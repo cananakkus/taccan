@@ -40,7 +40,10 @@ export function useVoice(
   players: Ref<VoiceParticipant[]>,
   meSessionId: Ref<string | null>,
   audioContainer: Ref<HTMLElement | null>,
-  t: (key: string, vars?: Record<string, string | number>) => string
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  // In a Play party match the party page hosts voice chat; the game's own
+  // voice stays off: no microphone, no peer connections, no signaling.
+  options: { disabled?: boolean } = {}
 ) {
   const preferences = usePreferencesStore();
   const ui = useUiStore();
@@ -263,7 +266,13 @@ export function useVoice(
 
   // ── Join / Leave / Mute ──
 
+  function microphoneAllowed() {
+    const policy = (document as Document & { featurePolicy?: { allowsFeature(feature: string): boolean } }).featurePolicy;
+    return !policy || policy.allowsFeature('microphone');
+  }
+
   async function joinVoice() {
+    if (options.disabled) return;
     initialize();
     if (voice.active) {
       leaveVoice();
@@ -275,6 +284,9 @@ export function useVoice(
     const generation = ++joinGeneration;
     try {
       // Resume during the button gesture, before permission/network awaits.
+      // Insecure pages have no getUserMedia, and a frame with
+      // allow="microphone 'none'" may not ask; report either as a join failure.
+      if (!navigator.mediaDevices?.getUserMedia || !microphoneAllowed()) throw new Error(t('voice_join_failed'));
       ensureAudioContext();
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true },
@@ -299,7 +311,10 @@ export function useVoice(
     } catch (error) {
       if (generation !== joinGeneration) return;
       leaveVoice(socket.connected);
-      ui.showToast(error instanceof Error ? error.message : t('voice_join_failed'), 'error');
+      // A frame with allow="microphone 'none'" or a denied prompt rejects
+      // with NotAllowedError; show the friendly message, not the raw one.
+      const blocked = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+      ui.showToast(error instanceof Error && !blocked ? error.message : t('voice_join_failed'), 'error');
     } finally {
       if (generation === joinGeneration) joining.value = false;
     }
@@ -319,7 +334,7 @@ export function useVoice(
     rnnoiseWorkletContext = null;
     rtcConfig = null;
     voice.reset();
-    if (notify) {
+    if (notify && !options.disabled) {
       void emitWithAck('voice:leave', {}).catch(() => {});
     }
   }
