@@ -87,11 +87,11 @@ export function generateDebriefNarrative(
 
     if (type === 'game_end') {
       const gameEnd = entry as { winner?: string; reason?: string };
-      const winner = gameEnd.winner === 'red' ? t('team_red').toUpperCase() : t('team_blue').toUpperCase();
+      const winner = gameEnd.winner === 'red' ? t('team_red').toUpperCase() : gameEnd.winner === 'blue' ? t('team_blue').toUpperCase() : null;
       html += '<div class="debrief-entry game-end">';
       html += '<hr>';
       html += `<p class="debrief-conclusion"><strong>${t('debrief_mission_concluded')}</strong></p>`;
-      html += `<p>${t('debrief_victor', { team: winner })}</p>`;
+      html += `<p>${winner ? t('debrief_victor', { team: winner }) : t('debrief_draw')}</p>`;
       html += `<p>${t('debrief_reason', { reason: formatGameEndReason(t, gameEnd.reason || '') })}</p>`;
       html += '</div>';
     }
@@ -128,6 +128,10 @@ function formatGameEndReason(t: (key: string) => string, reason: string): string
       return t('debrief_game_reason_all_agents');
     case 'opponent_agents_revealed':
       return t('debrief_game_reason_opponent');
+    case 'forfeit':
+      return t('debrief_game_reason_forfeit');
+    case 'forfeit_standing':
+      return t('debrief_game_reason_forfeit_standing');
     default:
       return reason || t('debrief_no_data');
   }

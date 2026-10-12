@@ -2,11 +2,19 @@ const {PartyAdapter}=require('./party-adapter.cjs');
 const {restoreRooms}=require('./state-persistence');
 const {finishGame}=require('./game-engine');
 const {createBotDriver}=require('./bots');
+const {cleanText}=require('./text');
 
 function createPartySupport(ctx,{secret,file,botDelayScale=1}){
  const {rooms,helpers,io}=ctx;let adapter,starting=false,closed=false;
  // The game server plays every bot seat; bots count as permanently connected.
  const bots=createBotDriver(ctx,{delayScale:botDelayScale});
+ const found=(game,team)=>(game.startingTeam===team?9:8)-game.remaining[team];
+ function settleWithoutHumans(room){
+  const game=room.game,red=found(game,'red'),blue=found(game,'blue');
+  const winner=red===blue?null:red>blue?'red':'blue';
+  finishGame(game,winner,winner&&(winner==='red'?'blue':'red'),'forfeit_standing');
+  helpers.clearPhaseTimerState(room);bots.cancel(room.code);
+ }
  const humansLeft=room=>[...room.players.values()].some(p=>!p.bot&&!room.party.forfeits.includes(p.sessionId));
  const capture=room=>({code:room.code,createdAt:room.createdAt,lastActiveAt:room.lastActiveAt,hostSessionId:room.hostSessionId,mode:room.mode,match:room.match,chatMessages:room.chatMessages,party:room.party,
   players:[...room.players.values()].map(p=>({...p,connected:false,socketId:null,lastSeenAt:Date.now()})),
@@ -16,7 +24,7 @@ function createPartySupport(ctx,{secret,file,botDelayScale=1}){
    for(let i=0;i<payload.players.length;i++){const member=payload.players[i],player=helpers.createPlayer(member.name,null);Object.assign(player,{sessionId:member.id,name:member.name,color:member.color,connected:member.bot===true,team:i%2?'blue':'red',role:i<2?'spymaster':'operative'});
     if(member.bot===true)Object.assign(player,{bot:true,skill:member.skill||'normal'});room.players.set(member.id,player)}rooms.set(code,room);return room;},
   restore:saved=>{const room=restoreRooms([saved]).get(saved.code);room.players.forEach(p=>{p.connected=Boolean(p.bot);p.socketId=null});rooms.set(room.code,room);return room;},capture,
-  result:room=>room.game?.phase==='finished'?{winners:[...room.players.values()].filter(p=>p.team===room.game.winner&&!room.party.forfeits.includes(p.sessionId)).map(p=>p.sessionId),draw:!room.game.winner,reason:room.game.reason==='forfeit'?'forfeit':'played'}:null,
+  result:room=>room.game?.phase==='finished'?{winners:[...room.players.values()].filter(p=>p.team===room.game.winner&&!room.party.forfeits.includes(p.sessionId)).map(p=>p.sessionId),draw:!room.game.winner,reason:String(room.game.reason).startsWith('forfeit')?'forfeit':'played'}:null,
   connected:room=>[...room.players.values()].filter(p=>p.bot||(p.connected&&!room.party.forfeits.includes(p.sessionId))).map(p=>p.sessionId),
   join:(room,id)=>{const player=room.players.get(id);if(player?.bot)throw Error('Bots cannot be joined');if(!player||room.party.forfeits.includes(id))throw Error('This seat was forfeited');return {room:room.code,sessionId:id,reconnectToken:player.reconnectToken}},
   forfeit:(room,id)=>{
@@ -27,8 +35,10 @@ function createPartySupport(ctx,{secret,file,botDelayScale=1}){
    if(!room.game&&team.length<2){helpers.startNewRound(room,'party_forfeit')}
    if(room.game&&team.length<2){finishGame(room.game,player.team==='red'?'blue':'red',player.team,'forfeit');helpers.clearPhaseTimerState(room)}
    else if(player.role==='spymaster'&&team.length)team[0].role='spymaster';
-   // Without humans the round ends now: the remaining bots play it out instantly.
-   if(!humansLeft(room)&&room.game?.phase!=='finished'){if(!room.game){starting=true;try{helpers.startNewRound(room,'party_forfeit')}finally{starting=false}}bots.finishWithoutHumans(room)}
+   // Without humans the round ends now. The best-placed team (more of its own
+   // agents found) wins; its bots are the winners. An exact tie, including a
+   // forfeit before any card is revealed, is a draw.
+   if(!humansLeft(room)&&room.game?.phase!=='finished'){if(!room.game){starting=true;try{helpers.startNewRound(room,'party_forfeit')}finally{starting=false}}settleWithoutHumans(room)}
    helpers.emitStateToRoom(room);
   }
  });
@@ -41,13 +51,13 @@ function createPartySupport(ctx,{secret,file,botDelayScale=1}){
   emit(room);
   if(room.party&&!closed)bots.kick(room);
  };
- for(const record of adapter.rooms.values())bots.kick(record.room);
- const checkpoint=setInterval(()=>{for(const room of rooms.values())if(room.party)adapter.save(room.party.match)},1000);checkpoint.unref();
+ for(const record of adapter.rooms.values())helpers.guardRoom(record.room,'bot_restore',()=>bots.kick(record.room));
+ const checkpoint=setInterval(()=>{for(const room of rooms.values())if(room.party)helpers.guardRoom(room,'party_checkpoint',()=>adapter.save(room.party.match))},1000);checkpoint.unref();
  function register(socket){socket.on('player:identity',(payload={},callback)=>{
   const body=helpers.preflightAction(socket,'player:identity',payload,callback);if(!body)return;
   const context=helpers.getContext(socket,'player:identity');if(!context?.room.party){helpers.ackError(callback,'Tournament identity is unavailable');return}
   if(body.color!==undefined&&!/^#[a-f0-9]{6}$/i.test(body.color)){helpers.ackError(callback,'Choose a valid color');return}
-  if(body.name!==undefined)context.player.name=body.name.trim()||context.player.name;
+  if(body.name!==undefined)context.player.name=cleanText(body.name,18)||context.player.name;
   if(body.color!==undefined)context.player.color=body.color;
   helpers.emitStateToRoom(context.room);helpers.ackOk(callback,{name:context.player.name,color:context.player.color});
  });}

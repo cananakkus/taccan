@@ -85,13 +85,14 @@ test('Murmur party bots take seats, play both roles, survive restarts and never 
     const soloForfeit = (await call(`/_party/matches/${solo.id}/forfeit`, { player: solo.players[0].id })).data;
     assert.equal(soloForfeit.result.reason, 'forfeit'); assert.deepEqual(new Set(soloForfeit.result.winners), new Set([solo.players[1].id, solo.players[3].id]));
 
-    // The only human forfeits with bots left on both teams: the bots finish the round immediately.
+    // The only human forfeits with bots left on both teams: the round ends at once on standing
+    // (nobody has found an agent yet, so it is a draw; see party-forfeit.test.js).
     const crowd = { id: randomUUID(), players: [bot('A'), bot('B'), person('Ada'), bot('C'), bot('D'), bot('E')] };
     const crowdCode = (await call('/_party/matches', crowd)).data.room;
     const crowdForfeit = (await call(`/_party/matches/${crowd.id}/forfeit`, { player: crowd.players[2].id })).data;
     assert.ok(crowdForfeit.result, 'result is immediate');
     assert.equal(app.rooms.get(crowdCode).game.phase, 'finished');
-    assert.ok(crowdForfeit.result.winners.every((id) => id !== crowd.players[2].id));
+    assert.deepEqual(crowdForfeit.result, { winners: [], draw: true, reason: 'forfeit' });
     await stop(); await boot();
     assert.deepEqual((await call(`/_party/matches/${crowd.id}`)).data.result, crowdForfeit.result);
   } finally { await stop(); rmSync(dir, { recursive: true, force: true }); }

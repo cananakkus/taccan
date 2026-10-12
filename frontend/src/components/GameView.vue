@@ -246,7 +246,7 @@ const feedItems = computed(() => {
       items.push({
         key: `game-end-${entry.at}`,
         className: 'feed-item feed-gameend',
-        text: t('feed_game_over', { team: formatTeam(String(entry.winner || '') as Team) }),
+        text: entry.winner ? t('feed_game_over', { team: formatTeam(String(entry.winner) as Team) }) : t('feed_game_draw'),
       });
     }
   }
@@ -302,6 +302,8 @@ function resultText() {
   if (game.value.reason === 'assassin') return t('result_assassin', { loser: formatTeam(game.value.loser) });
   if (game.value.reason === 'all_agents_revealed') return t('result_all_agents', { winner: formatTeam(game.value.winner) });
   if (game.value.reason === 'opponent_agents_revealed') return t('result_opponent_agents', { winner: formatTeam(game.value.winner) });
+  if (game.value.reason === 'forfeit') return t('result_forfeit', { loser: formatTeam(game.value.loser) });
+  if (game.value.reason === 'forfeit_standing') return t('result_forfeit_standing', { winner: formatTeam(game.value.winner) });
   return t('result_generic', { winner: formatTeam(game.value.winner) });
 }
 

@@ -1,5 +1,4 @@
 const ASSOCIATIONS = require('./bot-associations');
-const { finishGame } = require('./game-engine');
 
 // Skill profiles. `know` is the share of association links a bot recognises,
 // `noise` blurs an operative's ranking, `maxCount` caps clue size, and `pick` is
@@ -222,7 +221,9 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
   }
 
   function schedule(room, key, wait, entry = {}) {
-    const timer = setTimeout(() => fire(room.code, key), Math.max(0, wait));
+    const timer = setTimeout(() => {
+      try { fire(room.code, key); } catch (error) { ctx.helpers.reportRoomError?.(room, 'bot', error); pending.delete(room.code); }
+    }, Math.max(0, wait));
     timer.unref?.();
     pending.set(room.code, { ...entry, key, timer });
   }
@@ -237,7 +238,7 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
     schedule(room, key, plan.kind === 'hint' ? delay(1200, 3000) : delay(700, 2200), { since: Date.now() });
   }
 
-  function act(room, plan, { instant = false } = {}) {
+  function act(room, plan) {
     const { applyHint, applyGuess, applyEndTurn, applyMark } = ctx.helpers;
     const game = room.game;
     if (plan.kind === 'hint') {
@@ -245,7 +246,7 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
       applyHint(room, plan.bot, clue.word, clue.count);
       return true;
     }
-    if (plan.defer && !instant) {
+    if (plan.defer) {
       const entry = pending.get(room.code);
       const idleSince = Math.max(entry?.since || 0, game.lastActionAt || 0);
       if (!entry?.marked) {
@@ -273,28 +274,25 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
       if (pending.get(code) === entry) pending.delete(code);
       kick(room);
     }).catch((error) => {
-      ctx.helpers.logEvent('bot_action_failed', { roomCode: code, message: error.message });
+      ctx.helpers.reportRoomError?.(room, 'bot', error);
       pending.delete(code);
+      // Never stall the table: pass the turn in the simplest legal way.
+      ctx.helpers.withRoomLock(code, () => {
+        const plan = nextActor(room);
+        if (!plan || keyOf(room, plan) !== key) return;
+        if (plan.kind === 'hint') {
+          const open = room.game.board.filter((card) => !card.revealed);
+          const word = FALLBACK_CLUES.find((clue) => !open.some((card) => sameFamily(clue, card.word))) || 'HINT';
+          ctx.helpers.applyHint(room, plan.bot, word, 1);
+        } else ctx.helpers.applyEndTurn(room);
+        kick(room);
+      }).catch((fallbackError) => ctx.helpers.reportRoomError?.(room, 'bot_fallback', fallbackError));
     });
-  }
-
-  // When only bots remain, play the rest of the round out immediately.
-  function finishWithoutHumans(room) {
-    for (let step = 0; step < 200 && room.game && room.game.phase !== 'finished'; step += 1) {
-      const plan = nextActor(room);
-      if (!plan) break;
-      act(room, plan, { instant: true });
-    }
-    if (room.game && room.game.phase !== 'finished') {
-      finishGame(room.game, null, null, 'forfeit');
-      ctx.helpers.clearPhaseTimerState(room);
-    }
-    cancel(room.code);
   }
 
   return {
     kick,
-    finishWithoutHumans,
+    cancel,
     close() { closed = true; for (const code of [...pending.keys()]) cancel(code); },
   };
 }
