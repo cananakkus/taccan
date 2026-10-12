@@ -40,6 +40,8 @@ const {
   ROOM_MODE_VALUES,
 } = require('./constants');
 
+const SOCKET_FLOOD_MAX = 400;
+const SOCKET_FLOOD_WINDOW_MS = 10_000;
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = String(process.env.HOST || '127.0.0.1');
 const BLITZ_HINT_TIMER_MS_DEFAULT = Number(process.env.BLITZ_HINT_TIMER_MS) || 25_000;
@@ -79,6 +81,7 @@ function createApp(options = {}) {
     modeSet: 0, rematchStarted: 0, gameStart: 0,
     turnTimerStarted: 0, turnTimerExpired: 0,
     ruleViolation: 0, rateLimited: 0, disconnect: 0,
+    handlerErrors: 0, floodDisconnects: 0, roomErrors: 0,
   };
 
   /** @type {Map<string, Room>} */
@@ -195,13 +198,65 @@ function createApp(options = {}) {
 
   // ── Socket.IO Connection ──
 
+  // One bad message must never take the process (and every room) down: each
+  // handler runs inside its own try/catch, and async handlers' rejections are
+  // caught too. The client gets a generic error ack instead.
+  function guardHandler(socket, event, handler) {
+    return function guarded(...args) {
+      const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : null;
+      const fail = (error) => {
+        metrics.handlerErrors += 1;
+        helpers.logEvent('handler_failed', { action: event, socketId: socket.id, roomCode: socket.data.roomCode || null, message: String(error?.stack || error).slice(0, 600) });
+        try { callback?.({ ok: false, error: 'Could not complete action. Try again.' }); } catch {}
+      };
+      try {
+        const result = handler.apply(this, args);
+        if (result && typeof result.then === 'function') result.then(undefined, fail);
+        return result;
+      } catch (error) { fail(error); }
+    };
+  }
+
+  const floodMax = options.socketFloodMax ?? SOCKET_FLOOD_MAX;
   io.on('connection', (socket) => {
     socket.data.rateBuckets = {};
-    accounts.register(socket, helpers);
-    helpers.logEvent('socket_connected', { socketId: socket.id });
-    socket.emit('server:ready', { now: Date.now() });
-    for (const register of handlerRegisters) register(socket, deps);
-    party?.register(socket);
+    // A socket that floods (any mix of events, valid or not) is closed; its
+    // seat stays and can be resumed with room:rejoin.
+    let floodStart = Date.now(), floodCount = 0;
+    socket.use((_packet, next) => {
+      const now = Date.now();
+      if (now - floodStart >= SOCKET_FLOOD_WINDOW_MS) { floodStart = now; floodCount = 0; }
+      floodCount += 1;
+      if (floodCount > floodMax) {
+        if (floodCount === floodMax + 1) {
+          metrics.floodDisconnects += 1;
+          helpers.logEvent('socket_flood', { socketId: socket.id, roomCode: socket.data.roomCode || null });
+          setImmediate(() => socket.disconnect(true));
+        }
+        return;
+      }
+      next();
+    });
+    const on = socket.on;
+    socket.on = function guardedOn(event, handler) { return on.call(this, event, guardHandler(socket, event, handler)); };
+    try {
+      accounts.register(socket, helpers);
+      helpers.logEvent('socket_connected', { socketId: socket.id });
+      socket.emit('server:ready', { now: Date.now() });
+      for (const register of handlerRegisters) register(socket, deps);
+      party?.register(socket);
+    } catch (error) {
+      helpers.logEvent('connection_setup_failed', { socketId: socket.id, message: error.message });
+      socket.disconnect(true);
+    } finally {
+      socket.on = on;
+    }
+    // Unknown events get a clear error instead of a silent client timeout.
+    socket.onAny((event, ...args) => {
+      if (socket.listenerCount(event) > 0) return;
+      const callback = args[args.length - 1];
+      if (typeof callback === 'function') { try { callback({ ok: false, error: 'Unknown action.' }); } catch {} }
+    });
   });
 
   // ── Periodic Cleanup ──
@@ -210,6 +265,7 @@ function createApp(options = {}) {
     const now = Date.now();
     for (const room of rooms.values()) {
       if(room.party)continue;
+      try {
       const removedCount = pruneDisconnectedPlayers(room, now, DISCONNECTED_PLAYER_TTL_MS, helpers.clearMarksForSession);
       ensureHostSession(room);
       if (room.players.size === 0 || now - room.lastActiveAt > STALE_ROOM_TTL_MS) {
@@ -223,6 +279,7 @@ function createApp(options = {}) {
         helpers.logEvent('room_pruned_by_ttl', { roomCode: room.code, removedCount });
         helpers.emitStateToRoom(room);
       }
+      } catch (error) { helpers.reportRoomError(room, 'cleanup', error); }
     }
   }, CLEANUP_INTERVAL_MS);
   cleanupInterval.unref();
@@ -256,6 +313,10 @@ if (require.main === module) {
     });
     setTimeout(() => { console.error('Forced shutdown after timeout'); process.exit(1); }, SHUTDOWN_TIMEOUT_MS).unref();
   }
+  // Last line of defence: a stray rejection is logged, never fatal.
+  process.on('unhandledRejection', (error) => {
+    console.error(JSON.stringify({ ts: new Date().toISOString(), event: 'unhandled_rejection', message: String(error?.stack || error).slice(0, 600) }));
+  });
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }

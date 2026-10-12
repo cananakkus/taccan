@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const words = require('./words');
+const { cleanText } = require('./text');
 
 const BOARD_SIZE = 25;
 
@@ -15,7 +16,7 @@ function mulberry32(seed) {
 }
 
 function normalizeHint(value) {
-  const trimmed = String(value || '').trim().normalize('NFC');
+  const trimmed = cleanText(String(value ?? ''), 30);
   if (!trimmed) {
     return null;
   }

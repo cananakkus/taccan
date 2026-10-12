@@ -1,3 +1,5 @@
+const { cleanText } = require('../text');
+
 const CHAT_MAX_MESSAGES = 200;
 
 module.exports = function register(socket, deps) {
@@ -15,7 +17,7 @@ module.exports = function register(socket, deps) {
       return;
     }
 
-    const text = String(validatedPayload.text).trim();
+    const text = cleanText(validatedPayload.text, 200);
     if (!text) {
       ackError(callback, 'Message cannot be empty.');
       return;

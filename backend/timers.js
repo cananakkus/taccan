@@ -38,7 +38,7 @@ module.exports = function createTimers(ctx) {
     const timerId = randomUUID();
     game.phaseTimer = { id: timerId, phase: currentPhase, startedAt, endsAt, durationMs };
 
-    const timer = setTimeout(() => finalizePhaseTimer(room.code, timerId), Math.max(durationMs, 1));
+    const timer = setTimeout(() => ctx.helpers.guardRoom(room, 'phase_timer', () => finalizePhaseTimer(room.code, timerId)), Math.max(durationMs, 1));
     if (typeof timer.unref === 'function') timer.unref();
     phaseTimers.set(room.code, timer);
 
@@ -107,7 +107,7 @@ module.exports = function createTimers(ctx) {
     clearMvpTimer(room.code);
     const timer = setTimeout(() => {
       mvpTimers.delete(room.code);
-      broadcastMvpResult(room);
+      ctx.helpers.guardRoom(room, 'mvp_timer', () => broadcastMvpResult(room));
     }, ctx.constants.MVP_TIMEOUT_MS);
     if (typeof timer.unref === 'function') timer.unref();
     mvpTimers.set(room.code, timer);

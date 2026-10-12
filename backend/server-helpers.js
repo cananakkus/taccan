@@ -37,6 +37,23 @@ module.exports = function createServerHelpers(ctx) {
     console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...fields }));
   }
 
+  // Room-scoped failures (timers, bots, persistence) are logged once per room
+  // and kind, so a room that keeps failing cannot flood the log either.
+  const reportedRoomErrors = new WeakMap();
+  function reportRoomError(room, kind, error) {
+    metrics.roomErrors += 1;
+    const seen = reportedRoomErrors.get(room) || new Set();
+    reportedRoomErrors.set(room, seen);
+    if (seen.has(kind)) return;
+    seen.add(kind);
+    logEvent('room_error', { roomCode: room?.code || null, kind, message: String(error?.stack || error).slice(0, 600) });
+  }
+
+  // Wraps a timer callback for one room so its exception stays in that room.
+  function guardRoom(room, kind, fn) {
+    try { return fn(); } catch (error) { reportRoomError(room, kind, error); return undefined; }
+  }
+
   function sendViolation(socket, action, message) {
     metrics.ruleViolation += 1;
     logEvent('rule_violation', { action, socketId: socket.id, message });
@@ -53,12 +70,14 @@ module.exports = function createServerHelpers(ctx) {
 
   function preflightAction(socket, action, payload, callback) {
     const bound=rooms.get(socket.data.roomCode);
-    if(bound?.party&&(['room:create','room:join','room:leave','room:prune_disconnected','room:mode_set','room:blitz_config','team:set','role:set','game:start','game:rematch'].includes(action)||(action==='room:rejoin'&&payload.code!==bound.code))){ackError(callback,'The party hub controls tournament seats and rounds.');return null;}
+    if(bound?.party&&(['room:create','room:join','room:leave','room:prune_disconnected','room:mode_set','room:blitz_config','team:set','role:set','game:start','game:rematch'].includes(action)||(action==='room:rejoin'&&payload?.code!==bound.code))){ackError(callback,'The party hub controls tournament seats and rounds.');return null;}
     const validated = validatePayload(action, payload);
     if (!validated.ok) { ackError(callback, validated.error || 'Invalid payload.'); return null; }
     if (!consumeRateLimit(socket, action)) {
       metrics.rateLimited += 1;
-      sendViolation(socket, action, 'Too many requests. Slow down and try again.');
+      // Warn once per window; a flood should not get one reply per message.
+      const bucket = socket.data.rateBuckets[action];
+      if (!bucket.warned) { bucket.warned = true; sendViolation(socket, action, 'Too many requests. Slow down and try again.'); }
       ackError(callback, 'Too many requests. Slow down and try again.');
       return null;
     }
@@ -70,7 +89,7 @@ module.exports = function createServerHelpers(ctx) {
     const limits = EVENT_RATE_LIMITS[action] || EVENT_RATE_LIMITS.default;
     const buckets = socket.data.rateBuckets || (socket.data.rateBuckets = {});
     const bucket = buckets[action] || { count: 0, startedAt: now };
-    if (now - bucket.startedAt >= limits.windowMs) { bucket.count = 0; bucket.startedAt = now; }
+    if (now - bucket.startedAt >= limits.windowMs) { bucket.count = 0; bucket.startedAt = now; bucket.warned = false; }
     if (bucket.count >= limits.max) { buckets[action] = bucket; return false; }
     bucket.count += 1;
     buckets[action] = bucket;
@@ -211,6 +230,6 @@ module.exports = function createServerHelpers(ctx) {
     bindSocketToPlayer, clearSocketBinding,
     leaveBoundRoom, handleVoiceLeave,
     markDisconnected, removePlayerFromRoom, clearMarksForSession,
-    sendViolation, ackOk, ackError, logEvent,
+    sendViolation, ackOk, ackError, logEvent, reportRoomError, guardRoom,
   };
 };

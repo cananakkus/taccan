@@ -1,11 +1,12 @@
 const { randomUUID, randomBytes } = require('crypto');
 const { createGameState } = require('./game-engine');
 const { getRoomReadinessError } = require('./room-utils');
+const { cleanText } = require('./text');
 module.exports = function createRoomLifecycle(ctx) {
   const { rooms, io, metrics } = ctx;
 
   function sanitizeName(value) {
-    const normalized = String(value || '').trim().replace(/\s+/g, ' ').slice(0, ctx.constants.PLAYER_NAME_MAX);
+    const normalized = cleanText(value, ctx.constants.PLAYER_NAME_MAX);
     return normalized || `Player-${Math.floor(Math.random() * 900 + 100)}`;
   }
 

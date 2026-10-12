@@ -14,3 +14,7 @@ coverage/
 # Browser test artifacts
 test-results/
 playwright-report/
+
+# Test scratch and QA screenshots
+data/
+artifacts/
