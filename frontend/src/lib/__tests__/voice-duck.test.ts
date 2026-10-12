@@ -27,6 +27,34 @@ it('maps the party voice state to a duck level', () => {
   expect(duckLevel({ active: true, talking: true })).toBe(0.22);
 });
 
+it('uses the level the hub suggests when it is a finite number', () => {
+  expect(duckLevel({ active: true, talking: false, level: 0.4 })).toBe(0.4);
+  expect(duckLevel({ active: true, talking: true, level: 0.15 })).toBe(0.15);
+  expect(duckLevel({ active: false, talking: false, level: 1 })).toBe(1);
+  expect(duckLevel({ active: true, level: 0 })).toBe(0);
+  expect(duckLevel({ active: true, level: 3 })).toBe(1);
+  expect(duckLevel({ active: true, level: -1 })).toBe(0);
+  for (const level of [NaN, Infinity, -Infinity, '0.4', null, undefined, {}]) {
+    expect(duckLevel({ active: true, talking: true, level })).toBe(0.22);
+    expect(duckLevel({ active: true, talking: false, level })).toBe(0.6);
+  }
+});
+
+it('applies a posted level to the duck gain', () => {
+  const { ctx, last } = fakeContext();
+  const { target, post } = fakeWindow('https://play.test');
+  createDuckGain(ctx);
+  const stop = listenForVoice(target);
+  post({ type: 'play:voice', active: true, talking: true, level: 0.15 });
+  expect(voiceDuckLevel()).toBe(0.15);
+  expect(last().value).toBe(0.15);
+  post({ type: 'play:voice', active: true, talking: false, level: 0.4 });
+  expect(last().value).toBe(0.4);
+  post({ type: 'play:voice', active: false, talking: false });
+  expect(voiceDuckLevel()).toBe(1);
+  stop();
+});
+
 it('ducks fast, recovers slowly and ignores other origins', () => {
   const { ctx, calls, last } = fakeContext();
   const { target, post } = fakeWindow('https://play.test');

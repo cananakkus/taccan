@@ -8,8 +8,18 @@ let output: AudioNode | null = null;
 function getContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
-    output = createDuckGain(audioCtx);
-    output.connect(audioCtx.destination);
+    // effects -> voice duck -> gentle limiter -> speakers. The limiter keeps
+    // overlapping effects from stacking into a harsh peak over voice chat.
+    const duck = createDuckGain(audioCtx);
+    const limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -16;
+    limiter.knee.value = 10;
+    limiter.ratio.value = 6;
+    limiter.attack.value = 0.004;
+    limiter.release.value = 0.2;
+    duck.connect(limiter);
+    limiter.connect(audioCtx.destination);
+    output = duck;
   }
   if (audioCtx.state === 'suspended') {
     void audioCtx.resume();
@@ -92,8 +102,11 @@ function playTone(
 
   oscillator.type = type;
   oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(volume, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  // A short attack avoids the click of a gain jump from 0.
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(volume, now + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
   oscillator.connect(gain);
   gain.connect(output ?? ctx.destination);
   oscillator.start(ctx.currentTime);
@@ -109,25 +122,41 @@ function playNoiseBurst(ctx: AudioContext, duration: number, volume: number) {
   }
   const source = ctx.createBufferSource();
   source.buffer = buffer;
+  // Paper rustle, not white-noise hiss: keep the top end out.
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 2400;
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(volume, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-  source.connect(gain);
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(volume, now + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  source.connect(filter);
+  filter.connect(gain);
   gain.connect(output ?? ctx.destination);
-  source.start(ctx.currentTime);
+  source.start(now);
 }
 
+// The assassin: an ominous low cluster, softened (triangle waves through a
+// lowpass, a 30 ms swell) so it reads as dread rather than a harsh buzz.
 function playDissonantChord(ctx: AudioContext, volume: number) {
-  for (const frequency of [220, 233, 277]) {
+  const now = ctx.currentTime;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1400, now);
+  filter.frequency.exponentialRampToValueAtTime(300, now + 0.9);
+  filter.connect(output ?? ctx.destination);
+  for (const frequency of [110, 116.5, 138.6]) {
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
-    oscillator.type = 'sawtooth';
+    oscillator.type = 'triangle';
     oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(volume * 0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(volume * 0.28, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
     oscillator.connect(gain);
-    gain.connect(output ?? ctx.destination);
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.81);
+    gain.connect(filter);
+    oscillator.start(now);
+    oscillator.stop(now + 1);
   }
 }

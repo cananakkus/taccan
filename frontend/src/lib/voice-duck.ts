@@ -1,14 +1,18 @@
 // Play's party page runs voice chat around this game's iframe and posts
-// { type: 'play:voice', active, talking } on every change. Game audio ducks
-// under the voices: one shared level drives a duck gain that every effect
-// passes through, so it combines with the mute toggle and never replaces it.
+// { type: 'play:voice', active, talking, level } on every change. `level` is
+// the game volume the hub suggests (0.4 in a call, 0.15 while someone talks);
+// older hubs omit it, and then 0.6/0.22 apply. Game audio ducks under the
+// voices: one shared level drives a duck gain that every effect passes
+// through, so it combines with the mute toggle and never replaces it.
 export const DUCK = { idle: 1, active: 0.6, talking: 0.22 } as const;
 const ATTACK = 0.12; // seconds to settle when ducking
 const RELEASE = 0.7; // seconds to settle when recovering
 
-export type VoiceState = { active?: boolean; talking?: boolean };
+export type VoiceState = { active?: boolean; talking?: boolean; level?: unknown };
 
 export function duckLevel(voice?: VoiceState | null) {
+  const level = voice?.level;
+  if (typeof level === 'number' && Number.isFinite(level)) return Math.min(1, Math.max(0, level));
   return voice?.talking
     ? DUCK.talking
     : voice?.active
