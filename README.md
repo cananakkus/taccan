@@ -52,7 +52,9 @@ Signed-in players use their verified account name and own their room seat. `acco
 - Postgame debrief with a turn-by-turn narrative
 - In-game chat and activity feed
 - Card pattern overlays for accessibility
-- Keyboard navigation and sound effects
+- Keyboard play: arrows move on the board (from anywhere, skipping revealed cards), Space selects, G or Enter submits the guess, E ends the turn, H or Enter focuses the clue field, / focuses chat and Escape closes dialogs. It also works with the untrusted key events the Play hub forwards into the iframe.
+- Sound effects behind a gentle limiter, ducked under Play party voice chat (`play:voice` `level`, falling back to 0.6/0.22)
+- Computer players (bots) at three skill levels, in normal rooms and Play parties
 - PWA installable
 - Full Turkish and English localization, including all board words
 
@@ -84,7 +86,7 @@ npm run dev:client
 npm test
 ```
 
-The Node.js suite covers game rules, room/session lifecycle, payload validation, state persistence, voice signaling, and TURN credentials. Run `npm run typecheck` to check TypeScript and Vue templates, `npm run test:unit` for frontend unit tests, and `npm run test:e2e` for browser gameplay and voice tests. Tests use isolated state so they do not consume saved rooms.
+The Node.js suite covers game rules, room/session lifecycle, payload validation, state persistence, voice signaling, TURN credentials, bots (party and normal rooms, Turkish clues, the all-humans-forfeit rule) and a protocol fuzz test (`test/fuzz.test.js`: hostile payloads for every event in every phase, raw junk frames, oversize frames, floods, and a room whose timer throws). Run `npm run typecheck` to check TypeScript and Vue templates, `npm run test:unit` for frontend unit tests, and `npm run test:e2e` for browser gameplay and voice tests. Tests use isolated state so they do not consume saved rooms.
 
 ## Play party
 
@@ -95,12 +97,17 @@ With `PARTY_SECRET` set, the private `/_party/matches` API lets the Play party s
 Roster entries may be bots: `{id, name, color, bot: true, skill: "easy" | "normal" | "hard"}`. A missing `skill` means `normal`. Every roster needs at least one human, names are at most 18 characters, and invalid `bot` or `skill` values are rejected. The server plays every bot seat itself:
 
 - Bots are always listed in `connected`, count as ready, and the round starts once the humans connect. `POST .../join` for a bot returns 400 `Bots cannot be joined`, and the socket rejoin rejects bot seats. Bots are never host.
-- **Spymaster bots** read the keycard and score every clue in a bundled offline association table (`backend/bot-associations.js`: about 500 clues covering every board word). Each clue is scored by the team's words it covers minus the opponent, neutral and assassin words it also hits. Clues that are board words, contain one or share its stem are never given.
+- **Spymaster bots** read the keycard and consider every clue in a bundled offline association table (`backend/bot-associations.js` plus the theme links in `bot-associations-extra.js`: about 510 clues covering every board word) and every board-vocabulary word that is not on this board. A clue counts the team's cards it clearly points at; any other card an operative could confuse with the weakest of those targets is a threat (opponent, bystander or assassin), and a repeated clue is penalised. Clues that are board words, contain one or share its stem, in English or in Turkish, are never given.
 - **Operative bots** see only what a human operative sees: the words, revealed cards and clues. They rank unrevealed cards by how strongly the clue points at them, through a direct table link, plurals and stems, or co-occurrence when the clue is itself a board-vocabulary word. That last rule lets them follow many human clues. A bot always makes at least one guess, guesses up to the clue's number while the links stay strong, and then ends the turn.
 - **Skill.** *Easy* knows about 60% of the links, ranks noisily, gives clues for at most 2 words, often settles for 1, ignores most risk and sometimes stops early. *Normal* knows 88%, never knowingly points at the assassin and caps clues at 3. *Hard* knows every link, only gives clues that avoid the assassin and the opponent (up to 4 words), and uses the bonus guess on words left over from its team's earlier clues. In offline bot-vs-bot rounds, hard beats easy about 98% of the time and normal about 80%; easy teams hit the assassin in roughly a third of their rounds.
-- **Timing.** A clue takes 1.2 to 3 s and each guess 0.7 to 2.2 s. When a human operative shares the turn, the bot first marks its preferred card as a suggestion. It guesses only after its teammates have been idle for 20 s, so humans lead without the turn stalling. `BOT_DELAY_SCALE` scales all of these delays; tests use 0.01.
+- **Timing.** A clue takes 4.5 to 8.5 s (plus about 0.6 s per extra word). An operative bot first marks the card it is about to pick, then reveals it 1.1 to 1.9 s later, so a guess takes about 3 to 5 s and people can follow along. When a human operative shares the turn, the bot marks its preferred card as a suggestion and guesses only after its teammates have been idle for 20 s, so humans lead without the turn stalling. Under a blitz clock a bot never thinks for more than a third of the time left. `BOT_DELAY_SCALE` scales all of these delays; tests use 0.01.
+- **Turkish.** Board words and bot clues have Turkish names (`backend/words-tr.json`, `backend/clues-tr.json`). Bot clues are shown in each reader's language; a person's clue is shown as typed. Bot operatives read Turkish clues back to English, through plural, case and possessive suffixes and softened consonants (`köpeği` → DOG). A clue that is the Turkish name of an open card is rejected like an English one.
 - **Persistence and forfeits.** The `bot` and `skill` flags are stored in the persisted match payload and on the player snapshot. After a restart, bots come back connected and carry on. If the last human forfeits, a team left with fewer than two players loses at once as before. Otherwise the round ends at once on standing: the team that has found more of its own agents wins, and only its bots are listed as winners. An exact tie, including a forfeit before any agent is found, is a draw (`{winners: [], draw: true}`). All remaining bots are never listed as co-winners.
 - The UI shows a small **BOT** tag, with the skill in its tooltip, next to bot names in the team rosters and spymaster slots.
+
+### Bots in normal rooms
+
+The host can seat bots in any normal room from the lobby (`+ Bot` in each team's header, or beside the room code on phones; `room:bot_add {team, skill}` and `room:bot_remove {sessionId}`), at most six. A bot takes an empty spymaster seat; a person who claims that seat takes it and the bot becomes an operative. The same driver plays them as in parties. In a normal room, bots wait while no person is connected, come back connected after a restart, never vote for MVP, and the room closes when its last person leaves.
 
 ## Architecture
 
