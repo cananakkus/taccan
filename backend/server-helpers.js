@@ -147,6 +147,7 @@ module.exports = function createServerHelpers(ctx) {
     room.lastActiveAt = Date.now();
     socket.data.roomCode = room.code;
     socket.data.sessionId = player.sessionId;
+    socket.data.chatSyncedRoom = null;
     socket.join(room.code);
   }
 

@@ -458,6 +458,10 @@ function handleSnapshot(nextSnapshot: Snapshot) {
   if (newHint) playSound('hint');
 
   const previousRevealed = new Set(game.value?.board.filter((card) => card.revealed).map((card) => card.index) || []);
+  // The server sends the chat history only with the first state of a binding.
+  if (!Array.isArray(nextSnapshot.room.chatMessages)) {
+    nextSnapshot.room.chatMessages = app.snapshot?.room.code === nextSnapshot.room.code ? app.snapshot.room.chatMessages : [];
+  }
   app.setSnapshot(nextSnapshot);
   codeInput.value = nextSnapshot.room.code;
   const roomUrl = new URL(getRoomUrl(nextSnapshot.room.code));

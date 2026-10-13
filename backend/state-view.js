@@ -23,11 +23,16 @@ module.exports = function createStateView(ctx) {
       if (!player.connected || !player.socketId) continue;
       const socket = io.sockets.sockets.get(player.socketId);
       if (!socket) continue;
-      socket.emit('state:full', buildStateForPlayer(room, player));
+      // The chat history goes out once per socket binding; after that the
+      // client appends chat:message events. Re-sending up to 200 messages
+      // with every move made each state ~60 KB.
+      const includeChat = socket.data.chatSyncedRoom !== room.code;
+      socket.emit('state:full', buildStateForPlayer(room, player, { includeChat }));
+      socket.data.chatSyncedRoom = room.code;
     }
   }
 
-  function buildStateForPlayer(room, viewer) {
+  function buildStateForPlayer(room, viewer, { includeChat = true } = {}) {
     const { deriveRoomStatus, getRoomMode, getModeConfig } = ctx.helpers;
     const game = room.game ? buildGameView(room, room.game, viewer) : null;
     return {
@@ -41,7 +46,7 @@ module.exports = function createStateView(ctx) {
         mode: getRoomMode(room),
         modeConfig: getModeConfig(getRoomMode(room), room),
         match: room.match ? { id: room.match.id, roundNumber: room.match.roundNumber } : null,
-        chatMessages: room.chatMessages,
+        ...(includeChat ? { chatMessages: room.chatMessages } : {}),
       },
       me: {
         sessionId: viewer.sessionId, name: viewer.name, color:viewer.color,
