@@ -3776,8 +3776,10 @@ html[data-theme="dark"] .room-screen .lobby-tools button { color: var(--ink); }
   .room-screen:not(.is-lobby) .guess-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
   .room-screen:not(.is-lobby) .guess-row .selected-label { grid-column: 1 / -1; font-size: 14px; line-height: 18px; overflow-wrap: anywhere; }
   .room-screen:not(.is-lobby) .guess-row .btn { min-height: 40px; padding-inline: 6px; font-size: 13px; }
-  .room-screen:not(.is-lobby) .result-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .room-screen:not(.is-lobby) .result-actions .btn { min-height: 40px; padding-inline: 8px; flex: 1 1 auto; }
+  .room-screen:not(.is-lobby) .result-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .room-screen:not(.is-lobby) .result-actions .btn { min-height: 40px; padding: 4px; font-size: 12px; letter-spacing: 0; white-space: normal; line-height: 1.1; }
+  .room-screen:not(.is-lobby) .result-actions #rematch-btn { grid-column: 1 / -1; }
+  .room-screen:not(.is-lobby) .result-actions .hidden { display: none; }
   .room-screen:not(.is-lobby) .result-text { font-size: 14px; line-height: 18px; margin-bottom: 6px; }
   /* Cards are tall enough again for the word and a marker strip. */
   .room-screen .card.marked .card-front { padding-bottom: 16px; }
