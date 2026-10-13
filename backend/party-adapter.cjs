@@ -18,6 +18,14 @@ class PartyAdapter {
       this.rooms.set(row.id, { payload, room: restore(snapshot), outcome: row.outcome ? JSON.parse(row.outcome) : null });
     }
   }
+  // Tells the party service at once that this match has a result, so the party moves on
+  // without waiting for its next poll (it still polls every second). PARTY_NOTIFY_URL is
+  // the party service's private /_party/notify; this game's own secret proves the call.
+  ended(id) {
+    const url = process.env.PARTY_NOTIFY_URL;
+    if (!url || typeof fetch !== 'function') return;
+    fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${this.secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ match: id }), signal: AbortSignal.timeout(2000) }).catch(() => {});
+  }
   save(id, force = false) {
     const record = this.rooms.get(id); if (!record) return;
     const outcome = record.outcome || this.result(record.room);
@@ -25,7 +33,7 @@ class PartyAdapter {
     if (!force && record.outcome) return;
     this.db.prepare('INSERT INTO matches VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET snapshot=excluded.snapshot, outcome=excluded.outcome')
       .run(id, JSON.stringify(record.payload), JSON.stringify(this.capture(record.room)), outcome ? JSON.stringify(outcome) : null);
-    record.outcome = outcome; this.savedAt.set(id, Date.now());
+    if (outcome && !record.outcome) this.ended(id); record.outcome = outcome; this.savedAt.set(id, Date.now());
   }
   authorized(req) {
     const supplied = Buffer.from((req.headers.authorization || '').replace(/^Bearer /, '')), expected = Buffer.from(this.secret);
