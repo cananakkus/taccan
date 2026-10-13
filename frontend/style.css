@@ -792,8 +792,9 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Classified stamp */
 .dossier-stamp {
   position: absolute;
-  top: 22px;
-  right: -12px;
+  /* Inside the sheet: hanging off the edge clipped its border and lettering. */
+  top: 18px;
+  right: 14px;
   font-family: var(--font-display);
   font-size: 0.8rem;
   font-weight: 900;
@@ -3274,7 +3275,7 @@ html[data-theme="dark"] .room-screen .ctrl-panel { background: #1b2633; }
   .join-form { grid-column: 2; grid-row: 1 / 3; gap: 8px; justify-content: center; }
   .join-footer { grid-column: 1; margin-top: 0; }
   .join-card .logo-title { font-size: 1.6rem; }
-  .join-card .dossier-stamp { top: 8px; right: auto; left: -12px; font-size: 0.65rem; }
+  .join-card .dossier-stamp { top: 12px; right: 18px; left: auto; font-size: 0.65rem; }
 }
 .join-row input { min-width: 0; }
 @media (max-width: 539px) and (max-height: 540px) {
@@ -3794,4 +3795,13 @@ html[data-theme="dark"] .room-screen .lobby-tools button { color: var(--ink); }
   .room-screen #hint-count-input { min-width: 40px; }
   .room-screen .guess-row .btn, .room-screen .hint-form .btn, .room-screen .result-actions .btn,
   .room-screen #sheet-feed .chat-form .btn, .room-screen .panel-close { min-height: 40px; }
+}
+
+/* Home: the theme toggle was a faint 38x32 glyph in --ink-ghost. */
+.join-footer .lang-btn { min-width: 44px; min-height: 40px; color: var(--ink-light); border-color: var(--border-dark); font-size: 1.05rem; line-height: 1; }
+.join-footer .lang-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Phones: the stamp sits in its own strip above the document number. */
+@media (max-width: 600px) and (min-height: 501px) {
+  .join-card .dossier-stamp { top: 10px; right: 12px; font-size: 0.62rem; padding: 2px 8px; transform: rotate(7deg); }
+  .join-card .join-header { padding-top: 24px; }
 }
