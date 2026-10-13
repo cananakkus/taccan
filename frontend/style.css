@@ -3807,3 +3807,5 @@ html[data-theme="dark"] .room-screen .lobby-tools button { color: var(--ink); }
   .join-card .dossier-stamp { top: 10px; right: 12px; font-size: 0.62rem; padding: 2px 8px; transform: rotate(7deg); }
   .join-card .join-header { padding-top: 24px; }
 }
+/* The BOT tag is the same small label everywhere (the clue panel's span rule enlarged it). */
+.room-screen .clue-slot .bot-tag { font: 700 10px/14px var(--font-typewriter); letter-spacing: .08em; overflow: visible; }
