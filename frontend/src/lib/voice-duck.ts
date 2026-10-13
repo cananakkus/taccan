@@ -68,4 +68,8 @@ export function listenForVoice(target: MessageTarget = window) {
 }
 
 // Listen from the first import so the message sent on iframe load is not missed.
-if (typeof window !== 'undefined') listenForVoice();
+if (typeof window !== 'undefined') {
+  listenForVoice();
+  // Read-only hook for browser tests: the current duck level.
+  Object.defineProperty(window, '__murmurDuck', { value: voiceDuckLevel, configurable: true });
+}

@@ -3783,3 +3783,15 @@ html[data-theme="dark"] .room-screen .lobby-tools button { color: var(--ink); }
   .room-screen .card.marked .card-word { font-size: inherit !important; line-height: 1.1; }
   .room-screen .card-markers { max-height: 14px; }
 }
+
+/* ── Touch targets: at least 40 px wherever a finger is the pointer. The
+   compact navbar keeps its 36 px look; an invisible margin extends each
+   control's hit area to 40 px. ── */
+@media (pointer: coarse) {
+  .room-screen .bar-tabs button, .room-screen .bar-util .room-code-val { position: relative; }
+  .room-screen .bar-tabs button::after, .room-screen .bar-util .room-code-val::after { content: ''; position: absolute; inset: -2px; }
+  .room-screen .number-stepper .stepper-btn { min-width: 40px; }
+  .room-screen #hint-count-input { min-width: 40px; }
+  .room-screen .guess-row .btn, .room-screen .hint-form .btn, .room-screen .result-actions .btn,
+  .room-screen #sheet-feed .chat-form .btn, .room-screen .panel-close { min-height: 40px; }
+}
