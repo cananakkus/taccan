@@ -829,7 +829,17 @@ function handleBoardKeydown(event: KeyboardEvent, index: number) {
 
   if (nextIndex >= 0) {
     event.preventDefault();
-    boardRefs.value[nextIndex]?.focus();
+    // Step over revealed cards while a pick is possible, so arrows only land
+    // on cards that can still be chosen.
+    const board = game.value?.board;
+    if (board && game.value?.phase !== 'finished') {
+      const step = nextIndex - index;
+      let probe = nextIndex;
+      const sameLine = (a: number, b: number) => (Math.abs(step) === 1 ? Math.floor(a / 5) === Math.floor(b / 5) : true);
+      while (board[probe]?.revealed && probe + step >= 0 && probe + step < 25 && sameLine(probe, probe + step) && (event.key.startsWith('Arrow'))) probe += step;
+      nextIndex = board[probe]?.revealed && event.key.startsWith('Arrow') ? index : probe;
+    }
+    focusCard(nextIndex);
   }
 }
 
