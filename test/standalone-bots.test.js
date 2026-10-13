@@ -102,3 +102,20 @@ test('bot pacing is readable: clues take seconds, picks are shown before they ar
   assert.ok(PACE.hint[0] >= 4000, 'a clue never comes instantly');
   assert.ok(PACE.aim[0] + PACE.reveal[0] >= 2500, 'each guess takes a couple of seconds');
 });
+
+test('under a blitz clock bots act well before the phase runs out', async () => {
+  const app = await boot({ botDelayScale: 1 });
+  try {
+    const host = await app.connect();
+    const { roomCode } = await ack(host, 'room:create', { name: 'Ada' });
+    await ack(host, 'room:mode_set', { mode: 'blitz' });
+    await ack(host, 'room:blitz_config', { hintTimerSec: 6, guessTimerSec: 9 });
+    await ack(host, 'room:bot_add', { team: 'red' }); await ack(host, 'room:bot_add', { team: 'red' });
+    await ack(host, 'room:bot_add', { team: 'blue' }); await ack(host, 'room:bot_add', { team: 'blue' });
+    await ack(host, 'role:set', { role: 'spectator' });
+    assert.equal((await ack(host, 'game:start', {})).ok, true);
+    const room = app.rooms.get(roomCode);
+    assert.ok(await until(() => room.game.history.some((e) => e.type === 'hint'), 4000), 'the bot spymaster beats a 6 s clock');
+    assert.equal(room.game.history.some((e) => e.type === 'turn_end' && e.reason === 'hint_timeout'), false);
+  } finally { await app.stop(); }
+});

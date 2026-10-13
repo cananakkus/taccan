@@ -324,6 +324,9 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
   }
 
   function schedule(room, key, wait, entry = {}) {
+    // Under a blitz clock a bot never thinks for more than a third of what is left.
+    const endsAt = room.game?.phaseTimer?.endsAt;
+    if (endsAt) wait = Math.min(wait, Math.max(0, (endsAt - Date.now()) / 3));
     const timer = setTimeout(() => {
       try { fire(room.code, key); } catch (error) { ctx.helpers.reportRoomError?.(room, 'bot', error); pending.delete(room.code); }
     }, Math.max(0, wait));
