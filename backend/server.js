@@ -110,7 +110,9 @@ function createApp(options = {}) {
   const frontendDir = fs.existsSync(path.join(frontendDistDir, 'index.html'))
     ? frontendDistDir
     : frontendSourceDir;
-  const staticOpts = { setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); } };
+  // Hashed build files never change; the page and the service worker are checked every
+  // time (ETag, 304); anything else (icons, manifest) is kept a day, then refreshed.
+  const staticOpts = { setHeaders(res, file) { res.setHeader('Cache-Control', /[\\/]assets[\\/]/.test(file) ? 'public, max-age=31536000, immutable' : /\.html$|[\\/]sw\.js$|manifest\.json$/.test(file) ? 'no-cache' : 'public, max-age=86400, stale-while-revalidate=604800'); } };
   app.use(express.static(frontendDir, staticOpts));
   app.use(['/murmur'], express.static(frontendDir, staticOpts));
 
@@ -188,7 +190,7 @@ function createApp(options = {}) {
   });
 
   app.get(['/room/:code', '/murmur/room/:code'], (_req, res) => {
-    res.sendFile(path.join(frontendDir, 'index.html'));
+    res.sendFile(path.join(frontendDir, 'index.html'), { headers: { 'Cache-Control': 'no-cache' } });
   });
 
   // ── Deps Object ──
