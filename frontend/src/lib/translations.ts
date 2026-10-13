@@ -1,4 +1,6 @@
 import '../../translations.js';
+import wordsTr from '../../../backend/words-tr.json';
+import cluesTr from '../../../backend/clues-tr.json';
 
 import type { TranslationPayload } from '../types';
 
@@ -12,7 +14,8 @@ export const DEFAULT_LANGUAGE =
   SUPPORTED_LANGUAGES.find((code) => code === payload.defaultLanguage) || SUPPORTED_LANGUAGES[0] || 'en';
 
 const STRINGS_BY_LANG = payload.strings || {};
-const WORDS_BY_LANG = payload.words || {};
+const WORDS_BY_LANG: Record<string, Record<string, string>> = { ...(payload.words || {}), tr: wordsTr };
+const CLUES_BY_LANG: Record<string, Record<string, string>> = { tr: cluesTr };
 
 export function normalizeLanguage(language: string | null | undefined): string {
   return SUPPORTED_LANGUAGES.includes(language || '') ? String(language) : DEFAULT_LANGUAGE;
@@ -50,4 +53,15 @@ export function getLocaleTag(language: string): string {
 
 export function formatCardWord(language: string, word: string): string {
   return translateWord(language, word).toLocaleUpperCase(getLocaleTag(language));
+}
+
+// A clue as this player reads it. Bot clues come from a bilingual table (the
+// server sends the English key); a person's clue is shown as typed.
+export function formatClue(language: string, hint: { word: string; bot?: boolean }): string {
+  let word = hint.word;
+  if (hint.bot && language !== 'en') {
+    const key = word.toLowerCase();
+    word = CLUES_BY_LANG[language]?.[key] || WORDS_BY_LANG[language]?.[key] || word;
+  }
+  return word.toLocaleUpperCase(getLocaleTag(language));
 }

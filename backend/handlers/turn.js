@@ -1,4 +1,5 @@
 const { BOARD_SIZE, normalizeHint, setCardConfidence } = require('../game-engine');
+const { trLower, turkishOf } = require('../bots');
 
 module.exports = function register(socket, deps) {
   const { io, helpers } = deps;
@@ -43,7 +44,8 @@ module.exports = function register(socket, deps) {
       }
 
       const hintUpper = hintWord.toUpperCase();
-      if (game.board.some((c) => !c.revealed && c.word.normalize('NFC').toUpperCase() === hintUpper)) {
+      const hintTr = trLower(hintWord);
+      if (game.board.some((c) => !c.revealed && (c.word.normalize('NFC').toUpperCase() === hintUpper || trLower(turkishOf(c.word)) === hintTr))) {
         ackError(callback, 'Your hint cannot be a word on the board.');
         return;
       }

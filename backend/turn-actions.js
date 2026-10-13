@@ -8,10 +8,13 @@ module.exports = function createTurnActions(ctx) {
   function applyHint(room, player, word, count) {
     const { syncPhaseTimerForCurrentPhase, emitStateToRoom } = ctx.helpers;
     const game = room.game;
-    game.hint = { word, count, team: player.team, by: player.sessionId, at: Date.now() };
+    // `bot` marks a clue from the bilingual bot table: clients show it in the
+    // reader's language. A person's clue is shown exactly as typed.
+    const bot = Boolean(player.bot);
+    game.hint = { word, count, team: player.team, by: player.sessionId, at: Date.now(), ...(bot ? { bot } : {}) };
     game.phase = 'guess';
     game.guessesRemaining = count + 1;
-    game.history.push({ type: 'hint', by: player.sessionId, team: player.team, word, count, at: Date.now() });
+    game.history.push({ type: 'hint', by: player.sessionId, team: player.team, word, count, at: Date.now(), ...(bot ? { bot } : {}) });
     game.lastActionAt = Date.now();
     room.lastActiveAt = game.lastActionAt;
     io.to(room.code).emit('turn:hint_accepted', { team: game.currentTeam, hint: game.hint });

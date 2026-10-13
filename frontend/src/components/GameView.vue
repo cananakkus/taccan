@@ -23,7 +23,7 @@ import {
 import { getAssetPath, getBasePath, getInitialRoomCode, getRoomUrl, getServiceWorkerPath } from '../lib/runtime';
 import { emitWithAck, socket } from '../lib/socket';
 import { playSound, toggleSoundMute, unlockSound } from '../lib/sound';
-import { DEFAULT_LANGUAGE, formatCardWord, getLocaleTag, translate } from '../lib/translations';
+import { DEFAULT_LANGUAGE, formatCardWord, formatClue, translate } from '../lib/translations';
 import { clearSession } from '../lib/storage';
 import { useVoice } from '../composables/useVoice';
 import { useAppStore } from '../stores/app';
@@ -186,7 +186,7 @@ const turnBannerText = computed(() => {
 });
 const debriefHtml = computed(() => {
   if (!game.value) return `<p>${t('debrief_no_data')}</p>`;
-  return generateDebriefNarrative((key, vars) => t(key, vars), game.value.history, players.value, game.value.board);
+  return generateDebriefNarrative((key, vars) => t(key, vars), game.value.history, players.value, game.value.board, preferences.language);
 });
 const feedEntries = ref<HTMLDivElement | null>(null);
 const feedItems = computed(() => {
@@ -225,7 +225,7 @@ const feedItems = computed(() => {
       items.push({
         key: `hint-${entry.at}-${entry.by}`,
         className: `feed-item feed-hint ${String(entry.team || '')}`,
-        text: `${formatTeam(String(entry.team || '') as Team)}: ${String(entry.word || '').toLocaleUpperCase(getLocaleTag(preferences.language))} ${entry.count}`,
+        text: `${formatTeam(String(entry.team || '') as Team)}: ${formatClue(preferences.language, { word: String(entry.word || ''), bot: Boolean(entry.bot) })} ${entry.count}`,
       });
     } else if (type === 'guess') {
       const card = game.value?.board?.[Number(entry.index)];
@@ -292,8 +292,8 @@ function hintStatusText() {
 
 const activeHint = computed(() => game.value?.phase === 'guess' && game.value.hint?.team === game.value.currentTeam ? game.value.hint : null);
 
-function hintDisplayText(hint: { word: string; count: number }) {
-  return `${hint.word.toLocaleUpperCase(getLocaleTag(preferences.language))} · ${hint.count}`;
+function hintDisplayText(hint: { word: string; count: number; bot?: boolean }) {
+  return `${formatClue(preferences.language, hint)} · ${hint.count}`;
 }
 
 function resultText() {

@@ -46,9 +46,56 @@ function sameFamily(a, b) {
   return commonPrefix(a, b) >= Math.max(4, Math.min(a.length, b.length) - 1);
 }
 
+// Turkish. Bot clues come from a bilingual table (clues-tr.json) and board
+// words have Turkish names (words-tr.json), so a Turkish clue a person types
+// is read back to English: exact matches first, then after peeling common
+// suffixes (plural, case, possessive, -lı/-sız/-cı/-lık) and undoing final
+// consonant softening (köpeği -> köpek).
+const WORDS_TR = require('./words-tr.json');
+const CLUES_TR = require('./clues-tr.json');
+const trLower = (text) => String(text || '').normalize('NFC').toLocaleLowerCase('tr-TR').replace(/[^a-zçğıöşüâîû]/g, '');
+const TR_TO_EN = new Map();
+for (const [en, tr] of [...Object.entries(WORDS_TR), ...Object.entries(CLUES_TR)]) {
+  const key = trLower(tr);
+  if (!TR_TO_EN.has(key)) TR_TO_EN.set(key, new Set());
+  TR_TO_EN.get(key).add(en.toUpperCase());
+}
+const TR_SUFFIXES = ['lerin', 'ların', 'leri', 'ları', 'ler', 'lar', 'nın', 'nin', 'nun', 'nün', 'dan', 'den', 'tan', 'ten', 'lık', 'lik', 'luk', 'lük', 'sız', 'siz', 'suz', 'süz',
+  'da', 'de', 'ta', 'te', 'yı', 'yi', 'yu', 'yü', 'ya', 'ye', 'ın', 'in', 'un', 'ün', 'sı', 'si', 'su', 'sü', 'lı', 'li', 'lu', 'lü', 'cı', 'ci', 'cu', 'cü', 'çı', 'çi', 'çu', 'çü', 'ı', 'i', 'u', 'ü', 'a', 'e'];
+const SOFTENED = { 'ğ': ['k', 'g'], 'b': ['p'], 'c': ['ç'], 'd': ['t'] };
+function turkishReadings(raw) {
+  const base = trLower(raw);
+  if (base.length < 2) return [];
+  const found = new Set();
+  const seen = new Set([base]);
+  let frontier = [base];
+  for (let depth = 0; depth < 3 && frontier.length && !found.size; depth += 1) {
+    const next = [];
+    for (const form of frontier) {
+      const forms = [form, ...(SOFTENED[form.at(-1)] || []).map((hard) => form.slice(0, -1) + hard)];
+      for (const candidate of forms) for (const en of TR_TO_EN.get(candidate) || []) found.add(en);
+      for (const suffix of TR_SUFFIXES) {
+        if (form.length - suffix.length < 2 || !form.endsWith(suffix)) continue;
+        const stem = form.slice(0, -suffix.length);
+        if (!seen.has(stem)) { seen.add(stem); next.push(stem); }
+      }
+    }
+    frontier = next;
+  }
+  return [...found];
+}
+// The Turkish name of an English clue key or board word, if any.
+function turkishOf(word) {
+  const key = String(word || '').toLowerCase();
+  return CLUES_TR[key] || WORDS_TR[key] || null;
+}
+function sameFamilyTr(a, b) {
+  return Boolean(a && b) && sameFamily(trLower(a), trLower(b));
+}
+
 function clueVariants(raw) {
   const word = String(raw || '').normalize('NFC').toUpperCase().replace(/[^A-Z]/g, '');
-  const variants = new Set([word]);
+  const variants = new Set([word, ...turkishReadings(raw)]);
   for (const suffix of ['S', 'ES', 'ING', 'ED', 'ER', 'Y', 'IES']) {
     if (word.length > suffix.length + 2 && word.endsWith(suffix)) variants.add(word.slice(0, -suffix.length));
   }
@@ -124,7 +171,10 @@ function chooseClue(game, bot, rng = Math.random) {
   const team = bot.team;
   const opponent = team === 'red' ? 'blue' : 'red';
   const open = game.board.filter((card) => !card.revealed);
-  const forbidden = (clue) => open.some((card) => sameFamily(clue, card.word));
+  // A clue may not share a family with an open card in English or in Turkish
+  // (the Turkish screen shows Turkish words and the Turkish clue).
+  const openTr = open.map((card) => turkishOf(card.word));
+  const forbidden = (clue) => open.some((card, i) => sameFamily(clue, card.word) || sameFamilyTr(turkishOf(clue), openTr[i]));
   const given = new Map();
   for (const entry of game.history) if (entry.type === 'hint' && entry.team === team) given.set(entry.word.toUpperCase(), (given.get(entry.word.toUpperCase()) || 0) + 1);
   const rate = (risk) => {
@@ -373,4 +423,4 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
   };
 }
 
-module.exports = { SKILLS, SKILL_VALUES, PACE, createBotDriver, chooseClue, chooseGuess, relatedness, sameFamily, clueToWords, wordToClues };
+module.exports = { SKILLS, SKILL_VALUES, PACE, turkishReadings, turkishOf, trLower, WORDS_TR, createBotDriver, chooseClue, chooseGuess, relatedness, sameFamily, clueToWords, wordToClues };

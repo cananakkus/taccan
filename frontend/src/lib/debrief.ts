@@ -1,4 +1,5 @@
 import type { GameHistoryEntry, PlayerView, BoardCard } from '../types';
+import { formatCardWord, formatClue } from './translations';
 
 function escapeHtml(value: string): string {
   return String(value)
@@ -12,7 +13,8 @@ export function generateDebriefNarrative(
   t: (key: string, vars?: Record<string, string | number>) => string,
   history: GameHistoryEntry[],
   players: PlayerView[],
-  board: BoardCard[]
+  board: BoardCard[],
+  language = 'en'
 ): string {
   if (!Array.isArray(history) || history.length === 0) {
     return `<p>${t('debrief_no_data')}</p>`;
@@ -37,6 +39,7 @@ export function generateDebriefNarrative(
         team: string;
         word: string;
         count: number;
+        bot?: boolean;
       };
       turnNumber += 1;
       const teamLabel = hintEntry.team === 'red' ? t('team_red').toUpperCase() : t('team_blue').toUpperCase();
@@ -45,8 +48,9 @@ export function generateDebriefNarrative(
       html += `<p>${t('debrief_hint_entry', {
         agent: agentName,
         team: teamLabel,
-        word: escapeHtml(String(hintEntry.word || '').toUpperCase()),
+        word: escapeHtml(formatClue(language, { word: String(hintEntry.word || ''), bot: hintEntry.bot })),
         count: hintEntry.count,
+        targets: t(hintEntry.count === 1 ? 'debrief_target_one' : 'debrief_target_many'),
       })}</p>`;
       html += '</div>';
       continue;
@@ -59,7 +63,7 @@ export function generateDebriefNarrative(
         color: string;
       };
       const card = boardMap[guessEntry.index];
-      const wordName = escapeHtml(card ? card.word : `Card #${guessEntry.index}`);
+      const wordName = escapeHtml(card ? formatCardWord(language, card.word) : `#${guessEntry.index + 1}`);
       let outcome = '';
       if (guessEntry.color === guessEntry.team) outcome = t('debrief_outcome_correct');
       else if (guessEntry.color === 'assassin') outcome = t('debrief_outcome_assassin');
@@ -70,7 +74,7 @@ export function generateDebriefNarrative(
       html += `<p>${t('debrief_guess_entry', {
         agent: agentName,
         word: wordName,
-        color: String(guessEntry.color || 'unknown').toUpperCase(),
+        color: t(`debrief_color_${guessEntry.color || 'neutral'}`).toLocaleUpperCase(language === 'tr' ? 'tr-TR' : 'en-US'),
         outcome,
       })}</p>`;
       html += '</div>';
