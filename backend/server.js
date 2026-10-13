@@ -28,6 +28,8 @@ const registerChatHandlers = require('./handlers/chat');
 const registerMvpHandlers = require('./handlers/mvp');
 const registerVoiceHandlers = require('./handlers/voice');
 const registerDisconnectHandler = require('./handlers/disconnect');
+const registerBotHandlers = require('./handlers/bots');
+const { createBotDriver } = require('./bots');
 
 // ── Constants ──
 
@@ -133,8 +135,17 @@ function createApp(options = {}) {
     withRoomLock,
   };
   ctx.helpers = helpers;
+  // One driver plays every bot seat, in party matches and in normal rooms.
+  const bots = createBotDriver(ctx, { delayScale: options.botDelayScale ?? (Number(process.env.BOT_DELAY_SCALE) || 1) });
+  ctx.bots = bots;
+  const emitState = helpers.emitStateToRoom;
+  helpers.emitStateToRoom = (room) => {
+    emitState(room);
+    helpers.guardRoom(room, 'bot_kick', () => bots.kick(room));
+  };
+  for (const room of rooms.values()) helpers.guardRoom(room, 'bot_restore', () => bots.kick(room));
   const partySecret=options.partySecret ?? process.env.PARTY_SECRET;
-  const party=partySecret?require('./party-support').createPartySupport(ctx,{secret:partySecret,file:options.partyFile||process.env.PARTY_DATA_FILE||'state/party.sqlite',botDelayScale:options.botDelayScale??(Number(process.env.BOT_DELAY_SCALE)||1)}):null;
+  const party=partySecret?require('./party-support').createPartySupport(ctx,{secret:partySecret,file:options.partyFile||process.env.PARTY_DATA_FILE||'state/party.sqlite'}):null;
   app.use((req,res,next)=>{if(!req.path.startsWith('/_party/'))return next();if(!party)return res.status(404).json({error:'Not found'});party.handle(req,res).catch(next)});
 
   // ── API Routes ──
@@ -193,6 +204,7 @@ function createApp(options = {}) {
     registerChatHandlers,
     registerMvpHandlers,
     registerVoiceHandlers,
+    registerBotHandlers,
     registerDisconnectHandler,
   ];
 
@@ -261,6 +273,7 @@ function createApp(options = {}) {
 
   // ── Periodic Cleanup ──
 
+  const hasHumans = (room) => [...room.players.values()].some((player) => !player.bot);
   const cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const room of rooms.values()) {
@@ -268,10 +281,11 @@ function createApp(options = {}) {
       try {
       const removedCount = pruneDisconnectedPlayers(room, now, DISCONNECTED_PLAYER_TTL_MS, helpers.clearMarksForSession);
       ensureHostSession(room);
-      if (room.players.size === 0 || now - room.lastActiveAt > STALE_ROOM_TTL_MS) {
+      if (!hasHumans(room) || now - room.lastActiveAt > STALE_ROOM_TTL_MS) {
         helpers.clearPhaseTimerState(room);
         helpers.clearMvpTimer(room.code);
-        helpers.logEvent('room_deleted', { roomCode: room.code, reason: room.players.size === 0 ? 'empty' : 'stale' });
+        helpers.logEvent('room_deleted', { roomCode: room.code, reason: !hasHumans(room) ? 'empty' : 'stale' });
+        bots.cancel(room.code);
         rooms.delete(room.code);
         continue;
       }
@@ -284,7 +298,7 @@ function createApp(options = {}) {
   }, CLEANUP_INTERVAL_MS);
   cleanupInterval.unref();
 
-  return { app, httpServer, io, rooms, phaseTimers, mvpTimers, metrics, cleanupInterval,
+  return { app, httpServer, io, rooms, phaseTimers, mvpTimers, metrics, cleanupInterval, bots,
     party, saveState: (state = rooms) => saveState(new Map([...state].filter(([,r])=>!r.party)), options.stateFile) };
 }
 

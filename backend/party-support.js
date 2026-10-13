@@ -1,13 +1,12 @@
 const {PartyAdapter}=require('./party-adapter.cjs');
 const {restoreRooms}=require('./state-persistence');
 const {finishGame}=require('./game-engine');
-const {createBotDriver}=require('./bots');
 const {cleanText}=require('./text');
 
-function createPartySupport(ctx,{secret,file,botDelayScale=1}){
+function createPartySupport(ctx,{secret,file}){
  const {rooms,helpers,io}=ctx;let adapter,starting=false,closed=false;
- // The game server plays every bot seat; bots count as permanently connected.
- const bots=createBotDriver(ctx,{delayScale:botDelayScale});
+ // The game server plays every bot seat (ctx.bots); bots count as permanently connected.
+ const bots=ctx.bots;
  const found=(game,team)=>(game.startingTeam===team?9:8)-game.remaining[team];
  function settleWithoutHumans(room){
   const game=room.game,red=found(game,'red'),blue=found(game,'blue');
@@ -49,7 +48,6 @@ function createPartySupport(ctx,{secret,file,botDelayScale=1}){
    adapter.save(room.party.match,true);
   }
   emit(room);
-  if(room.party&&!closed)bots.kick(room);
  };
  for(const record of adapter.rooms.values())helpers.guardRoom(record.room,'bot_restore',()=>bots.kick(record.room));
  const checkpoint=setInterval(()=>{for(const room of rooms.values())if(room.party)helpers.guardRoom(room,'party_checkpoint',()=>adapter.save(room.party.match))},1000);checkpoint.unref();
@@ -61,6 +59,6 @@ function createPartySupport(ctx,{secret,file,botDelayScale=1}){
   if(body.color!==undefined)context.player.color=body.color;
   helpers.emitStateToRoom(context.room);helpers.ackOk(callback,{name:context.player.name,color:context.player.color});
  });}
- return {adapter,register,handle:(req,res)=>adapter.handle(req,res),close(){if(closed)return;closed=true;clearInterval(checkpoint);bots.close();adapter.close()}};
+ return {adapter,register,handle:(req,res)=>adapter.handle(req,res),close(){if(closed)return;closed=true;clearInterval(checkpoint);adapter.close()}};
 }
 module.exports={createPartySupport};

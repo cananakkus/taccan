@@ -88,36 +88,76 @@ function skillOf(bot) {
   return SKILLS[bot.skill] || SKILLS.normal;
 }
 
+// Every word a spymaster bot may say: the association table's clues plus board
+// vocabulary words (said only when they are not on this board). Relatedness is
+// cached per (clue, vocabulary word), lazily.
+const VOCAB = [...wordToClues.keys()];
+const VOCAB_INDEX = new Map(VOCAB.map((word, index) => [word, index]));
+const CANDIDATES = [...new Set([...clueToWords.keys(), ...VOCAB])];
+const relRows = new Map();
+function cachedRelatedness(clue, word) {
+  const index = VOCAB_INDEX.get(word);
+  if (index === undefined) return relatedness(clue, word);
+  let row = relRows.get(clue);
+  if (!row) { row = new Float32Array(VOCAB.length).fill(-1); relRows.set(clue, row); }
+  if (row[index] < 0) row[index] = relatedness(clue, word);
+  return row[index];
+}
+
+// How strongly this bot believes a clue points at a word: links it does not
+// know are faint, the same way its operatives read clues.
+function perceived(bot, game, clue, word, skill) {
+  const rel = cachedRelatedness(clue, word);
+  if (rel <= 0) return 0;
+  return knows(bot, game.id, clue, word, skill.know) ? rel : rel * 0.2;
+}
+
+const STRONG = 0.65; // a target must be at least this clearly linked
+const MARGIN = 0.12; // other cards this close to the weakest target are threats
+
+// A spymaster's clue. For every candidate it counts the team's cards the clue
+// clearly points at, then checks which other cards an operative could confuse
+// with the weakest of those targets. Skill sets how much risk is acceptable,
+// the largest count, and how many top options it picks between.
 function chooseClue(game, bot, rng = Math.random) {
   const skill = skillOf(bot);
   const team = bot.team;
   const opponent = team === 'red' ? 'blue' : 'red';
   const open = game.board.filter((card) => !card.revealed);
   const forbidden = (clue) => open.some((card) => sameFamily(clue, card.word));
-  const given = new Set(game.history.filter((entry) => entry.type === 'hint' && entry.team === team).map((entry) => entry.word.toUpperCase()));
+  const given = new Map();
+  for (const entry of game.history) if (entry.type === 'hint' && entry.team === team) given.set(entry.word.toUpperCase(), (given.get(entry.word.toUpperCase()) || 0) + 1);
   const rate = (risk) => {
-  const options = [];
-  for (const [clue, words] of clueToWords) {
-    if (forbidden(clue)) continue;
-    let own = 0, opp = 0, neutral = 0, assassin = 0;
-    for (const card of open) {
-      if (!words.has(card.word) || !knows(bot, game.id, clue, card.word, skill.know)) continue;
-      if (card.color === team) own += 1;
-      else if (card.color === opponent) opp += 1;
-      else if (card.color === 'assassin') assassin += 1;
-      else neutral += 1;
+    const options = [];
+    for (const clue of CANDIDATES) {
+      const rels = [];
+      for (const card of open) {
+        const rel = perceived(bot, game, clue, card.word, skill);
+        if (rel > 0.25) rels.push({ card, rel });
+      }
+      const own = rels.filter((r) => r.card.color === team && r.rel >= STRONG).sort((a, b) => b.rel - a.rel);
+      if (!own.length || forbidden(clue)) continue;
+      let best = null;
+      for (let n = 1; n <= Math.min(own.length, skill.maxCount); n += 1) {
+        const weakest = own[n - 1].rel;
+        let opp = 0, neutral = 0, assassin = 0;
+        for (const r of rels) {
+          if (r.card.color === team || r.rel < weakest - MARGIN) continue;
+          if (r.card.color === 'assassin') assassin += 1;
+          else if (r.card.color === opponent) opp += 1;
+          else neutral += 1;
+        }
+        if (risk === 'safe' && (assassin || opp)) break;
+        if (risk === 'careful' && assassin) break;
+        const penalty = risk === 'reckless'
+          ? assassin * 1.5 + opp * 0.5 + neutral * 0.25
+          : assassin * 5 + opp * 1.2 + neutral * 0.6;
+        const score = n - penalty + 0.4 * (weakest - STRONG) - 0.9 * (given.get(clue) || 0);
+        if (!best || score > best.score) best = { clue, count: n, score };
+      }
+      if (best) options.push(best);
     }
-    if (!own) continue;
-    if (risk === 'safe' && (assassin || opp)) continue;
-    if (risk === 'careful' && assassin) continue;
-    const count = Math.min(own, skill.maxCount);
-    const penalty = risk === 'reckless'
-      ? assassin * 1.5 + opp * 0.5 + neutral * 0.2
-      : assassin * 5 + opp * 1.2 + neutral * 0.5;
-    // Vary clues the team has ignored instead of repeating them.
-    options.push({ clue, count, score: count - penalty - (given.has(clue) ? 0.75 : 0) });
-  }
-  return options;
+    return options;
   };
   const options = rate(skill.risk);
   if (!options.length && skill.risk !== 'reckless') options.push(...rate('reckless'));
@@ -185,20 +225,33 @@ function suggestion(game, bot, rng) {
   return decision.type === 'guess' ? decision.index : null;
 }
 
-// Plays every bot seat in party rooms: clues, guesses and turn ends, on a
-// human-like delay. Bots defer to human operatives on their team and only guess
-// after those teammates have been idle for `deferMs`.
+// Pacing, in ms before delayScale. A spymaster thinks before a clue; an
+// operative first marks the card it is about to pick (so people can follow
+// along), then reveals it; stopping after the last guess takes a beat too.
+const PACE = {
+  hint: [4500, 8500],
+  perCount: 600,
+  aim: [1600, 2800],
+  reveal: [1100, 1900],
+};
+
+// Plays every bot seat (Play party seats and bots a host added to a room):
+// clues, guesses and turn ends, on a human-like delay. Bots defer to human
+// operatives on their team and only guess after those teammates have been
+// idle for `deferMs`. In a normal room, bots wait while no person is connected.
 function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.random } = {}) {
   const pending = new Map();
   let closed = false;
 
-  const active = (room, player) => !room.party.forfeits.includes(player.sessionId);
+  const active = (room, player) => !room.party?.forfeits.includes(player.sessionId);
+  const hasBots = (room) => [...room.players.values()].some((p) => p.bot);
   const sorted = (list) => list.sort((a, b) => a.joinedAt - b.joinedAt || a.sessionId.localeCompare(b.sessionId));
   const delay = (min, max) => Math.round((min + rng() * (max - min)) * delayScale);
 
   function nextActor(room) {
     const game = room.game;
-    if (!room.party || !game || game.phase === 'finished') return null;
+    if (!game || game.phase === 'finished') return null;
+    if (!room.party && ![...room.players.values()].some((p) => !p.bot && p.connected)) return null;
     const team = [...room.players.values()].filter((p) => p.team === game.currentTeam && active(room, p));
     if (game.phase === 'hint') {
       const spymaster = sorted(team.filter((p) => p.role === 'spymaster'))[0];
@@ -229,36 +282,58 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
   }
 
   function kick(room) {
-    if (closed || !room?.party) return;
+    if (closed || !room) return;
+    if (!hasBots(room)) { cancel(room.code); return; }
     const plan = nextActor(room);
     if (!plan) { cancel(room.code); return; }
     const key = keyOf(room, plan);
     if (pending.get(room.code)?.key === key) return;
     cancel(room.code);
-    schedule(room, key, plan.kind === 'hint' ? delay(1200, 3000) : delay(700, 2200), { since: Date.now() });
+    const wait = plan.kind === 'hint' ? delay(...PACE.hint) : delay(...PACE.aim);
+    schedule(room, key, wait, { since: Date.now() });
+  }
+
+  function mark(room, bot, index) {
+    if (index === null || index === undefined || room.game.board[index]?.revealed) return;
+    if (!room.game.marksByCard[index]?.has(bot.sessionId)) ctx.helpers.applyMark(room, bot, index, { touch: false });
   }
 
   function act(room, plan) {
-    const { applyHint, applyGuess, applyEndTurn, applyMark } = ctx.helpers;
+    const { applyHint, applyGuess, applyEndTurn } = ctx.helpers;
     const game = room.game;
+    const entry = pending.get(room.code);
     if (plan.kind === 'hint') {
-      const clue = chooseClue(game, plan.bot, rng);
+      const clue = entry?.clue || chooseClue(game, plan.bot, rng);
+      // Bigger clues take a little longer to settle on.
+      if (!entry?.clue && clue.count > 1) {
+        schedule(room, keyOf(room, plan), delay(PACE.perCount * (clue.count - 1), PACE.perCount * clue.count), { ...entry, clue });
+        return false;
+      }
       applyHint(room, plan.bot, clue.word, clue.count);
       return true;
     }
+    let aim = entry?.aim;
     if (plan.defer) {
-      const entry = pending.get(room.code);
       const idleSince = Math.max(entry?.since || 0, game.lastActionAt || 0);
       if (!entry?.marked) {
-        const index = suggestion(game, plan.bot, rng);
-        if (index !== null && !game.marksByCard[index]?.has(plan.bot.sessionId)) applyMark(room, plan.bot, index, { touch: false });
+        aim = suggestion(game, plan.bot, rng);
+        mark(room, plan.bot, aim);
       }
       const wait = idleSince + deferMs * delayScale - Date.now();
-      if (wait > 0) { schedule(room, keyOf(room, plan), wait, { since: entry?.since || Date.now(), marked: true }); return false; }
+      if (wait > 0) { schedule(room, keyOf(room, plan), wait, { since: entry?.since || Date.now(), marked: true, aim }); return false; }
     }
-    const decision = chooseGuess(game, plan.bot, rng);
-    if (decision.type === 'guess') applyGuess(room, plan.bot, game.board[decision.index]);
-    else applyEndTurn(room);
+    if (aim === undefined || aim === null || game.board[aim]?.revealed) {
+      const decision = chooseGuess(game, plan.bot, rng);
+      if (decision.type !== 'guess') { applyEndTurn(room); return true; }
+      aim = decision.index;
+    }
+    // Show the pick first, then reveal it.
+    if (!entry?.aimed) {
+      mark(room, plan.bot, aim);
+      schedule(room, keyOf(room, plan), delay(...PACE.reveal), { ...entry, aim, aimed: true, marked: true });
+      return false;
+    }
+    applyGuess(room, plan.bot, game.board[aim]);
     return true;
   }
 
@@ -293,8 +368,9 @@ function createBotDriver(ctx, { delayScale = 1, deferMs = 20_000, rng = Math.ran
   return {
     kick,
     cancel,
+    nextActor,
     close() { closed = true; for (const code of [...pending.keys()]) cancel(code); },
   };
 }
 
-module.exports = { SKILLS, SKILL_VALUES, createBotDriver, chooseClue, chooseGuess, relatedness, sameFamily, clueToWords, wordToClues };
+module.exports = { SKILLS, SKILL_VALUES, PACE, createBotDriver, chooseClue, chooseGuess, relatedness, sameFamily, clueToWords, wordToClues };

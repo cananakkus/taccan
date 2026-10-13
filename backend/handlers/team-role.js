@@ -3,6 +3,14 @@ module.exports = function register(socket, deps) {
   const { preflightAction, getContext, ackOk, ackError, emitStateToRoom, clearMarksForSession } = helpers;
   const { TEAM_VALUES, ROLE_VALUES } = constants;
 
+  // A person who claims a spymaster seat held by a bot takes it; the bot
+  // becomes an operative on the same team.
+  function yieldBotSpymaster(room, team) {
+    for (const player of room.players.values()) {
+      if (player.bot && player.team === team && player.role === 'spymaster') player.role = 'operative';
+    }
+  }
+
   socket.on('team:set', (payload = {}, callback) => {
     const action = 'team:set';
     const validatedPayload = preflightAction(socket, action, payload, callback);
@@ -20,6 +28,7 @@ module.exports = function register(socket, deps) {
       return;
     }
 
+    if (team !== 'none' && context.player.role === 'spymaster') yieldBotSpymaster(context.room, team);
     if (team !== 'none' && context.player.role === 'spymaster' && [...context.room.players.values()].some(player => player.sessionId !== context.player.sessionId && player.team === team && player.role === 'spymaster')) {
       ackError(callback, 'That spymaster position is occupied.');
       return;
@@ -61,6 +70,7 @@ module.exports = function register(socket, deps) {
     const team = role === 'spectator' ? 'none' : requestedTeam === 'none'
       ? (context.room.game?.phase !== 'finished' && context.room.game?.currentTeam || 'red')
       : requestedTeam;
+    if (role === 'spymaster') yieldBotSpymaster(context.room, team);
     if (role === 'spymaster' && [...context.room.players.values()].some(player => player.sessionId !== context.player.sessionId && player.team === team && player.role === 'spymaster')) {
       ackError(callback, 'That spymaster position is occupied.');
       return;

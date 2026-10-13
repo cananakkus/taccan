@@ -9,6 +9,8 @@ const EVENT_RATE_LIMITS = {
   'room:leave': { max: 20, windowMs: 30_000 },
   'room:prune_disconnected': { max: 8, windowMs: 30_000 },
   'room:mode_set': { max: 20, windowMs: 30_000 },
+  'room:bot_add': { max: 20, windowMs: 30_000 },
+  'room:bot_remove': { max: 20, windowMs: 30_000 },
   'team:set': { max: 30, windowMs: 10_000 },
   'role:set': { max: 30, windowMs: 10_000 },
   'game:start': { max: 10, windowMs: 30_000 },
@@ -70,7 +72,7 @@ module.exports = function createServerHelpers(ctx) {
 
   function preflightAction(socket, action, payload, callback) {
     const bound=rooms.get(socket.data.roomCode);
-    if(bound?.party&&(['room:create','room:join','room:leave','room:prune_disconnected','room:mode_set','room:blitz_config','team:set','role:set','game:start','game:rematch'].includes(action)||(action==='room:rejoin'&&payload?.code!==bound.code))){ackError(callback,'The party hub controls tournament seats and rounds.');return null;}
+    if(bound?.party&&(['room:create','room:join','room:leave','room:prune_disconnected','room:mode_set','room:blitz_config','room:bot_add','room:bot_remove','team:set','role:set','game:start','game:rematch'].includes(action)||(action==='room:rejoin'&&payload?.code!==bound.code))){ackError(callback,'The party hub controls tournament seats and rounds.');return null;}
     const validated = validatePayload(action, payload);
     if (!validated.ok) { ackError(callback, validated.error || 'Invalid payload.'); return null; }
     if (!consumeRateLimit(socket, action)) {
@@ -207,9 +209,10 @@ module.exports = function createServerHelpers(ctx) {
     room.players.delete(sessionId);
     room.lastActiveAt = Date.now();
     ensureHostSession(room);
-    if (room.players.size === 0) {
+    if (![...room.players.values()].some((player) => !player.bot)) {
       ctx.helpers.clearPhaseTimerState(room);
       ctx.helpers.clearMvpTimer(room.code);
+      ctx.bots?.cancel(room.code);
       logEvent('room_deleted', { roomCode: room.code, reason: 'empty' });
       rooms.delete(room.code);
       return;

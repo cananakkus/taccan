@@ -503,3 +503,9 @@ module.exports = {
   yellow: 'lemon sun gold',
   zoo: 'lion bear penguin kangaroo walrus snake seal shark eagle',
 };
+
+// Merge the richer theme links (bot-associations-extra.js) into this table.
+for (const [clue, list] of Object.entries(require('./bot-associations-extra'))) {
+  const words = new Set([...(module.exports[clue] || '').split(' ').filter(Boolean), ...list.split(' ')]);
+  module.exports[clue] = [...words].join(' ');
+}

@@ -63,7 +63,8 @@ function restoreRooms(serialized) {
   for (const roomData of serialized) {
     const players = new Map();
     for (const p of roomData.players || []) {
-      players.set(p.sessionId, { ...p, reconnectToken: p.reconnectToken || randomBytes(32).toString('base64url') });
+      // Bots have no socket: they are back as soon as the room is.
+      players.set(p.sessionId, { ...p, connected: Boolean(p.bot), reconnectToken: p.reconnectToken || randomBytes(32).toString('base64url') });
     }
 
     const game = roomData.game

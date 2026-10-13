@@ -34,7 +34,7 @@ module.exports = function register(socket, deps) {
     context.room.game.mvpVotes[context.player.sessionId] = targetSessionId;
 
     const connectedTeam = [...context.room.players.values()].filter(
-      (p) => p.connected && p.team !== 'none' && p.role !== 'spectator'
+      (p) => p.connected && !p.bot && p.team !== 'none' && p.role !== 'spectator'
     );
     const allVoted = connectedTeam.every((p) => context.room.game.mvpVotes[p.sessionId]);
 

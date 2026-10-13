@@ -19,6 +19,13 @@ const SCHEMAS = {
     name: { type: 'string', optional: true, maxLength: 200 },
   },
   'room:leave': {},
+  'room:bot_add': {
+    team: { type: 'string', optional: false, enum: ['red', 'blue'] },
+    skill: { type: 'string', optional: true, enum: ['easy', 'normal', 'hard'] },
+  },
+  'room:bot_remove': {
+    sessionId: { type: 'string', optional: false, maxLength: 128 },
+  },
   'room:prune_disconnected': {},
   'room:mode_set': {
     mode: { type: 'string', optional: false, enum: ['casual', 'blitz'] },
