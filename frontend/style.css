@@ -3726,3 +3726,13 @@ html[data-theme="dark"] .room-screen .lobby-tools button { color: var(--ink); }
   .room-screen.is-lobby #sheet-teams .spectator-roster { padding: 6px 10px; }
   .room-screen.is-lobby #sheet-feed .sheet-body { padding: 12px; gap: 6px; }
 }
+
+/* ── Bots in normal rooms (host only, lobby) ── */
+.room-screen.is-lobby #sheet-teams .lobby-team-actions .bot-add-row { grid-column: 1 / -1; display: flex; gap: 6px; min-width: 0; }
+.room-screen #sheet-teams .bot-skill-select { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 4px 8px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; font: 15px/1.1 var(--font-body); }
+.room-screen #sheet-teams .bot-skill-select option { color: var(--ink); background: var(--paper-light); }
+.room-screen.is-lobby #sheet-teams .lobby-team-actions .bot-add-row .bot-add-btn { flex: 0 0 auto; width: auto; min-height: 40px; padding: 6px 12px; border-style: dashed; }
+.room-screen #sheet-teams .bot-skill-select:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.room-screen #sheet-teams .bot-remove { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; margin-left: 2px; padding: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--ink-light); font: 700 16px/1 var(--font-body); cursor: pointer; }
+.room-screen #sheet-teams .bot-remove:hover, .room-screen #sheet-teams .bot-remove:focus-visible { border-color: currentColor; color: var(--danger, #a51d29); outline: none; }
+@media (pointer: coarse) { .room-screen #sheet-teams .bot-remove { width: 32px; height: 32px; } }

@@ -633,6 +633,16 @@ async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?:
   }
 }
 
+const botSkill = ref<Record<'red' | 'blue', 'easy' | 'normal' | 'hard'>>({ red: 'normal', blue: 'normal' });
+const botCount = computed(() => players.value.filter((player) => player.bot).length);
+const canManageBots = computed(() => !isTournament && Boolean(me.value?.isHost) && (!game.value || game.value.phase === 'finished'));
+async function addBot(team: 'red' | 'blue') {
+  await emitWithAck('room:bot_add', { team, skill: botSkill.value[team] }).catch((error: Error) => ui.showToast(error.message, 'error'));
+}
+async function removeBot(sessionId: string) {
+  await emitWithAck('room:bot_remove', { sessionId }).catch((error: Error) => ui.showToast(error.message, 'error'));
+}
+
 async function setMode(mode: 'casual' | 'blitz') {
   if (!snapshot.value?.me.isHost) {
     ui.showToast(t('host_only_mode_change'));
@@ -815,6 +825,90 @@ function handleBoardKeydown(event: KeyboardEvent, index: number) {
   }
 }
 
+// ── Keyboard ──
+// Listens on the document so keys the Play hub forwards into this iframe
+// (untrusted KeyboardEvents on the active element or body) work too.
+const boardCursor = ref(0);
+function isTypingTarget(target: EventTarget | null) {
+  const node = target as HTMLElement | null;
+  if (!node || !node.tagName) return false;
+  if (node.isContentEditable || node.tagName === 'TEXTAREA' || node.tagName === 'SELECT') return true;
+  return node.tagName === 'INPUT' && !['button', 'checkbox', 'radio', 'range', 'color', 'submit', 'reset'].includes((node as HTMLInputElement).type);
+}
+function focusCard(index: number) {
+  const clamped = Math.max(0, Math.min(24, index));
+  boardCursor.value = clamped;
+  boardRefs.value[clamped]?.focus();
+}
+function firstPlayableCard() {
+  const board = game.value?.board || [];
+  return board.find((card) => !card.revealed)?.index ?? 0;
+}
+function focusField(selector: string) {
+  const field = document.querySelector<HTMLInputElement>(selector);
+  if (!field || field.offsetParent === null) return false;
+  field.focus();
+  return true;
+}
+function onGlobalKeydown(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+  const key = event.key;
+  const target = event.target as HTMLElement | null;
+  if (key === 'Escape') {
+    if (ui.confirmId) { event.preventDefault(); ui.resolveConfirm(false); return; }
+    if (ui.openPanel) { event.preventDefault(); ui.closePanel(); return; }
+    if (isTypingTarget(target)) { target?.blur(); return; }
+    if (ui.selectedGuessIndex !== null) { event.preventDefault(); ui.selectedGuessIndex = null; }
+    return;
+  }
+  if (isTypingTarget(target)) return;
+  // A forwarded (untrusted) Enter/Space does not activate a focused control the
+  // way a real key press does, so do it here. Real presses stay native.
+  if ((key === 'Enter' || key === ' ') && !event.isTrusted && target && target !== document.body && target.matches('button:not(:disabled), [role="switch"], a[href]')) {
+    event.preventDefault();
+    target.click();
+    return;
+  }
+  if (!snapshot.value || ui.confirmId || ui.openPanel) return;
+  const onBody = !target || target === document.body || target === document.documentElement;
+  if (game.value && onBody && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
+    event.preventDefault();
+    const start = game.value.board[boardCursor.value]?.revealed === false ? boardCursor.value : firstPlayableCard();
+    focusCard(start);
+    return;
+  }
+  if (!game.value || game.value.phase === 'finished') return;
+  const letter = key.length === 1 ? key.toLocaleLowerCase('en-US') : '';
+  if (canGuessNow.value) {
+    if ((letter === 'g' || (key === 'Enter' && onBody)) && selectedGuessCard.value && !selectedGuessCard.value.revealed) {
+      event.preventDefault(); void submitGuess(); return;
+    }
+    if (letter === 'e') { event.preventDefault(); void endTurn(); return; }
+    if (key === ' ' && onBody) {
+      event.preventDefault();
+      const card = game.value.board[boardCursor.value];
+      if (card && !card.revealed) handleCardClick(card);
+      return;
+    }
+  }
+  if (canHintNow.value && (letter === 'h' || (key === 'Enter' && onBody))) {
+    if (focusField('#hint-word-input')) event.preventDefault();
+    return;
+  }
+  if (key === '/' && focusField('#chat-input')) event.preventDefault();
+  else if (key === ' ' && onBody) event.preventDefault();
+}
+// A mouse or touch click must not leave focus on a button: a later Space or
+// Enter (often forwarded by the Play hub) would press it again.
+function dropPointerFocus(event: MouseEvent) {
+  if (event.detail === 0) return; // keyboard activation keeps focus
+  const button = (event.target as HTMLElement | null)?.closest?.('button');
+  if (!button) return;
+  const index = boardRefs.value.indexOf(button as HTMLButtonElement);
+  if (index >= 0) boardCursor.value = index;
+  requestAnimationFrame(() => { if (document.activeElement === button) button.blur(); });
+}
+
 function handleCardClick(card: BoardCard) {
   if (!game.value) return;
   if (canGuessNow.value && !card.revealed) {
@@ -873,6 +967,8 @@ onMounted(() => {
   document.body.classList.toggle('party-mode',isTournament);
   document.addEventListener('pointerdown', unlockSound);
   document.addEventListener('keydown', unlockSound);
+  document.addEventListener('keydown', onGlobalKeydown);
+  document.addEventListener('click', dropPointerFocus, true);
   if (socket.connected) {setConnection(true);void tryAutoRejoin();}
   syncDocumentLanguage();
   syncSceneClasses();
@@ -891,6 +987,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', unlockSound);
   document.removeEventListener('keydown', unlockSound);
+  document.removeEventListener('keydown', onGlobalKeydown);
+  document.removeEventListener('click', dropPointerFocus, true);
   for (const [event, handler] of socketSubscriptions) socket.off(event, handler);
   document.body.classList.remove(...SCENE_CLASSES, 'colorblind-mode', 'theatrical-mode');
   if (liveTimer) {
@@ -1089,13 +1187,14 @@ onBeforeUnmount(() => {
                     :ref="(el) => setBoardRef(index, el as HTMLButtonElement | null)"
                     type="button"
                     :class="getBoardCardClasses(card)"
-                    :tabindex="index === 0 ? 0 : -1"
+                    :tabindex="index === boardCursor ? 0 : -1"
                     :disabled="!game || (!canGuessNow && !isSpymasterSelectionEnabled(card))"
                     :aria-pressed="!card.revealed && (ui.selectedGuessIndex === card.index || spymasterSelectedIndexes.includes(card.index))"
                     :title="markerTitle(card.marks)"
                     :aria-label="getCardLabel(card)"
                     @click="() => handleCardClick(card)"
                     @keydown="(event) => handleBoardKeydown(event as KeyboardEvent, index)"
+                    @focus="boardCursor = index"
                   >
                     <div class="card-inner">
                       <div class="card-front">
@@ -1165,10 +1264,10 @@ onBeforeUnmount(() => {
               <section id="guess-section" class="ctrl-panel guess-ctrl" :class="{ hidden: !canGuessNow }">
                 <div v-if="canGuessNow" class="guess-row">
                   <span id="selected-guess" class="selected-label">{{ guessLabel }}</span>
-                  <button id="submit-guess-btn" class="btn btn-primary" type="button" :disabled="!selectedGuessCard || !canGuessNow" @click="() => void submitGuess()">
+                  <button id="submit-guess-btn" class="btn btn-primary" type="button" aria-keyshortcuts="G" :title="`${t('submit_guess')} (G)`" :disabled="!selectedGuessCard || !canGuessNow" @click="() => void submitGuess()">
                     {{ t('submit_guess') }}
                   </button>
-                  <button id="end-turn-btn" class="btn btn-ghost" type="button" @click="() => void endTurn()">
+                  <button id="end-turn-btn" class="btn btn-ghost" type="button" aria-keyshortcuts="E" :title="`${t('end_turn')} (E)`" @click="() => void endTurn()">
                     {{ t('end_turn') }}
                   </button>
                 </div>
@@ -1210,6 +1309,7 @@ onBeforeUnmount(() => {
                     <span v-if="player.bot" class="bot-tag" :title="t('tag_bot_title', { skill: t(`bot_skill_${player.skill || 'normal'}`) })">{{ t('tag_bot') }}</span>
                     <VoiceBadge :name="player.name" :in-voice="!!player.inVoice" :muted="!!player.voiceMuted" :speaking="playerIsSpeaking(player.sessionId)" :volume="peerVolume(player.sessionId)" @volume="value => setPeerVolume(player.sessionId, value)" />
                     <span v-if="player.isHost" class="chip-status" :title="t('tag_host')" :aria-label="t('tag_host')">★</span>
+                    <button v-if="player.bot && canManageBots" class="bot-remove" type="button" :aria-label="t('remove_bot', { name: player.name })" :title="t('remove_bot', { name: player.name })" @click.stop="() => void removeBot(player.sessionId)">×</button>
                     <span v-if="!player.connected" class="chip-status">· {{ t('tag_offline') }}</span>
                   </li>
                 </ul>
@@ -1219,6 +1319,14 @@ onBeforeUnmount(() => {
                     <button v-else class="spymaster-filled" type="button" :aria-pressed="roleTeamSelected(group.team, 'spymaster')" :disabled="isTournament || !roleTeamSelected(group.team, 'spymaster')" :title="t('lobby_spymaster_is', { name: spymasters[group.team].map(player => player.name).join(', ') })" @click="setRole('spymaster', group.team)">{{ t('spymaster') }}</button>
                   </div>
                   <button v-if="!isTournament" class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, 'operative')" @click.stop="setRole('operative', group.team)">{{ t('operative') }}</button>
+                  <div v-if="canManageBots" class="bot-add-row">
+                    <select v-model="botSkill[group.team]" class="bot-skill-select" :aria-label="t('bot_skill_label')">
+                      <option value="easy">{{ t('bot_skill_easy') }}</option>
+                      <option value="normal">{{ t('bot_skill_normal') }}</option>
+                      <option value="hard">{{ t('bot_skill_hard') }}</option>
+                    </select>
+                    <button class="bot-add-btn" type="button" :aria-label="t('add_bot_label', { team: formatTeam(group.team) })" :disabled="botCount >= 6" @click.stop="() => void addBot(group.team)">+ {{ t('add_bot') }}</button>
+                  </div>
                 </div>
               </section>
 
@@ -1252,7 +1360,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div id="sheet-container" class="sheet-container" @keydown.esc="ui.closePanel()">
+        <div id="sheet-container" class="sheet-container">
           <div id="sheet-backdrop" class="sheet-backdrop" :class="{ visible: !!ui.openPanel }" @click="ui.closePanel()"></div>
 
           <div class="sheet-panel" id="sheet-settings" data-sheet="settings" :class="{ 'sheet-open': ui.openPanel === 'settings' }">

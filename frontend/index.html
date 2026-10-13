@@ -14,7 +14,7 @@
     <script>
       (function(){
         var p='auto';
-        try{p=localStorage.getItem('taccan.theme.v1')||'auto'}catch(e){}
+        try{p=localStorage.getItem('murmur.theme.v1')||'auto'}catch(e){}
         var t=p;
         if(p==='auto')t=matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';
         document.documentElement.setAttribute('data-theme',t);
