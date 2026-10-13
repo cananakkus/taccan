@@ -3728,11 +3728,58 @@ html[data-theme="dark"] .room-screen .lobby-tools button { color: var(--ink); }
 }
 
 /* ── Bots in normal rooms (host only, lobby) ── */
-.room-screen.is-lobby #sheet-teams .lobby-team-actions .bot-add-row { grid-column: 1 / -1; display: flex; gap: 6px; min-width: 0; }
-.room-screen #sheet-teams .bot-skill-select { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 4px 8px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; font: 15px/1.1 var(--font-body); }
-.room-screen #sheet-teams .bot-skill-select option { color: var(--ink); background: var(--paper-light); }
-.room-screen.is-lobby #sheet-teams .lobby-team-actions .bot-add-row .bot-add-btn { flex: 0 0 auto; width: auto; min-height: 40px; padding: 6px 12px; border-style: dashed; }
-.room-screen #sheet-teams .bot-skill-select:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.room-screen #sheet-teams .bot-add-select {
+  flex: none; max-width: 7.5em; margin-left: 6px; min-height: 30px; padding: 2px 4px;
+  border: 1px dashed currentColor; border-radius: 6px; background: transparent; color: inherit;
+  font: 600 13px/1.1 var(--font-body); cursor: pointer;
+}
+.room-screen #sheet-teams .team-red .bot-add-select { color: var(--text-red); }
+.room-screen #sheet-teams .team-blue .bot-add-select { color: var(--text-blue); }
+.room-screen #sheet-teams .bot-add-select option { color: var(--ink); background: var(--paper-light); }
+.room-screen #sheet-teams .bot-add-select:hover:not(:disabled), .room-screen #sheet-teams .bot-add-select:focus-visible { border-style: solid; outline: 2px solid currentColor; outline-offset: 1px; }
+.room-screen #sheet-teams .bot-add-select:disabled { opacity: .5; cursor: default; }
+@media (pointer: coarse) { .room-screen #sheet-teams .bot-add-select { min-height: 36px; } }
+/* Phones: one combined picker beside the room code instead of one per team. */
+.room-screen .lobby-tools .bot-add-select.combined { display: none; }
+@media (max-width: 600px) {
+  .room-screen #sheet-teams .team-head .bot-add-select { display: none; }
+  .room-screen .lobby-tools .bot-add-select.combined {
+    display: block; min-height: 36px; max-width: 7em; padding: 2px 6px; border: 1px dashed var(--border-dark); border-radius: 6px;
+    background: transparent; color: var(--ink); font: 600 14px/1.1 var(--font-body);
+  }
+}
 .room-screen #sheet-teams .bot-remove { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; margin-left: 2px; padding: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--ink-light); font: 700 16px/1 var(--font-body); cursor: pointer; }
 .room-screen #sheet-teams .bot-remove:hover, .room-screen #sheet-teams .bot-remove:focus-visible { border-color: currentColor; color: var(--danger, #a51d29); outline: none; }
 @media (pointer: coarse) { .room-screen #sheet-teams .bot-remove { width: 32px; height: 32px; } }
+
+/* ── Phones held sideways: the board fills the height on the right, the two
+   clue panels and the turn controls sit beside it. The board used to get
+   ~150 px under stacked clue and control rows, so cards were 26 px tall and
+   a guess marker covered the word. ── */
+@media (min-width: 540px) and (max-width: 900px) and (max-height: 500px) {
+  .room-screen:not(.is-lobby) .stage-layout {
+    display: grid; grid-template-columns: minmax(176px, 29%) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 6px 8px; align-items: start;
+  }
+  .room-screen:not(.is-lobby) .board-area { display: contents; }
+  .room-screen:not(.is-lobby) #hint-display { grid-column: 1; grid-row: 1; grid-template-columns: minmax(0, 1fr); gap: 4px; min-height: 0; }
+  .room-screen:not(.is-lobby) #hint-display .clue-slot { min-height: 0; }
+  .room-screen:not(.is-lobby) .board-wrap { grid-column: 2; grid-row: 1 / 4; }
+  .room-screen:not(.is-lobby) .board { height: calc(100dvh - var(--navbar-height) - 24px - 34px - 16px); max-height: none; }
+  .room-screen:not(.is-lobby) .controls-strip { grid-column: 1; grid-row: 2; min-width: 0; }
+  .room-screen:not(.is-lobby) .room-sidebar { grid-column: 1 / -1; grid-row: 4; }
+  .room-screen:not(.is-lobby) #hint-section, .room-screen:not(.is-lobby) #guess-section, .room-screen:not(.is-lobby) #result-section { padding: 6px; }
+  .room-screen:not(.is-lobby) .hint-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+  .room-screen:not(.is-lobby) .hint-form #hint-word-input { grid-column: 1 / -1; min-height: 40px; }
+  .room-screen:not(.is-lobby) .hint-form .btn-primary { min-height: 40px; padding-inline: 10px; }
+  .room-screen:not(.is-lobby) .guess-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+  .room-screen:not(.is-lobby) .guess-row .selected-label { grid-column: 1 / -1; font-size: 14px; line-height: 18px; overflow-wrap: anywhere; }
+  .room-screen:not(.is-lobby) .guess-row .btn { min-height: 40px; padding-inline: 6px; font-size: 13px; }
+  .room-screen:not(.is-lobby) .result-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .room-screen:not(.is-lobby) .result-actions .btn { min-height: 40px; padding-inline: 8px; flex: 1 1 auto; }
+  .room-screen:not(.is-lobby) .result-text { font-size: 14px; line-height: 18px; margin-bottom: 6px; }
+  /* Cards are tall enough again for the word and a marker strip. */
+  .room-screen .card.marked .card-front { padding-bottom: 16px; }
+  .room-screen .card.marked .card-word { font-size: inherit !important; line-height: 1.1; }
+  .room-screen .card-markers { max-height: 14px; }
+}

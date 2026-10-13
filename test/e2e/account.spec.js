@@ -6,7 +6,7 @@ const accountSecret = 'browser-test-account-key';
 let ctx, origin;
 function proof(exp) {
   const head = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
-  const body = Buffer.from(JSON.stringify({ iss: 'wleeaf-play', aud: 'taccan', sub: 'browser-account', name: 'Wleeaf Player', exp })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({ iss: 'wleeaf-play', aud: 'murmur', sub: 'browser-account', name: 'Wleeaf Player', exp })).toString('base64url');
   return `${head}.${body}.${createHmac('sha256', accountSecret).update(`${head}.${body}`).digest('base64url')}`;
 }
 test.beforeAll(async () => {
@@ -43,7 +43,7 @@ test('Wleeaf account renews without interrupting room membership or two-way voic
       window.Wleeaf = {
         me: async () => ({ user: { name: 'Wleeaf Player' } }),
         session: async game => {
-          if (game !== 'taccan') throw new Error('Wrong account audience');
+          if (game !== 'murmur') throw new Error('Wrong account audience');
           return { token: window.testAccountExchanges++ === 0 ? initial : renewed };
         },
         login: () => {}, logout: async () => {},
@@ -54,7 +54,7 @@ test('Wleeaf account renews without interrupting room membership or two-way voic
     await expect(owner.locator('#join-panel input').first()).toBeDisabled();
     await owner.locator('#room-action-btn').click();
     await expect(owner.locator('#room-panel')).toBeVisible();
-    const saved = await owner.evaluate(() => JSON.parse(localStorage.getItem('taccan.session.v1')));
+    const saved = await owner.evaluate(() => JSON.parse(localStorage.getItem('murmur.session.v1')));
     const player = ctx.rooms.get(saved.code).players.get(saved.sessionId);
     const socketId = player.socketId;
     expect(player.accountId).toBe('browser-account');

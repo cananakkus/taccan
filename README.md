@@ -28,7 +28,7 @@ Voice remains free. The server adapter in `backend/voice-infrastructure.js` acce
 
 ## Wleeaf accounts
 
-The optional `/account/client.js` SDK comes from the shared Play gateway. Its `session('taccan')` exchange supplies a five-minute signed proof; the historical audience remains `taccan` after the rename. Configure the matching `PLAY_ACCOUNT_SECRET` in this backend. Keycloak continues to own registration, passwords, verification and recovery. This game never receives provider refresh tokens or stores passwords.
+The optional `/account/client.js` SDK comes from the shared Play gateway. Its `session('murmur')` exchange supplies a five-minute signed proof for the `murmur` audience. Configure the matching `PLAY_ACCOUNT_SECRET` in this backend. Keycloak continues to own registration, passwords, verification and recovery. This game never receives provider refresh tokens or stores passwords.
 
 Signed-in players use their verified account name and own their room seat. `account:refresh` renews the proof on the existing socket before expiry, preserving the room and voice call. It cannot switch to a different identity. If the account gateway is temporarily unavailable, refresh retries while the current proof remains valid; the server closes the connection when an unrenewed proof expires. A failed initial account exchange reports a connection failure and retries instead of silently changing an authenticated player into a guest. Standalone deployments without the SDK still support guests normally.
 

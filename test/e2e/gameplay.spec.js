@@ -50,7 +50,7 @@ async function openPlayer(browser, code) {
 }
 
 async function session(page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('taccan.session.v1')));
+  return page.evaluate(() => JSON.parse(localStorage.getItem('murmur.session.v1')));
 }
 
 async function receivedAudio(page) {
@@ -496,8 +496,7 @@ test('one room action switches between creation and joining, including Enter', a
   const hostSession = await session(host);
   const guest = await browser.newPage();
   try {
-    await guest.goto(`${origin}/wordmurmur/`);
-    await expect(guest).toHaveURL(`${origin}/murmur/`);
+    await guest.goto(`${origin}/murmur/`);
     await expect(guest).toHaveTitle('MURMUR');
     const action = guest.locator('#room-action-btn');
     await expect(guest.locator('.join-form button')).toHaveCount(1);

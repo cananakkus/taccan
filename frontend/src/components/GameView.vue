@@ -633,11 +633,15 @@ async function setRole(role: 'spymaster' | 'operative' | 'spectator', roleTeam?:
   }
 }
 
-const botSkill = ref<Record<'red' | 'blue', 'easy' | 'normal' | 'hard'>>({ red: 'normal', blue: 'normal' });
 const botCount = computed(() => players.value.filter((player) => player.bot).length);
 const canManageBots = computed(() => !isTournament && Boolean(me.value?.isHost) && (!game.value || game.value.phase === 'finished'));
-async function addBot(team: 'red' | 'blue') {
-  await emitWithAck('room:bot_add', { team, skill: botSkill.value[team] }).catch((error: Error) => ui.showToast(error.message, 'error'));
+// One compact control per team: choosing a skill seats a bot at once.
+async function onBotSelect(team: string, event: Event) {
+  const select = event.target as HTMLSelectElement;
+  const skill = select.value.split(':').pop();
+  select.value = '';
+  if (team !== 'red' && team !== 'blue') return;
+  await emitWithAck('room:bot_add', { team, skill }).catch((error: Error) => ui.showToast(error.message, 'error'));
 }
 async function removeBot(sessionId: string) {
   await emitWithAck('room:bot_remove', { sessionId }).catch((error: Error) => ui.showToast(error.message, 'error'));
@@ -1161,6 +1165,12 @@ onBeforeUnmount(() => {
               <button id="room-code" class="room-code-val" type="button" :aria-label="t('copy_room_code')" @click="copyRoomCode"><small>{{ t('room_code') }}</small><strong>{{ room?.code || '----' }}</strong></button>
               <button class="btn btn-ghost invite-link-btn" type="button" :aria-label="t('copy_invite')" :title="t('copy_invite')" @click="copyInviteLink"><span class="invite-full">{{ t('copy_invite') }}</span><span class="invite-short">{{ t('invite_short') }}</span></button>
               <button id="mode-badge" class="mode-tag" type="button" :title="t('panel_settings')" @click="ui.togglePanel('settings')">{{ t(roomMode === 'blitz' ? 'mode_blitz' : 'mode_casual') }}</button>
+              <select v-if="canManageBots && !game" class="bot-add-select combined" :aria-label="t('add_bot')" :disabled="botCount >= 6" value="" @change="onBotSelect(($event.target as HTMLSelectElement).value.split(':')[0], $event)">
+                  <option value="" disabled>+ {{ t('add_bot') }}</option>
+                  <optgroup v-for="team in (['red', 'blue'] as const)" :key="team" :label="t(team === 'red' ? 'red_team' : 'blue_team')">
+                    <option v-for="skill in (['easy', 'normal', 'hard'] as const)" :key="skill" :value="`${team}:${skill}`">{{ formatTeam(team) }} · {{ t(`bot_skill_${skill}`) }}</option>
+                  </optgroup>
+                </select>
             </div>
           </header>
           <div class="stage-layout">
@@ -1301,6 +1311,12 @@ onBeforeUnmount(() => {
                 <div class="team-head">
                   <span class="team-dot" :class="group.team"></span>
                   <h3>{{ t(group.title) }}</h3><span class="roster-count">{{ group.members.length }}</span>
+                  <select v-if="canManageBots && !game && group.team !== 'none'" class="bot-add-select" :aria-label="t('add_bot_label', { team: formatTeam(group.team) })" :title="t('add_bot_label', { team: formatTeam(group.team) })" :disabled="botCount >= 6" value="" @click.stop @change="onBotSelect(group.team, $event)">
+                    <option value="" disabled>+ {{ t('add_bot') }}</option>
+                    <option value="easy">{{ t('bot_skill_easy') }}</option>
+                    <option value="normal">{{ t('bot_skill_normal') }}</option>
+                    <option value="hard">{{ t('bot_skill_hard') }}</option>
+                  </select>
                 </div>
                 <ul :id="group.team === 'none' ? 'spectator-list' : `${group.team}-team-list`" class="player-list" :aria-label="t(group.title)" tabindex="0">
                   <li v-if="!group.members.length" class="team-empty">{{ t(group.team === 'none' ? 'no_spectators' : 'no_team_players') }}</li>
@@ -1319,20 +1335,12 @@ onBeforeUnmount(() => {
                     <button v-else class="spymaster-filled" type="button" :aria-pressed="roleTeamSelected(group.team, 'spymaster')" :disabled="isTournament || !roleTeamSelected(group.team, 'spymaster')" :title="t('lobby_spymaster_is', { name: spymasters[group.team].map(player => player.name).join(', ') })" @click="setRole('spymaster', group.team)">{{ t('spymaster') }}</button>
                   </div>
                   <button v-if="!isTournament" class="operative-join-target" type="button" :aria-label="`${t('join_operative')} · ${formatTeam(group.team)}`" :aria-pressed="roleTeamSelected(group.team, 'operative')" @click.stop="setRole('operative', group.team)">{{ t('operative') }}</button>
-                  <div v-if="canManageBots" class="bot-add-row">
-                    <select v-model="botSkill[group.team]" class="bot-skill-select" :aria-label="t('bot_skill_label')">
-                      <option value="easy">{{ t('bot_skill_easy') }}</option>
-                      <option value="normal">{{ t('bot_skill_normal') }}</option>
-                      <option value="hard">{{ t('bot_skill_hard') }}</option>
-                    </select>
-                    <button class="bot-add-btn" type="button" :aria-label="t('add_bot_label', { team: formatTeam(group.team) })" :disabled="botCount >= 6" @click.stop="() => void addBot(group.team)">+ {{ t('add_bot') }}</button>
-                  </div>
                 </div>
               </section>
 
-              <div v-if="!game || game.phase === 'finished' || (me?.isHost && players.some(player => !player.connected))" class="sidebar-actions">
+              <div v-if="!game || (me?.isHost && !isTournament && players.some(player => !player.connected))" class="sidebar-actions">
                 <p v-if="!game" class="readiness-note" :class="{ ready: !readinessIssue && me?.isHost }">{{ me?.isHost ? (readinessIssue || t('ready_to_start')) : t('lobby_waiting_host') }}</p>
-                <button v-if="!isTournament" id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost || !!(game && game.phase !== 'finished') }" :disabled="!!readinessIssue || !!(game && game.phase !== 'finished')" @click="() => void startGame()">
+                <button v-if="!isTournament && !game" id="start-game-btn" class="btn btn-accent btn-lg" type="button" :class="{ hidden: !me?.isHost }" :disabled="!!readinessIssue" @click="() => void startGame()">
                   {{ t('start_game') }}
                 </button>
                 <button v-if="!isTournament" id="prune-btn" class="btn btn-ghost btn-sm" type="button" :class="{ hidden: !me?.isHost || !players.some(player => !player.connected) }" @click="() => void pruneDisconnected()">
